@@ -1,23 +1,25 @@
-# Event-Ticketing-Platform-with-Fraud-Detection
+# Event Ticketing Platform
 
 A production-grade event ticketing system with real-time seat reservation, secure payments, QR-based check-in, and fraud detection.
 
-# Features
-Event & venue management (seat maps / general admission)
-Real-time seat locking to prevent overselling
-Secure checkout via Stripe (test mode)
-QR-code ticket generation & check-in scanning
-Order history, refunds, and ticket transfers
-Fraud/anomaly detection on suspicious purchases
-# Tech Stack
-Backend: FastAPI, PostgreSQL, Redis, Celery
-Frontend: Fill up according to your tech stack
-Fraud Detection Model : Full up according to your tech stack
-Payment system: Not our Goal for now
-Infrastructure: Docker & Docker Compose (If anyone know more about Deployment they can add some more points)
-# Architecture Overview
-Client browses events → selects seats → temporary hold placed in Redis
-Checkout triggers Stripe Payment Intent
-On payment success , seat status confirmed in Postgres
-Ticket issued with unique QR code
-Check-in scans QR → validates against Postgres → marks ticket used
+## Features
+- Event & venue management (seat maps / general admission)
+- Real-time seat locking to prevent overselling
+- Secure checkout via Stripe (test mode)
+- QR-code ticket generation & check-in scanning
+- Order history, refunds, and ticket transfers
+- Fraud/anomaly detection on suspicious purchases
+
+## Tech Stack
+- **Backend:** FastAPI, PostgreSQL, Redis, Celery
+- **Frontend:** Fill up according to your tech stack
+- **Fraud Detection Model:** Fill up according to your tech stack
+- **Payment System:** Not our goal for now
+- **Infrastructure:** Docker & Docker Compose (add deployment details if anyone knows more)
+
+## Architecture Overview
+1. Client browses events → selects seats → temporary hold placed in Redis
+2. Checkout triggers Stripe Payment Intent
+3. On payment success, seat status confirmed in Postgres
+4. Ticket issued with unique QR code
+5. Check-in scans QR → validates against Postgres → marks ticket used
