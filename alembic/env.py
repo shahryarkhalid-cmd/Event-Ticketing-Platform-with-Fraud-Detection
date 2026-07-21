@@ -10,6 +10,7 @@ import os
 import sys
 from dotenv import load_dotenv
 from sqlmodel import SQLModel
+import sqlmodel 
 
 # Add your project root to the path so imports work
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -18,7 +19,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from app.models.Users import User
 
 
-# from app.models.event import Event   <- add these as you create them
+from app.models.Event import Event
 # from app.models.seat import Seat
 
 load_dotenv()
@@ -27,53 +28,45 @@ load_dotenv()
 config = context.config
 
 # Interpret the config file for Python logging.
-# This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
 target_metadata = SQLModel.metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+
+# --- ADD THIS FUNCTION HERE ---
+def render_item(type_, obj, autogen_context):
+    if type_ == "type" and isinstance(obj, sqlmodel.sql.sqltypes.AutoString):
+        autogen_context.imports.add("import sqlmodel")
+    return False 
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
-    ...
-    """
     url = os.getenv("DATABASE_URL")
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_item=render_item,         
     )
 
     with context.begin_transaction():
         context.run_migrations()
 
+
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
     connectable = engine_from_config(
-    {"sqlalchemy.url": os.getenv("DATABASE_URL")},
-    prefix="sqlalchemy.",
-    poolclass=pool.NullPool,
-)
+        {"sqlalchemy.url": os.getenv("DATABASE_URL")},
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            render_item=render_item,    
         )
 
         with context.begin_transaction():
