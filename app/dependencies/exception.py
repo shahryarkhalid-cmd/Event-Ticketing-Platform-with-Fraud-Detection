@@ -1,0 +1,26 @@
+class Email_exist(Exception):
+    pass
+
+class User_Exist(Exception):
+    pass
+
+class password_mismatch(Exception):
+    pass
+class Email_registration(Exception):
+    pass
+
+from fastapi.responses import JSONResponse
+from fastapi import Request
+def email_existing(req : Request , exec : Email_exist):
+    return JSONResponse(status_code=409 , content= {"detail" :  "Email already exists."})
+
+
+def user_existence(req : Request , exec : User_Exist):
+    return JSONResponse(status_code=409 , content = {"detail" : "User already exist."})
+
+def incorrect_password(req : Request , exec : password_mismatch):
+    return JSONResponse(status_code=400 , content= {"detail" :  "Password Mismatched"})
+
+def email_reg(req : Request , exec : Email_registration):
+    
+    return JSONResponse(status_code = 404 , content = {"detail" :  "Email or password is incorrect."})
