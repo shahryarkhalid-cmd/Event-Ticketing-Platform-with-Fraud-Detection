@@ -13,7 +13,7 @@ A production-grade event ticketing system with real-time seat reservation, secur
 ## Tech Stack
 - **Backend:** FastAPI, PostgreSQL, Redis, Celery
 - **Frontend:** Fill up according to your tech stack
-- **Fraud Detection Model:** Fill up according to your tech stack
+- **Fraud Detection Model:** Python, Pandas, NumPy, Scikit-learn, Matplotlib, Seaborn, MLflow, Pickle, Python Logging,Jupyter Notebook.
 - **Payment System:** Not our goal for now
 - **Infrastructure:** Docker & Docker Compose (add deployment details if anyone knows more)
 
