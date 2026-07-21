@@ -8,6 +8,7 @@ from models.Users import UserCreate , UserLogin , User
 from models.Event import EventCreate
 from services.User_services import get_current_user
 from services.Organizer_services import Make_Event
+from fastapi.middleware.cors import CORSMiddleware
 from dependencies.exception import Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , incorrect_password , email_reg, forbidden , Forbidden
 def lifespan(app : FastAPI):
     create_table()
@@ -16,6 +17,14 @@ def lifespan(app : FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 logging.basicConfig(

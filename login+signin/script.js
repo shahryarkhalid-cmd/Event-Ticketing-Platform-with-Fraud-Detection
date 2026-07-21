@@ -130,14 +130,26 @@
    *     body: JSON.stringify({ email, password })
    *   });
    */
-  function handleLogin(email, password) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ ok: true });
-      }, 1400);
+  async function handleLogin(email, password) {
+  try {
+    const response = await fetch('http://localhost:8000/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
     });
-  }
 
+    if (!response.ok) {
+      return { ok: false };
+    }
+
+    const data = await response.json();
+    localStorage.setItem('access_token', data.access_token);
+    return { ok: true };
+  } catch (err) {
+    console.error('Login request failed:', err);
+    return { ok: false };
+  }
+}
   form.addEventListener('submit', function (event) {
     event.preventDefault();
 

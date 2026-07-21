@@ -178,13 +178,28 @@
    *     body: JSON.stringify({ fullname, email, password })
    *   });
    */
-  function handleSignup(fullname, email, password) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({ ok: true });
-      }, 1400);
+  async function handleSignup(fullname, email, password) {
+  try {
+    const response = await fetch('http://localhost:8000/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name: fullname,
+        email: email,
+        password: password
+      })
     });
+
+    if (!response.ok) {
+      return { ok: false };
+    }
+
+    return { ok: true };
+  } catch (err) {
+    console.error('Signup request failed:', err);
+    return { ok: false };
   }
+}
 
   form.addEventListener('submit', function (event) {
     event.preventDefault();
