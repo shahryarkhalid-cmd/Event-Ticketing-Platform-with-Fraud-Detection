@@ -4,8 +4,11 @@ from database import create_table
 from sqlmodel import Session ,select
 from database import get_session
 from services.User_services import register_user , logging_in
-from models.Users import UserCreate , UserLogin
-from dependencies.exception import Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , incorrect_password , email_reg
+from models.Users import UserCreate , UserLogin , User
+from models.Event import EventCreate
+from services.User_services import get_current_user
+from services.Organizer_services import Make_Event
+from dependencies.exception import Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , incorrect_password , email_reg, forbidden , Forbidden
 def lifespan(app : FastAPI):
     create_table()
     yield
@@ -27,6 +30,7 @@ app.add_exception_handler(Email_exist , email_existing)
 app.add_exception_handler(User_Exist , user_existence)
 app.add_exception_handler(password_mismatch , incorrect_password)
 app.add_exception_handler(Email_registration , email_reg)
+app.add_exception_handler(Forbidden , forbidden)
 
 logger = logging.getLogger(__name__)
 # Health checking:
@@ -55,3 +59,7 @@ def register(user : UserCreate , session : Session = Depends(get_session)):
 @ app.post('/auth/login')
 def login(user : UserLogin , session : Session = Depends(get_session)):
     return logging_in(user , session)
+
+@ app.post('/make_event')
+def make_event(event : EventCreate , user : User = Depends(get_current_user) ,session : Session = Depends(get_session)):
+    return Make_Event(event , user , session)

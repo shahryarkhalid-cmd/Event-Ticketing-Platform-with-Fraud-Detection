@@ -15,7 +15,7 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, index=True)
     hashed_password: str
     full_name: str
-    role: UserRole = Field(default=UserRole.customer)
+    role: UserRole = Field(default=UserRole.organizer)
     is_active: bool = Field(default=True)
     is_verified: bool = Field(default=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

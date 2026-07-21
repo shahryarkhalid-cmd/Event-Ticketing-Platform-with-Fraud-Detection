@@ -8,6 +8,9 @@ class password_mismatch(Exception):
     pass
 class Email_registration(Exception):
     pass
+class Forbidden(Exception):
+    pass
+
 
 from fastapi.responses import JSONResponse
 from fastapi import Request
@@ -24,3 +27,6 @@ def incorrect_password(req : Request , exec : password_mismatch):
 def email_reg(req : Request , exec : Email_registration):
     
     return JSONResponse(status_code = 404 , content = {"detail" :  "Email or password is incorrect."})
+
+def forbidden(req : Request , exec : Forbidden):
+    return JSONResponse(status_code=403 , content={"detail" : "Forbidden"})
