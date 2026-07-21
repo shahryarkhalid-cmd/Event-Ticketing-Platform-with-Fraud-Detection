@@ -13,3 +13,13 @@ def Make_Event( event : EventCreate , user : User , session : Session):
     session.add(final_event)
     logging.info("Event has been created")
     return {"message" : "Event has been created"}
+
+
+def get_organizer_events(user : User , session : Session):
+    if user.role != "organizer":
+        logging.error("User is not the organizer")
+        raise Forbidden()
+ 
+    listed_events = session.exec(select(Event).where(Event.organizer_id == user.id)).all()
+    return listed_events
+    
