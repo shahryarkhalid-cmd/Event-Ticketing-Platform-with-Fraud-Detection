@@ -9,6 +9,3 @@ def test_event(client):
     response = client.post('/make_event' , json= {"name" : "Tekken event" , "description" : "The Tekken 8 event" , "venue" : "Lahore" , "date" : "2024-03-02"} , headers ={"Authorization" : f'Bearer {header_1}'})
     assert response.json() == {"message": "Event has been created"}
     
-import os 
-from dotenv import load_dotenv
-print("SECRET_KEY:", repr(os.getenv("SECRET_KEY")))
