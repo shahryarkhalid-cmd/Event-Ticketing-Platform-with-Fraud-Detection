@@ -1,0 +1,31 @@
+from sqlmodel import SQLModel, Field
+from typing import Optional
+from datetime import datetime
+from datetime import timezone
+from enum import Enum
+from pydantic import BaseModel
+class UserRole(str, Enum):
+    customer = "customer"
+    organizer = "organizer"
+    staff = "staff"
+    admin = "admin"
+
+class User(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    email: str = Field(unique=True, index=True)
+    hashed_password: str
+    full_name: str
+    role: UserRole = Field(default=UserRole.customer)
+    is_active: bool = Field(default=True)
+    is_verified: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = Field(default=None)
+    
+class UserCreate(BaseModel):
+    email : str 
+    full_name : str
+    password : str
+    
+class UserLogin(BaseModel):
+    email : str
+    password : str
