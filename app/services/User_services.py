@@ -12,11 +12,11 @@ from dependencies.token import create_token
 
 import logging
 oauth_scheme = OAuth2PasswordBearer(tokenUrl='login')
-
+ALGORITHM = "HS256"
 # Getting the current User Identity:
 def get_current_user(token: str = Depends(oauth_scheme), session: Session = Depends(get_session)):
     try:
-        payload = jwt.decode(token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")])
+        payload = jwt.decode(token, os.environ.get("SECRET_KEY"), algorithms=[ALGORITHM])
         user_id = payload.get('sub')
         if user_id is None:
             raise HTTPException(status_code=401, detail='Invalid token')

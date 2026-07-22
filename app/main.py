@@ -7,9 +7,10 @@ from services.User_services import register_user , logging_in
 from models.Users import UserCreate , UserLogin , User
 from models.Event import EventCreate
 from services.User_services import get_current_user
-from services.Organizer_services import Make_Event , get_organizer_events
+from services.Organizer_services import Make_Event , get_organizer_events , delete_organizer_event , delete_all_organizer_event , get_specific_event
 from fastapi.middleware.cors import CORSMiddleware
-from dependencies.exception import Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , incorrect_password , email_reg, forbidden , Forbidden
+from models.Event import EventRead
+from dependencies.exception import Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , incorrect_password , email_reg, forbidden , Forbidden , Event_Not_Found , event_not_found
 def lifespan(app : FastAPI):
     create_table()
     yield
@@ -40,11 +41,12 @@ app.add_exception_handler(User_Exist , user_existence)
 app.add_exception_handler(password_mismatch , incorrect_password)
 app.add_exception_handler(Email_registration , email_reg)
 app.add_exception_handler(Forbidden , forbidden)
+app.add_exception_handler(Event_Not_Found , event_not_found)
 
 logger = logging.getLogger(__name__)
-# Health checking:
+# Health checking and home page:
 @app.get('/')
-def health():
+def home():
     logger.info('Home page')
     return {"message" : "Welcome to Event Ticketing System"}
 
@@ -69,9 +71,23 @@ def register(user : UserCreate , session : Session = Depends(get_session)):
 def login(user : UserLogin , session : Session = Depends(get_session)):
     return logging_in(user , session)
 
-@ app.post('/make_event')
+@ app.post('/make_event' , response_model= EventRead)
 def make_event(event : EventCreate , user : User = Depends(get_current_user) ,session : Session = Depends(get_session)):
     return Make_Event(event , user , session)
+
+
 @ app.get('/get_all_events')
 def get_all_event(user : User = Depends(get_current_user) , session : Session = Depends(get_session)):
     return get_organizer_events(user , session)
+
+@ app.get('/get_event/{id}')
+def get_event(id : int , user : User = Depends(get_current_user) , session : Session = Depends(get_session)):
+    return get_specific_event(id , user , session)
+
+@ app.delete('/delete_event/{id}')
+def delete_event(id : int , user : User = Depends(get_current_user), session : Session = Depends(get_session)):
+    return delete_organizer_event(id , user , session)
+
+@ app.delete('/delete_all_event')
+def delete_all_event(user : User = Depends(get_current_user) , session : Session = Depends(get_session)):
+    return delete_all_organizer_event(user , session)

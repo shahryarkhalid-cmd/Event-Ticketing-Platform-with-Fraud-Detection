@@ -20,3 +20,9 @@ class EventCreate(BaseModel):
     venue: str
     date: datetime
 
+class EventRead(BaseModel):
+    id : int = Field(default = None)
+    name: str
+    description: Optional[str] = None
+    venue: str
+    date: datetime
