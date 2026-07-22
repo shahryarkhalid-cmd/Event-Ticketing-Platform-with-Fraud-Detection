@@ -5,12 +5,14 @@ from sqlmodel import Session ,select
 from database import get_session
 from services.User_services import register_user , logging_in
 from models.Users import UserCreate , UserLogin , User
-from models.Event import EventCreate
+from models.Event import EventCreateWithTiers
 from services.User_services import get_current_user
-from services.Organizer_services import Make_Event , get_organizer_events , delete_organizer_event , delete_all_organizer_event , get_specific_event
+from services.Organizer_services import Make_Event , get_organizer_events , delete_organizer_event , delete_all_organizer_event , get_specific_event , add_ticket_tiers , List_Tickets
 from fastapi.middleware.cors import CORSMiddleware
 from models.Event import EventRead
 from dependencies.exception import Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , incorrect_password , email_reg, forbidden , Forbidden , Event_Not_Found , event_not_found
+from models.Ticket import TicketTierRead , TicketTierBulkCreate
+from typing import List
 def lifespan(app : FastAPI):
     create_table()
     yield
@@ -71,9 +73,13 @@ def register(user : UserCreate , session : Session = Depends(get_session)):
 def login(user : UserLogin , session : Session = Depends(get_session)):
     return logging_in(user , session)
 
-@ app.post('/make_event' , response_model= EventRead)
-def make_event(event : EventCreate , user : User = Depends(get_current_user) ,session : Session = Depends(get_session)):
-    return Make_Event(event , user , session)
+@app.post("/publish-event")
+def publish_event_route(
+    event_data: EventCreateWithTiers,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return Make_Event(event_data, user, session)
 
 
 @ app.get('/get_all_events')
@@ -91,3 +97,9 @@ def delete_event(id : int , user : User = Depends(get_current_user), session : S
 @ app.delete('/delete_all_event')
 def delete_all_event(user : User = Depends(get_current_user) , session : Session = Depends(get_session)):
     return delete_all_organizer_event(user , session)
+
+
+@app.get("/events/{event_id}/ticket-tiers", response_model=List[TicketTierRead])
+def list_ticket_tiers(event_id: int,user : User = Depends(get_current_user),  session: Session = Depends(get_session)):
+    return List_Tickets(event_id ,user ,  session)
+
