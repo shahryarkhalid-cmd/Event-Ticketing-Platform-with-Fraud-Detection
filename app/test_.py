@@ -169,3 +169,54 @@ def test_ticket_system(client):
     print(data)
     assert response.status_code == 200
     assert data[0]["category_name"] ==  'VIP'
+
+# testing customer window 
+def test_search_events(client):
+    client.post('/auth/register', json={
+        'email': 'sherrykhalid86@gmail.com',
+        'full_name': 'shahryar',
+        'password': '12345'
+    })
+    login_ = client.post('/auth/login', json={
+        'email': 'sherrykhalid86@gmail.com',
+        'password': '12345'
+    })
+    header_1 = login_.json()['access_token']
+
+    create_response = client.post(
+        "/publish-event",
+        json=EVENT,
+        headers={"Authorization": f'Bearer {header_1}'}
+    )
+    assert create_response.status_code == 200
+
+    response = client.get("/events/customer")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 1
+
+    response = client.get("/events/customer", params={"search": "Musical"})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 1
+    assert any("Musical" in e["name"] for e in data)
+
+    response = client.get("/events/customer", params={"city": "Lahore"})
+    assert response.status_code == 200
+    data = response.json()
+    assert all(e["city"] == "Lahore" for e in data)
+
+    response = client.get("/events/customer", params={"country": "Pakistan"})
+    assert response.status_code == 200
+    data = response.json()
+    assert all(e["country"] == "Pakistan" for e in data)
+
+    response = client.get("/events/customer", params={"city": "Lahore", "category": "other"})
+    assert response.status_code == 200
+    data = response.json()
+    assert all(e["city"] == "Lahore" and e["category"] == "other" for e in data)
+
+    response = client.get("/events/customer", params={"city": "NoSuchCityXYZ"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data == []

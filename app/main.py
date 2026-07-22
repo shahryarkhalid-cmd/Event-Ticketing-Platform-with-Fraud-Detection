@@ -12,7 +12,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from models.Event import EventRead
 from dependencies.exception import Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , incorrect_password , email_reg, forbidden , Forbidden , Event_Not_Found , event_not_found
 from models.Ticket import TicketTierRead , TicketTierBulkCreate
+from typing import Optional 
+from fastapi import Query
 from typing import List
+from services.Customer_services import search_events_customer
 def lifespan(app : FastAPI):
     create_table()
     yield
@@ -102,4 +105,17 @@ def delete_all_event(user : User = Depends(get_current_user) , session : Session
 @app.get("/events/{event_id}/ticket-tiers", response_model=List[TicketTierRead])
 def list_ticket_tiers(event_id: int,user : User = Depends(get_current_user),  session: Session = Depends(get_session)):
     return List_Tickets(event_id ,user ,  session)
+
+
+# Customer Session: 
+@app.get("/events/customer", response_model=List[EventRead])
+def search_events(
+    session: Session = Depends(get_session),
+    search: Optional[str] = Query(None, description="Search by event name"),
+    venue: Optional[str] = Query(None),
+    city: Optional[str] = Query(None),
+    country: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
+):
+    return search_events_customer(session, search, venue, city, country, category)
 
