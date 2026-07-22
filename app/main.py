@@ -10,11 +10,16 @@ from services.User_services import get_current_user
 from services.Organizer_services import Make_Event , get_organizer_events , delete_organizer_event , delete_all_organizer_event , get_specific_event , add_ticket_tiers , List_Tickets
 from fastapi.middleware.cors import CORSMiddleware
 from models.Event import EventRead
-from dependencies.exception import Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , incorrect_password , email_reg, forbidden , Forbidden , Event_Not_Found , event_not_found
-from models.Ticket import TicketTierRead , TicketTierBulkCreate
+from dependencies.exception import (Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , 
+            incorrect_password , email_reg, forbidden , Forbidden , Event_Not_Found , event_not_found , 
+            Not_customer , not_customer , Ticket_Tier_not_found , no_ticket_tier ,Order_Quantity_Error , less_order_quantity , 
+            Not_Enough_Tickets , not_enough_tickets)
+from models.Ticket import TicketTierRead
 from typing import Optional 
 from fastapi import Query
 from typing import List
+from models.Orders import OrderCreate , OrderRead
+from services.Order_services import get_my_orders , book_ticket
 from services.Customer_services import search_events_customer
 def lifespan(app : FastAPI):
     create_table()
@@ -47,7 +52,10 @@ app.add_exception_handler(password_mismatch , incorrect_password)
 app.add_exception_handler(Email_registration , email_reg)
 app.add_exception_handler(Forbidden , forbidden)
 app.add_exception_handler(Event_Not_Found , event_not_found)
-
+app.add_exception_handler(Not_customer , not_customer)
+app.add_exception_handler(Ticket_Tier_not_found , no_ticket_tier)
+app.add_exception_handler(Order_Quantity_Error , less_order_quantity)
+app.add_exception_handler(Not_Enough_Tickets , not_enough_tickets)
 logger = logging.getLogger(__name__)
 # Health checking and home page:
 @app.get('/')
@@ -119,3 +127,19 @@ def search_events(
 ):
     return search_events_customer(session, search, venue, city, country, category)
 
+# placing the order :
+@app.post("/orders", response_model=OrderRead)
+def create_order(
+    order_data: OrderCreate,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return book_ticket(order_data, user, session)
+
+
+@app.get("/orders/me", response_model=List[OrderRead])
+def my_orders(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return get_my_orders(user, session)

@@ -16,6 +16,18 @@ class Forbidden(Exception):
 class Event_Not_Found(Exception):
     pass
 
+class Not_customer(Exception):
+    pass
+
+class Ticket_Tier_not_found(Exception):
+    pass
+
+
+class Order_Quantity_Error(Exception):
+    pass
+
+class Not_Enough_Tickets(Exception):
+    pass
 from fastapi.responses import JSONResponse
 
 from fastapi import Request
@@ -38,3 +50,15 @@ def forbidden(req : Request , exec : Forbidden):
 
 def event_not_found(req : Request , exec : Event_Not_Found):
     return JSONResponse(status_code=404 , content = {"detail" : "Event not found"})
+
+def not_customer(req : Request , exec : Not_customer):
+    return JSONResponse(status_code=404 , content = {'detail' : 'Not Customer'})
+
+def no_ticket_tier(req : Request , exec : Ticket_Tier_not_found):
+    return JSONResponse(status_code=404 , content = {"detail" : "No Ticket Tier Found"})
+
+def less_order_quantity(req : Request , exec : Order_Quantity_Error):
+    return JSONResponse(status_code=400 , content= {"detail" : "Quantity must be at least 1"})
+
+def not_enough_tickets(req : Request , exec : Not_Enough_Tickets):
+    return JSONResponse(status_code=409 , content={"detail" : "Not enough tickets avalaible"})

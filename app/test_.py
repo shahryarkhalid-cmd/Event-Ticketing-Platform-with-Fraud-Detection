@@ -1,6 +1,7 @@
 import pytest 
 from conftest import client
-
+from models.Users import User , UserRole
+from sqlmodel import select
 EVENT = {
                 "name": "Musical Night",
                 "category": "other",
@@ -220,3 +221,28 @@ def test_search_events(client):
     assert response.status_code == 200
     data = response.json()
     assert data == []
+    
+    
+# testing the order placement :
+def test_book_ticket(client, test_session):
+    # Organizer creates the event (default role)
+    client.post('/auth/register', json={'email': 'organizer@test.com', 'full_name': 'Org', 'password': '12345'})
+    org_login = client.post('/auth/login', json={'email': 'organizer@test.com', 'password': '12345'})
+    org_headers = {"Authorization": f'Bearer {org_login.json()["access_token"]}'}
+
+    create_response = client.post("/publish-event", json=EVENT, headers=org_headers)
+    assert create_response.status_code == 200
+    tier_id = create_response.json()['ticket_tiers'][0]['id']
+
+    # Register a second user, then manually flip their role to customer
+    client.post('/auth/register', json={'email': 'customer@test.com', 'full_name': 'Cust', 'password': '12345'})
+    customer_user = test_session.exec(select(User).where(User.email == 'customer@test.com')).first()
+    customer_user.role = UserRole.customer
+    test_session.add(customer_user)
+    test_session.commit()
+
+    cust_login = client.post('/auth/login', json={'email': 'customer@test.com', 'password': '12345'})
+    cust_headers = {"Authorization": f'Bearer {cust_login.json()["access_token"]}'}
+
+    order_response = client.post("/orders", json={"ticket_tier_id": tier_id, "quantity": 2}, headers=cust_headers)
+    assert order_response.status_code == 200
