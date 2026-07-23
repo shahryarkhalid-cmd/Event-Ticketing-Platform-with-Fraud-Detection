@@ -291,7 +291,7 @@
         <form id="eventForm" class="event-form" novalidate>
           <input type="hidden" id="eventId" />
 
-          <div class="form-section">
+          <div class="form-section" id="tourBasicInfo">
             <h4>Basic Information</h4>
             <div class="form-grid">
               <label class="field">
@@ -313,7 +313,7 @@
             </div>
           </div>
 
-          <div class="form-section">
+          <div class="form-section" id="tourVenue">
             <h4>Venue & Location</h4>
             <div class="form-grid">
               <label class="field"><span>Venue *</span><input type="text" id="f_venue" required placeholder="e.g. Expo Center" /></label>
@@ -323,7 +323,7 @@
             </div>
           </div>
 
-          <div class="form-section">
+          <div class="form-section" id="tourDateTime">
             <h4>Date & Time</h4>
             <div class="form-grid">
               <label class="field"><span>Start Date *</span><input type="date" id="f_startDate" required /></label>
@@ -333,7 +333,7 @@
             </div>
           </div>
 
-          <div class="form-section">
+          <div class="form-section" id="tourCapacity">
             <h4>Capacity & Policies</h4>
             <div class="form-grid">
               <label class="field"><span>Maximum Capacity *</span><input type="number" id="f_capacity" min="1" required placeholder="e.g. 5000" /></label>
@@ -352,7 +352,7 @@
             </div>
           </div>
 
-          <div class="form-section">
+          <div class="form-section" id="tourTickets">
             <div class="form-section-head">
               <h4>Ticket Categories</h4>
               <button type="button" class="btn btn-outline btn-sm" id="addTicketCategoryBtn">

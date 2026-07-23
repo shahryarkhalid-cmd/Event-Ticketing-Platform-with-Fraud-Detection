@@ -462,6 +462,40 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 }
 @keyframes shimmer { to { transform: translateX(100%); } }
 
+/* Create-Event onboarding tour */
+.tour-scrim {
+  position: fixed; inset: 0; z-index: 9997; background: rgba(4, 12, 28, .45);
+  opacity: 0; transition: opacity .35s var(--ease); pointer-events: none;
+}
+.tour-scrim.show { opacity: 1; pointer-events: auto; }
+.tour-highlight {
+  position: fixed; z-index: 9998; border-radius: 14px; pointer-events: none;
+  box-shadow: 0 0 0 4px rgba(76, 201, 240, .55), 0 0 0 9999px rgba(4, 12, 28, .55);
+  transition: top .45s var(--ease), left .45s var(--ease), width .45s var(--ease), height .45s var(--ease), opacity .3s var(--ease);
+  opacity: 0;
+}
+.tour-highlight.show { opacity: 1; }
+.tour-tooltip {
+  position: fixed; z-index: 9999; width: min(280px, 84vw); background: var(--card);
+  border-radius: 14px; padding: 16px 18px; box-shadow: 0 24px 60px rgba(0,0,0,.3);
+  transition: top .45s var(--ease), left .45s var(--ease), opacity .3s var(--ease);
+  opacity: 0; pointer-events: none;
+}
+.tour-tooltip.show { opacity: 1; pointer-events: auto; }
+.tour-eyebrow { font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--secondary); margin: 0 0 6px; }
+.tour-tooltip h4 { margin: 0 0 5px; font-size: 14.5px; font-weight: 700; color: var(--text); }
+.tour-tooltip p { margin: 0 0 12px; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.tour-progress { display: flex; gap: 5px; margin-bottom: 12px; }
+.tour-progress i { flex: 1; height: 3px; border-radius: 3px; background: var(--border); overflow: hidden; position: relative; display: block; }
+.tour-progress i b { position: absolute; inset: 0 100% 0 0; background: var(--secondary); border-radius: 3px; }
+.tour-progress i.done b { inset: 0 0 0 0; }
+.tour-progress i.active b { animation: tourFill var(--step-ms, 950ms) linear forwards; }
+@keyframes tourFill { from { inset: 0 100% 0 0; } to { inset: 0 0 0 0; } }
+.tour-tooltip-foot { display: flex; align-items: center; justify-content: space-between; }
+.tour-skip { border: none; background: none; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; padding: 4px 2px; }
+.tour-skip:hover { color: var(--text); }
+.tour-stepcount { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+
 /* Fraud Detection */
 .risk-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
 .risk-badge::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
@@ -848,7 +882,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
         <form id="eventForm" class="event-form" novalidate>
           <input type="hidden" id="eventId" />
 
-          <div class="form-section">
+          <div class="form-section" id="tourBasicInfo">
             <h4>Basic Information</h4>
             <div class="form-grid">
               <label class="field">
@@ -870,7 +904,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
             </div>
           </div>
 
-          <div class="form-section">
+          <div class="form-section" id="tourVenue">
             <h4>Venue & Location</h4>
             <div class="form-grid">
               <label class="field"><span>Venue *</span><input type="text" id="f_venue" required placeholder="e.g. Expo Center" /></label>
@@ -880,7 +914,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
             </div>
           </div>
 
-          <div class="form-section">
+          <div class="form-section" id="tourDateTime">
             <h4>Date & Time</h4>
             <div class="form-grid">
               <label class="field"><span>Start Date *</span><input type="date" id="f_startDate" required /></label>
@@ -890,7 +924,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
             </div>
           </div>
 
-          <div class="form-section">
+          <div class="form-section" id="tourCapacity">
             <h4>Capacity & Policies</h4>
             <div class="form-grid">
               <label class="field"><span>Maximum Capacity *</span><input type="number" id="f_capacity" min="1" required placeholder="e.g. 5000" /></label>
@@ -909,7 +943,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
             </div>
           </div>
 
-          <div class="form-section">
+          <div class="form-section" id="tourTickets">
             <div class="form-section-head">
               <h4>Ticket Categories</h4>
               <button type="button" class="btn btn-outline btn-sm" id="addTicketCategoryBtn">
@@ -1190,55 +1224,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   /* Seed / mock data (stand-in for real database rows)                   */
   /* ------------------------------------------------------------------ */
   const store = {
-    events: [
-      {
-        id: uid("evt"), name: "Lahore Music Fest", category: "Concert", status: "live",
-        description: "An open-air night of live music across three stages.",
-        venue: "Fortress Stadium", city: "Lahore", country: "Pakistan", address: "Fortress Stadium, Lahore Cantt",
-        startDate: "2026-08-14", endDate: "2026-08-14", startTime: "17:00", endTime: "23:30",
-        capacity: 5000, dresscode: "Casual", age: "13+", parking: true, food: true,
-        refund: "Full refund up to 7 days before the event.", poster: "",
-        tickets: [
-          { id: uid("tkt"), name: "General", price: 1200, currency: "PKR", totalSeats: 3000, availableSeats: 900, sold: 2100, description: "Standard entry", benefits: "Standard Entry", color: TICKET_COLORS[0], salesStart: "2026-06-01", salesEnd: "2026-08-13", maxPerPerson: 6 },
-          { id: uid("tkt"), name: "VIP", price: 5000, currency: "PKR", totalSeats: 1500, availableSeats: 300, sold: 1200, description: "Front row access", benefits: "Front Row, Free Drinks, VIP Lounge", color: TICKET_COLORS[1], salesStart: "2026-06-01", salesEnd: "2026-08-13", maxPerPerson: 4 },
-          { id: uid("tkt"), name: "VVIP", price: 9000, currency: "PKR", totalSeats: 500, availableSeats: 40, sold: 460, description: "All-access backstage", benefits: "Backstage, Meet & Greet, Free Drinks", color: TICKET_COLORS[2], salesStart: "2026-06-01", salesEnd: "2026-08-13", maxPerPerson: 2 }
-        ]
-      },
-      {
-        id: uid("evt"), name: "Founders Summit 2026", category: "Conference", status: "upcoming",
-        description: "A day of talks with operators and investors building in Pakistan.",
-        venue: "Pearl Continental", city: "Karachi", country: "Pakistan", address: "Club Road, Karachi",
-        startDate: "2026-09-02", endDate: "2026-09-02", startTime: "09:00", endTime: "18:00",
-        capacity: 800, dresscode: "Smart Casual", age: "18+", parking: true, food: true,
-        refund: "50% refund up to 14 days before the event.", poster: "",
-        tickets: [
-          { id: uid("tkt"), name: "General", price: 3500, currency: "PKR", totalSeats: 600, availableSeats: 380, sold: 220, description: "Full day access", benefits: "Full Access, Lunch", color: TICKET_COLORS[0], salesStart: "2026-06-15", salesEnd: "2026-09-01", maxPerPerson: 3 },
-          { id: uid("tkt"), name: "Premium", price: 7500, currency: "PKR", totalSeats: 200, availableSeats: 120, sold: 80, description: "Front-row + networking dinner", benefits: "Front Row, Networking Dinner", color: TICKET_COLORS[3], salesStart: "2026-06-15", salesEnd: "2026-09-01", maxPerPerson: 2 }
-        ]
-      },
-      {
-        id: uid("evt"), name: "Comedy Night Vol. 3", category: "Comedy", status: "draft",
-        description: "An evening of stand-up from the country's sharpest comics.",
-        venue: "Alhamra Arts Council", city: "Lahore", country: "Pakistan", address: "The Mall, Lahore",
-        startDate: "2026-10-05", endDate: "2026-10-05", startTime: "20:00", endTime: "22:30",
-        capacity: 600, dresscode: "Casual", age: "16+", parking: false, food: false,
-        refund: "No refunds within 48 hours of the event.", poster: "",
-        tickets: [
-          { id: uid("tkt"), name: "General", price: 1500, currency: "PKR", totalSeats: 600, availableSeats: 600, sold: 0, description: "Standard entry", benefits: "Standard Entry", color: TICKET_COLORS[0], salesStart: "2026-09-01", salesEnd: "2026-10-04", maxPerPerson: 5 }
-        ]
-      },
-      {
-        id: uid("evt"), name: "Karachi Marathon", category: "Sports", status: "finished",
-        description: "A 10k community run along the seafront.",
-        venue: "Sea View", city: "Karachi", country: "Pakistan", address: "Sea View Beach",
-        startDate: "2026-05-10", endDate: "2026-05-10", startTime: "06:00", endTime: "10:00",
-        capacity: 2000, dresscode: "Sportswear", age: "All ages", parking: true, food: true,
-        refund: "Non-refundable.", poster: "",
-        tickets: [
-          { id: uid("tkt"), name: "Runner", price: 800, currency: "PKR", totalSeats: 2000, availableSeats: 0, sold: 2000, description: "Race pack included", benefits: "Race Pack, Medal", color: TICKET_COLORS[0], salesStart: "2026-03-01", salesEnd: "2026-05-09", maxPerPerson: 1 }
-        ]
-      }
-    ],
+    events: [],
     bookings: [
       { id: uid("bk"), customer: "Sara Khan", email: "sara.khan@example.com", eventName: "Lahore Music Fest", category: "VIP", qty: 2, amount: 10000, date: "2026-07-18", status: "paid", qr: true },
       { id: uid("bk"), customer: "Bilal Ahmed", email: "bilal.a@example.com", eventName: "Lahore Music Fest", category: "General", qty: 4, amount: 4800, date: "2026-07-19", status: "paid", qr: true },
@@ -1345,7 +1331,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
     $("#pageTitle").textContent = VIEW_META[view].title;
     $("#breadcrumbCurrent").textContent = VIEW_META[view].crumb;
 
-    if (view === "create" && editingEventId === null) resetEventForm();
+    if (view === "create" && editingEventId === null) { resetEventForm(); maybeStartCreateTour(); }
     if (view === "tickets") renderTicketEventPicker();
     if (view === "bookings") renderBookingsTable($("#bookingsTable tbody"), bookings);
     if (view === "notifications") renderNotifications($("#notifListFull"), notifications, true);
@@ -1711,6 +1697,111 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
     $("#eventFormTitle").textContent = "Create Event";
     $("#publishBtn").textContent = "Publish Event";
     renderTicketDraft();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* First-time "Create Event" onboarding tour (~5-6s, auto-plays once)   */
+  /* ------------------------------------------------------------------ */
+  const TOUR_SEEN_KEY = "tixora_create_tour_seen";
+  const TOUR_STEP_MS = 950;
+  const TOUR_STEPS = [
+    { target: "#tourBasicInfo", eyebrow: "Step 1", title: "Start with the basics", text: "Give your event a name, pick a category, and describe it for attendees." },
+    { target: "#tourVenue", eyebrow: "Step 2", title: "Set the venue", text: "Add where it's happening — venue, address, city and country." },
+    { target: "#tourDateTime", eyebrow: "Step 3", title: "Pick date & time", text: "Choose when doors open and when the event wraps up." },
+    { target: "#tourCapacity", eyebrow: "Step 4", title: "Set capacity & policies", text: "Cap total seats and add optional details like dress code or refund policy." },
+    { target: "#tourTickets", eyebrow: "Step 5", title: "Add ticket categories", text: "Create tiers like General or VIP — each with its own price and seat count." },
+    { target: "#publishBtn", eyebrow: "Step 6", title: "Publish when ready", text: "Hit Publish to make it live, or save it as a draft for later." }
+  ];
+
+  let tourEls = null;
+  let tourTimer = null;
+
+  function buildTourEls() {
+    if (tourEls) return tourEls;
+    const scrim = document.createElement("div");
+    scrim.className = "tour-scrim";
+    const highlight = document.createElement("div");
+    highlight.className = "tour-highlight";
+    const tooltip = document.createElement("div");
+    tooltip.className = "tour-tooltip";
+    tooltip.innerHTML = `
+      <p class="tour-eyebrow"></p>
+      <h4></h4>
+      <p class="tour-desc"></p>
+      <div class="tour-progress"></div>
+      <div class="tour-tooltip-foot">
+        <span class="tour-stepcount"></span>
+        <button type="button" class="tour-skip">Skip tour</button>
+      </div>`;
+    document.body.append(scrim, highlight, tooltip);
+    tourEls = { scrim, highlight, tooltip };
+    tooltip.querySelector(".tour-skip").addEventListener("click", endCreateTour);
+    return tourEls;
+  }
+
+  function positionTourStep(index) {
+    const { highlight, tooltip } = buildTourEls();
+    const step = TOUR_STEPS[index];
+    const el = $(step.target);
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+
+    requestAnimationFrame(() => {
+      const r = el.getBoundingClientRect();
+      const pad = 10;
+      highlight.style.top = `${r.top - pad}px`;
+      highlight.style.left = `${r.left - pad}px`;
+      highlight.style.width = `${r.width + pad * 2}px`;
+      highlight.style.height = `${r.height + pad * 2}px`;
+
+      const ttWidth = 280;
+      let top = r.bottom + 16;
+      let left = Math.min(Math.max(r.left, 12), window.innerWidth - ttWidth - 12);
+      if (top + 160 > window.innerHeight) top = Math.max(r.top - 176, 12);
+      tooltip.style.top = `${top}px`;
+      tooltip.style.left = `${left}px`;
+
+      tooltip.querySelector(".tour-eyebrow").textContent = step.eyebrow;
+      tooltip.querySelector("h4").textContent = step.title;
+      tooltip.querySelector(".tour-desc").textContent = step.text;
+      tooltip.querySelector(".tour-stepcount").textContent = `${index + 1} of ${TOUR_STEPS.length}`;
+      tooltip.querySelector(".tour-progress").innerHTML = TOUR_STEPS.map((_, i) => {
+        const cls = i < index ? "done" : i === index ? "active" : "";
+        return `<i class="${cls}" style="--step-ms:${TOUR_STEP_MS}ms"><b></b></i>`;
+      }).join("");
+    });
+  }
+
+  function startCreateTour() {
+    const { scrim, highlight, tooltip } = buildTourEls();
+    scrim.classList.add("show");
+    highlight.classList.add("show");
+    tooltip.classList.add("show");
+
+    let i = 0;
+    positionTourStep(i);
+    tourTimer = setInterval(() => {
+      i++;
+      if (i >= TOUR_STEPS.length) { endCreateTour(); return; }
+      positionTourStep(i);
+    }, TOUR_STEP_MS);
+  }
+
+  function endCreateTour() {
+    clearInterval(tourTimer);
+    if (tourEls) {
+      tourEls.scrim.classList.remove("show");
+      tourEls.highlight.classList.remove("show");
+      tourEls.tooltip.classList.remove("show");
+    }
+    try { localStorage.setItem(TOUR_SEEN_KEY, "1"); } catch (e) { /* private mode — ignore */ }
+  }
+
+  function maybeStartCreateTour() {
+    let seen = false;
+    try { seen = localStorage.getItem(TOUR_SEEN_KEY) === "1"; } catch (e) { /* ignore */ }
+    if (seen) return;
+    setTimeout(startCreateTour, 350); // let the view transition settle first
   }
 
   function openEditForm(evt) {
