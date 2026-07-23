@@ -28,6 +28,12 @@ class Order_Quantity_Error(Exception):
 
 class Not_Enough_Tickets(Exception):
     pass
+
+class BookingContention(Exception):
+
+    pass
+
+
 from fastapi.responses import JSONResponse
 
 from fastapi import Request
@@ -62,3 +68,6 @@ def less_order_quantity(req : Request , exec : Order_Quantity_Error):
 
 def not_enough_tickets(req : Request , exec : Not_Enough_Tickets):
     return JSONResponse(status_code=409 , content={"detail" : "Not enough tickets avalaible"})
+
+def booking_contention(req : Request , exec : BookingContention):
+    return JSONResponse(status_code=409, content={"detail": "High demand right now, please try again"})

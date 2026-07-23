@@ -13,7 +13,7 @@ from models.Event import EventRead
 from dependencies.exception import (Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , 
             incorrect_password , email_reg, forbidden , Forbidden , Event_Not_Found , event_not_found , 
             Not_customer , not_customer , Ticket_Tier_not_found , no_ticket_tier ,Order_Quantity_Error , less_order_quantity , 
-            Not_Enough_Tickets , not_enough_tickets)
+            Not_Enough_Tickets , not_enough_tickets , booking_contention , BookingContention)
 from models.Ticket import TicketTierRead
 from typing import Optional 
 from fastapi import Query
@@ -56,6 +56,7 @@ app.add_exception_handler(Not_customer , not_customer)
 app.add_exception_handler(Ticket_Tier_not_found , no_ticket_tier)
 app.add_exception_handler(Order_Quantity_Error , less_order_quantity)
 app.add_exception_handler(Not_Enough_Tickets , not_enough_tickets)
+app.add_exception_handler(BookingContention , booking_contention)
 logger = logging.getLogger(__name__)
 # Health checking and home page:
 @app.get('/')
