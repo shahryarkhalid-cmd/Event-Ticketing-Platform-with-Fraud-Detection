@@ -157,16 +157,25 @@ img {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: clamp(72px, 11vw, 112px);
-  height: clamp(72px, 11vw, 112px);
-  margin: 0 auto 14px;
-  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.22));
+  width: clamp(76px, 10vw, 100px);
+  height: clamp(76px, 10vw, 100px);
+  margin: 0 auto 16px;
+  padding: clamp(10px, 1.6vw, 14px);
+  background: var(--color-white);
+  border-radius: clamp(20px, 3vw, 26px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.12);
+  animation: fade-drop 700ms ease both, logo-pop 700ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
 }
 
 .brand-panel__logo img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+@keyframes logo-pop {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
 }
 
 .brand-panel__name {
@@ -667,46 +676,22 @@ img {
   }
 }
 
-/* >=1200px: optional split side-panel layout on very wide screens */
+/* >=1200px: the branded panel stays a full-width top banner, just like on
+   mobile/tablet — it no longer collapses into a boxed side panel. We only
+   give it a little more breathing room and let the card sit comfortably
+   underneath on wide screens. */
 @media (min-width: 1200px) {
-  .page {
-    flex-direction: column;
+  .brand-panel {
+    padding: clamp(40px, 5vw, 64px) 24px clamp(96px, 8vw, 128px);
+  }
+  .brand-panel__inner {
+    max-width: 560px;
   }
   .main {
-    flex-direction: row;
-    align-items: stretch;
-    justify-content: center;
-    gap: clamp(48px, 6vw, 96px);
-    padding-top: clamp(48px, 6vw, 72px);
-    padding-bottom: clamp(48px, 6vw, 72px);
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-  .brand-panel {
-    display: none;
-  }
-  .main::before {
-    content: '';
-    flex: 1 1 46%;
-    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-soft) 45%, var(--color-secondary) 100%);
-    border-radius: 28px;
-    background-image:
-      linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-soft) 45%, var(--color-secondary) 100%),
-      url("assets/logo-white.png");
-    background-repeat: no-repeat, no-repeat;
-    background-position: 0 0, center;
-    background-size: cover, 30%;
-    opacity: 0.97;
-    min-height: 520px;
-    box-shadow: var(--shadow-card-lg);
-    animation: fade-drop 700ms ease both;
+    padding-top: 0;
   }
   .card {
-    margin-top: 0;
-    align-self: center;
-  }
-  .signup-note {
-    grid-column: 2;
+    margin-top: clamp(-72px, -6vw, -56px);
   }
 }
 
