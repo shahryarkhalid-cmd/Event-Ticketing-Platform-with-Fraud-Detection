@@ -13,7 +13,8 @@ from models.Event import EventRead
 from dependencies.exception import (Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , 
             incorrect_password , email_reg, forbidden , Forbidden , Event_Not_Found , event_not_found , 
             Not_customer , not_customer , Ticket_Tier_not_found , no_ticket_tier ,Order_Quantity_Error , less_order_quantity , 
-            Not_Enough_Tickets , not_enough_tickets , booking_contention , BookingContention)
+            Not_Enough_Tickets , not_enough_tickets , booking_contention , BookingContention ,
+            not_order , Not_Order , order_mismatch , Order_Mismatch , not_pending_order ,Not_Pending_Order)
 from models.Ticket import TicketTierRead
 from typing import Optional 
 from fastapi import Query
@@ -21,6 +22,7 @@ from typing import List
 from models.Orders import OrderCreate , OrderRead
 from services.Order_services import get_my_orders , book_ticket
 from services.Customer_services import search_events_customer
+from services.Payment_services import create_checkout_session
 def lifespan(app : FastAPI):
     create_table()
     yield
@@ -57,6 +59,11 @@ app.add_exception_handler(Ticket_Tier_not_found , no_ticket_tier)
 app.add_exception_handler(Order_Quantity_Error , less_order_quantity)
 app.add_exception_handler(Not_Enough_Tickets , not_enough_tickets)
 app.add_exception_handler(BookingContention , booking_contention)
+app .add_exception_handler(Not_Order , not_order)
+app.add_exception_handler(Order_Mismatch , order_mismatch )
+app.add_exception_handler(Not_Pending_Order , not_pending_order)
+
+
 logger = logging.getLogger(__name__)
 # Health checking and home page:
 @app.get('/')
@@ -80,9 +87,12 @@ def db_health_check(session: Session = Depends(get_session)):
 @ app.post('/auth/register')
 def register(user : UserCreate , session : Session = Depends(get_session)):
     return register_user(user , session)
-
+from fastapi.security import OAuth2PasswordRequestForm
 @ app.post('/auth/login')
-def login(user : UserLogin , session : Session = Depends(get_session)):
+#def login(user : UserLogin , session : Session = Depends(get_session)):
+#    return logging_in(user , session)
+
+def login(user : OAuth2PasswordRequestForm = Depends() , session : Session = Depends(get_session)):
     return logging_in(user , session)
 
 @app.post("/publish-event")
@@ -144,3 +154,11 @@ def my_orders(
     session: Session = Depends(get_session)
 ):
     return get_my_orders(user, session)
+
+@app.post("/orders/{order_id}/checkout")
+def checkout_order(
+    order_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return create_checkout_session(order_id, user, session)

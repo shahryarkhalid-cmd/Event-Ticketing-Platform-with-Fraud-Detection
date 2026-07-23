@@ -33,6 +33,15 @@ class BookingContention(Exception):
 
     pass
 
+class Not_Order(Exception):
+    pass
+
+class Order_Mismatch(Exception):
+    pass
+
+class Not_Pending_Order(Exception):
+    pass
+
 
 from fastapi.responses import JSONResponse
 
@@ -71,3 +80,12 @@ def not_enough_tickets(req : Request , exec : Not_Enough_Tickets):
 
 def booking_contention(req : Request , exec : BookingContention):
     return JSONResponse(status_code=409, content={"detail": "High demand right now, please try again"})
+
+def not_order(req : Request , exec : Not_Order):
+    return JSONResponse(status_code = 404 , content={"detail" : "Order not found"})
+
+def order_mismatch(req : Request , exec : Order_Mismatch):
+    return JSONResponse(status_code=409 , content={'detail': 'This is not your oder'})
+
+def not_pending_order(req : Request , exec : Not_Pending_Order):
+    return JSONResponse(status_code=400 , content = {"detail" : "Order is not pending"})

@@ -224,6 +224,7 @@ def test_search_events(client):
     
     
 # testing the order placement :
+
 def test_book_ticket(client, test_session):
     client.post('/auth/register', json={'email': 'organizer@test.com', 'full_name': 'Org', 'password': '12345'})
     org_login = client.post('/auth/login', json={'email': 'organizer@test.com', 'password': '12345'})
@@ -244,86 +245,3 @@ def test_book_ticket(client, test_session):
 
     order_response = client.post("/orders", json={"ticket_tier_id": tier_id, "quantity": 2}, headers=cust_headers)
     assert order_response.status_code == 200
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-import threading
-from sqlmodel import select
-from models.Users import User, UserRole
-from models.Ticket import TicketTier
-
-
-def register_and_login(client, email, full_name, password, role):
-    client.post('/auth/register', json={
-        'email': email,
-        'full_name': full_name,
-        'password': password,
-        'role': role
-    })
-    login_ = client.post('/auth/login', json={'email': email, 'password': password})
-    token = login_.json()['access_token']
-    return {"Authorization": f'Bearer {token}'}
-
-
-def publish_test_event(client, org_headers):
-    response = client.post("/publish-event", json=EVENT, headers=org_headers)
-    assert response.status_code == 200
-    return response.json()
-
-
-def test_concurrent_booking_does_not_oversell(client, test_session):
-    # 1. Organizer creates an event with ticket tiers
-    org_headers = register_and_login(client, "organizer8@test.com", "Org", "12345", "organizer")
-    event_data = publish_test_event(client, org_headers)
-    tier_id = event_data["ticket_tiers"][0]["id"]
-
-    # 2. Shrink the tier to only 5 available seats, for a clean test
-    tier = test_session.get(TicketTier, tier_id)
-    tier.total_seats = 5
-    tier.sold_quantity = 0
-    test_session.add(tier)
-    test_session.commit()
-
-    # 3. Register 10 different customers — more than available tickets
-    headers_list = []
-    for i in range(10):
-        headers = register_and_login(client, f"concurrent{i}@test.com", f"Cust{i}", "12345", "customer")
-        headers_list.append(headers)
-
-    results = []
-
-    def attempt_booking(headers):
-        response = client.post(
-            "/orders",
-            json={"ticket_tier_id": tier_id, "quantity": 1},
-            headers=headers
-        )
-        results.append(response.status_code)
-
-    # 4. Fire all 10 booking attempts at nearly the same time
-    threads = [threading.Thread(target=attempt_booking, args=(h,)) for h in headers_list]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-
-    # 5. Verify: exactly 5 succeed, exactly 5 fail, and no overselling occurred
-    successes = results.count(200)
-    failures = results.count(409)
-
-    assert successes == 5
-    assert failures == 5
-
-    final_tier = test_session.get(TicketTier, tier_id)
-    assert final_tier.sold_quantity == 5

@@ -9,9 +9,8 @@ from models.Users import User , UserCreate , UserLogin
 from dependencies.hashing import hash_password , verify_password
 from dependencies.exception import User_Exist , Email_exist , Email_registration , password_mismatch
 from dependencies.token import create_token
-
 import logging
-oauth_scheme = OAuth2PasswordBearer(tokenUrl='login')
+oauth_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login')
 ALGORITHM = "HS256"
 # Getting the current User Identity:
 def get_current_user(token: str = Depends(oauth_scheme), session: Session = Depends(get_session)):
@@ -54,11 +53,11 @@ def register_user(user : UserCreate , session : Session):
 
 
 # Logging in the User:
-
-def logging_in(user : UserLogin , session : Session):
+from fastapi.security import OAuth2PasswordRequestForm
+def logging_in(user : OAuth2PasswordRequestForm , session : Session):
     
     # verfiying:
-    user_email = session.exec(select(User).where(User.email == user.email)).first()
+    user_email = session.exec(select(User).where(User.email == user.username)).first()
     if user_email is None:
         logging.error('Email is not registered!')
         raise Email_registration()

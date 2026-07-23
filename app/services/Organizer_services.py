@@ -132,3 +132,25 @@ def List_Tickets(event_id : int , user : User , session : Session):
      
     tiers = session.exec(select(TicketTier).where(TicketTier.event_id == event_id)).all()
     return tiers
+
+
+def get_analytics_summary(user: User, session: Session):
+    events = session.exec(select(Event).where(Event.organizer_id == user.id)).all()
+    event_ids = [e.id for e in events]
+
+    total_events = len(events)
+    upcoming_events = len([e for e in events if e.start_datetime > datetime.now(timezone.utc)])
+
+    paid_orders = session.exec(
+        select(Order).where(Order.event_id.in_(event_ids), Order.status == "paid")
+    ).all() if event_ids else []
+
+    tickets_sold = sum(o.quantity for o in paid_orders)
+    total_revenue = sum(o.total_price for o in paid_orders)
+
+    return {
+        "tickets_sold": tickets_sold,
+        "total_events": total_events,
+        "upcoming_events": upcoming_events,
+        "total_revenue": total_revenue
+    }
