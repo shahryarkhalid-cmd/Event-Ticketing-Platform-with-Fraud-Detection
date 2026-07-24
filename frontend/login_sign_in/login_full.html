@@ -1043,7 +1043,7 @@ img {
       .then((result) => {
         if (result && result.ok) {
           showStatus('Login successful — redirecting to your tickets…', false);
-          // window.location.href = '/dashboard'; // hook up real redirect here
+          window.location.href = '../dashboard/dashboard.html'; // hook up real redirect here
         } else {
           showStatus('Incorrect email or password. Please try again.', true);
         }
