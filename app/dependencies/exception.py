@@ -34,15 +34,28 @@ class BookingContention(Exception):
     pass
 
 class Not_Order(Exception):
+
     pass
 
 class Order_Mismatch(Exception):
+
     pass
+
 
 class Not_Pending_Order(Exception):
+
     pass
 
+class Not_Your_Event(Exception):
+    
+    
+    pass
 
+class Paid_Refund(Exception):
+    
+    pass
+    
+    
 from fastapi.responses import JSONResponse
 
 from fastapi import Request
@@ -89,3 +102,9 @@ def order_mismatch(req : Request , exec : Order_Mismatch):
 
 def not_pending_order(req : Request , exec : Not_Pending_Order):
     return JSONResponse(status_code=400 , content = {"detail" : "Order is not pending"})
+
+def not_your_event(req : Request , exec : Not_Your_Event):
+    return JSONResponse(status_code=403 , content = {"detail" : "Not your event"})
+
+def paid_refund(req : Request , exec : Paid_Refund):
+    return JSONResponse(status_code=403 , content = {'detail' : 'Only paid event can be refunded'})

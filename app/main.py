@@ -7,14 +7,15 @@ from services.User_services import register_user , logging_in
 from models.Users import UserCreate , UserLogin , User
 from models.Event import EventCreateWithTiers
 from services.User_services import get_current_user
-from services.Organizer_services import Make_Event , get_organizer_events , delete_organizer_event , delete_all_organizer_event , get_specific_event , add_ticket_tiers , List_Tickets
+from services.Organizer_services import Make_Event , get_organizer_events , delete_organizer_event , delete_all_organizer_event , get_specific_event , List_Tickets , get_analytics_summary , get_popular_ticket_categories , get_ticket_sales_last_7_days , refund_order , get_monthly_revenue_trend , get_revenue_overview ,get_organizer_all_bookings
 from fastapi.middleware.cors import CORSMiddleware
 from models.Event import EventRead
 from dependencies.exception import (Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , 
             incorrect_password , email_reg, forbidden , Forbidden , Event_Not_Found , event_not_found , 
             Not_customer , not_customer , Ticket_Tier_not_found , no_ticket_tier ,Order_Quantity_Error , less_order_quantity , 
             Not_Enough_Tickets , not_enough_tickets , booking_contention , BookingContention ,
-            not_order , Not_Order , order_mismatch , Order_Mismatch , not_pending_order ,Not_Pending_Order)
+            not_order , Not_Order , order_mismatch , paid_refund , Paid_Refund ,
+            Order_Mismatch , not_pending_order ,Not_Pending_Order , not_your_event , Not_Your_Event)
 from models.Ticket import TicketTierRead
 from typing import Optional 
 from fastapi import Query
@@ -62,7 +63,8 @@ app.add_exception_handler(BookingContention , booking_contention)
 app .add_exception_handler(Not_Order , not_order)
 app.add_exception_handler(Order_Mismatch , order_mismatch )
 app.add_exception_handler(Not_Pending_Order , not_pending_order)
-
+app.add_exception_handler(Not_Your_Event , not_your_event)
+app.add_exception_handler(Paid_Refund , paid_refund)
 
 logger = logging.getLogger(__name__)
 # Health checking and home page:
@@ -89,10 +91,7 @@ def register(user : UserCreate , session : Session = Depends(get_session)):
     return register_user(user , session)
 from fastapi.security import OAuth2PasswordRequestForm
 @ app.post('/auth/login')
-#def login(user : UserLogin , session : Session = Depends(get_session)):
-#    return logging_in(user , session)
-
-def login(user : OAuth2PasswordRequestForm = Depends() , session : Session = Depends(get_session)):
+def login(user : UserLogin , session : Session = Depends(get_session)):
     return logging_in(user , session)
 
 @app.post("/publish-event")
@@ -124,6 +123,60 @@ def delete_all_event(user : User = Depends(get_current_user) , session : Session
 @app.get("/events/{event_id}/ticket-tiers", response_model=List[TicketTierRead])
 def list_ticket_tiers(event_id: int,user : User = Depends(get_current_user),  session: Session = Depends(get_session)):
     return List_Tickets(event_id ,user ,  session)
+
+# Organizer Dashboard:
+
+@app.get("/organizer/analytics/summary")
+def analytics_summary(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return get_analytics_summary(user, session)
+
+@app.get("/organizer/analytics/ticket-sales")
+def ticket_sales(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return get_ticket_sales_last_7_days(user, session)
+
+@app.get("/organizer/analytics/popular-categories")
+def popular_categories(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return get_popular_ticket_categories(user, session)
+
+@app.get("/organizer/bookings")
+def all_bookings(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return get_organizer_all_bookings(user, session)
+
+@app.get("/organizer/revenue/overview")
+def revenue_overview(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return get_revenue_overview(user, session)
+
+@app.get("/organizer/revenue/trend")
+def revenue_trend(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return get_monthly_revenue_trend(user, session)
+
+@app.post("/organizer/orders/{order_id}/refund")
+def refund(
+    order_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return refund_order(order_id, user, session)
+
+from models.Event import EventWithTiersRead , EventUpdateWithTiers
+from services.Organizer_services import update_event_with_tiers
+@app.put("/update_event/{id}", response_model=EventWithTiersRead)
+def update_event(
+    id: int,
+    event_data: EventUpdateWithTiers,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return update_event_with_tiers(id, event_data, user, session)
 
 
 # Customer Session: 
@@ -162,3 +215,4 @@ def checkout_order(
     session: Session = Depends(get_session)
 ):
     return create_checkout_session(order_id, user, session)
+
