@@ -169,7 +169,8 @@
       .then((result) => {
         if (result && result.ok) {
           showStatus('Login successful — redirecting to your tickets…', false);
-          // window.location.href = '/dashboard'; // hook up real redirect here
+          console.log("REDIRECT ABOUT TO FIRE:", '../dashboard/dashboard.html');
+          window.location.href = '../dashboard/dashboard.html';
         } else {
           showStatus('Incorrect email or password. Please try again.', true);
         }
