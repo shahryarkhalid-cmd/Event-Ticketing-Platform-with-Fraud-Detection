@@ -8,3 +8,5 @@ secret_keys.txt
 app.log
 *.log
 .pytest_cache
+.env.*
+!.env.example

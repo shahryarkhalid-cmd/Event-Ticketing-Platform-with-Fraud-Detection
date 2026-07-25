@@ -1,0 +1,23 @@
+artifact_path: file:C:\Users\talha\Desktop\100 Days of ML\Fraud_detection\Event-Ticketing-Platform-with-Fraud-Detection\mlruns\artifacts/models/m-cb12d20dba7241cd8d55cc8fe6e81962/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.13.5
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: pickle
+    sklearn_version: 1.9.0
+    skops_trusted_types: null
+mlflow_version: 3.14.0
+model_id: m-cb12d20dba7241cd8d55cc8fe6e81962
+model_size_bytes: 1572068
+model_uuid: m-cb12d20dba7241cd8d55cc8fe6e81962
+prompts: null
+run_id: b364163ba60b479cb97786c2d3aa5e45
+utc_time_created: '2026-07-23 15:23:17.745199'
