@@ -113,6 +113,8 @@ img {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;        /* <--- ADDED: Spans full available width */
+  margin: 0 auto;     /* <--- ADDED: Keeps container centered on screen */
   padding: 0 clamp(16px, 4vw, 24px) clamp(32px, 6vw, 56px);
 }
 
