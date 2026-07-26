@@ -344,7 +344,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text); }
 .field-full { grid-column: 1 / -1; }
 .field input[type="text"], .field input[type="email"], .field input[type="number"],
-.field input[type="date"], .field input[type="time"], .field input[type="file"],
+.field input[type="date"], .field input[type="time"], .field input[type="datetime-local"], .field input[type="file"],
 .field select, .field textarea {
   border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; font-size: 14px;
   font-weight: 400; color: var(--text); background: var(--bg); transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
