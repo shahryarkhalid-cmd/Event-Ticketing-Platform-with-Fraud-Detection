@@ -7,6 +7,7 @@ import logging
 from dependencies.exception import Not_customer , Ticket_Tier_not_found , Order_Quantity_Error , Not_Enough_Tickets , BookingContention
 from core.redis_client import redis_client
 from core.locking import acquire_lock , release_lock
+from services.fraud_detection import predict_order, fraud_config
 def book_ticket(order_data: OrderCreate, user: User, session: Session):
     if user.role != UserRole.customer:
         logging.warning(f"User {user.id} with role {user.role} attempted to book a ticket")
@@ -43,6 +44,15 @@ def book_ticket(order_data: OrderCreate, user: User, session: Session):
             status="pending"
         )
         session.add(new_order)
+        fraud_prediction = predict_order(new_order, user, tier, session)
+        logging.info(
+        "Fraud prediction: is_fraud=%s probability=%.4f reason=%s",
+        fraud_prediction.is_fraud,
+        fraud_prediction.fraud_probability,
+        fraud_prediction.reason,
+        )
+        if fraud_prediction.is_fraud:
+            new_order.status = fraud_config.flag_status
         session.flush()
         session.refresh(new_order)
         logging.info(f"Order {new_order.id} created for user {user.id}, tier {tier.id}")
