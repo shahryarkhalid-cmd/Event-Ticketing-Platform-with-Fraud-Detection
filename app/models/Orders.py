@@ -7,12 +7,13 @@ from sqlmodel import SQLModel , Field
 class Order(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
+    event_id: int = Field(foreign_key="event.id")
     ticket_tier_id: int = Field(foreign_key="tickettier.id")
     quantity: int
     total_price: float
-    status: str = Field(default="pending")  # pending, paid, cancelled
+    status: str = Field(default="pending")  # pending, paid, refunded
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    
+    qr_code: Optional[str] = None
 
 class OrderCreate(BaseModel):
     ticket_tier_id: int

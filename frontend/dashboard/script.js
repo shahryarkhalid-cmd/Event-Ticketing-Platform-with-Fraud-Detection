@@ -108,6 +108,7 @@
   /* ------------------------------------------------------------------ */
   /* API layer (swap-ready for a real backend)                           */
   /* ------------------------------------------------------------------ */
+<<<<<<< HEAD
   const api = {
     events: {
       // GET /api/events
@@ -161,7 +162,184 @@
         return structuredClone(store.currentUser);
       }
     }
+=======
+  const API_BASE = "http://localhost:8000";
+
+function authHeaders() {
+  const token = localStorage.getItem("access_token");
+  return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+}
+
+// backend event + tiers -> shape the frontend rendering code expects
+function mapEventFromBackend(evt, tiers) {
+  const [startDate, startTime] = (evt.start_datetime || "").split("T");
+  const [endDate, endTime] = (evt.end_datetime || "").split("T");
+  return {
+    id: String(evt.id),
+    name: evt.name,
+    category: evt.category,
+    description: evt.description,
+    venue: evt.venue,
+    address: evt.address,
+    city: evt.city,
+    country: evt.country,
+    startDate, endDate,
+    startTime: (startTime || "").slice(0, 5),
+    endTime: (endTime || "").slice(0, 5),
+    capacity: evt.max_capacity,
+    dresscode: evt.dress_code,
+    age: evt.age_restriction,
+    parking: evt.parking_available,
+    food: evt.food_available,
+    refund: evt.refund_policy,
+    status: "published", // backend has no draft concept yet
+    tickets: (tiers || []).map(mapTierFromBackend)
+>>>>>>> 5f9632d3230dfd8e1c7b181ab90d5e9bacd91db6
   };
+}
+
+function mapTierFromBackend(t) {
+  return {
+    id: String(t.id),
+    name: t.category_name,
+    price: t.price,
+    currency: t.currency,
+    totalSeats: t.total_seats,
+    sold: t.sold_quantity,
+    availableSeats: t.total_seats - t.sold_quantity,
+    description: t.description || "",
+    benefits: t.benefits_included || "",
+    color: "#0B5ED7"
+  };
+}
+
+// frontend form data -> backend /publish-event payload
+function buildPublishPayload(data) {
+  return {
+    name: data.name,
+    category: data.category,
+    description: data.description,
+    venue: data.venue,
+    address: data.address,
+    city: data.city,
+    country: data.country,
+    start_datetime: `${data.startDate}T${data.startTime}:00`,
+    end_datetime: `${data.endDate}T${data.endTime}:00`,
+    max_capacity: data.capacity,
+    dress_code: data.dresscode,
+    age_restriction: data.age ? Number(data.age) : null,
+    parking_available: data.parking,
+    food_available: data.food,
+    refund_policy: data.refund,
+    terms_accepted: true,
+    ticket_tiers: data.tickets.map(t => ({
+      category_name: t.name,
+      price: t.price,
+      currency: t.currency,
+      total_seats: t.totalSeats,
+      benefits_included: t.benefits,
+      description: t.description
+    }))
+  };
+}
+
+function mapBookingFromBackend(b) {
+  return {
+    customer: b.customer,
+    email: b.email,
+    eventName: b.event,
+    category: b.category,
+    qty: b.qty,
+    amount: b.amount,
+    date: b.date,
+    status: b.status,
+    qr: b.qr_generated
+  };
+}
+
+const api = {
+  events: {
+    async list() {
+      const res = await fetch(`${API_BASE}/get_all_events`, { headers: authHeaders() });
+      const rawEvents = await res.json();
+      const full = await Promise.all(rawEvents.map(async (evt) => {
+        const tRes = await fetch(`${API_BASE}/events/${evt.id}/ticket-tiers`, { headers: authHeaders() });
+        const tiers = await tRes.json();
+        return mapEventFromBackend(evt, tiers);
+      }));
+      return full;
+    },
+    async get(id) {
+      const res = await fetch(`${API_BASE}/get_event/${id}`, { headers: authHeaders() });
+      const evt = await res.json();
+      const tRes = await fetch(`${API_BASE}/events/${id}/ticket-tiers`, { headers: authHeaders() });
+      const tiers = await tRes.json();
+      return mapEventFromBackend(evt, tiers);
+    },
+    async create(payload) {
+      const res = await fetch(`${API_BASE}/publish-event`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(buildPublishPayload(payload))
+      });
+      const data = await res.json();
+      return mapEventFromBackend(data.event, data.ticket_tiers);
+    },
+    async update(id, payload) {
+      const res = await fetch(`${API_BASE}/update_event/${id}`, {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify(buildPublishPayload(payload))
+  });
+  const data = await res.json();
+  return mapEventFromBackend(data.event, data.ticket_tiers);
+},
+    async remove(id) {
+      const res = await fetch(`${API_BASE}/delete_event/${id}`, {
+        method: "DELETE",
+        headers: authHeaders()
+      });
+      return res.json();
+    }
+  },
+  bookings: {
+    async list() {
+      const res = await fetch(`${API_BASE}/organizer/bookings`, { headers: authHeaders() });
+      const raw = await res.json();
+      return raw.map(mapBookingFromBackend);
+    }
+  },
+  notifications: {
+    async list() { return []; } // not built on backend yet
+  },
+  fraud: {
+    async list() { return []; } // waiting on teammate's model
+  },
+  analytics: {
+    async summary() {
+      const res = await fetch(`${API_BASE}/organizer/analytics/summary`, { headers: authHeaders() });
+      return res.json();
+    },
+    async ticketSales() {
+      const res = await fetch(`${API_BASE}/organizer/analytics/ticket-sales`, { headers: authHeaders() });
+      return res.json();
+    },
+    async popularCategories() {
+      const res = await fetch(`${API_BASE}/organizer/analytics/popular-categories`, { headers: authHeaders() });
+      return res.json();
+    }
+  },
+  revenue: {
+    async overview() {
+      const res = await fetch(`${API_BASE}/organizer/revenue/overview`, { headers: authHeaders() });
+      return res.json();
+    },
+    async trend() {
+      const res = await fetch(`${API_BASE}/organizer/revenue/trend`, { headers: authHeaders() });
+      return res.json();
+    }
+  }
+};
 
   /* ------------------------------------------------------------------ */
   /* App state                                                            */
@@ -929,39 +1107,49 @@
     renderDonutChart($("#categoryChart"), categorySalesBreakdown());
   }
 
-  function renderAnalyticsView() {
-    const s = computeStats();
-    $("#analyticsStats").innerHTML = [
-      statCardHTML({ key: "tickets", label: "Tickets Sold", value: s.ticketsSold, trend: 12, tint: "var(--accent-tint)", color: "#0891B2" }),
-      statCardHTML({ key: "events", label: "Total Events", value: s.totalEvents, trend: 8, tint: "var(--primary-tint)", color: "var(--primary)" }),
-      statCardHTML({ key: "upcoming", label: "Upcoming Events", value: s.upcoming, trend: 4, tint: "var(--secondary-tint)", color: "var(--secondary)" }),
-      statCardHTML({ key: "revenue", label: "Total Revenue", value: s.revenue, isCurrency: true, trend: 16, tint: "var(--success-tint)", color: "var(--success)" })
-    ].join("");
-    $$("[data-count]", $("#analyticsStats")).forEach(el => animateCounter(el, Number(el.dataset.target), el.dataset.currency === "true"));
+  async function renderAnalyticsView() {
+  const summary = await api.analytics.summary();
+  $("#analyticsStats").innerHTML = [
+    statCardHTML({ key: "tickets", label: "Tickets Sold", value: summary.tickets_sold, trend: 12, tint: "var(--accent-tint)", color: "#0891B2" }),
+    statCardHTML({ key: "events", label: "Total Events", value: summary.total_events, trend: 8, tint: "var(--primary-tint)", color: "var(--primary)" }),
+    statCardHTML({ key: "upcoming", label: "Upcoming Events", value: summary.upcoming_events, trend: 4, tint: "var(--secondary-tint)", color: "var(--secondary)" }),
+    statCardHTML({ key: "revenue", label: "Total Revenue", value: summary.total_revenue, isCurrency: true, trend: 16, tint: "var(--success-tint)", color: "var(--success)" })
+  ].join("");
+  $$("[data-count]", $("#analyticsStats")).forEach(el => animateCounter(el, Number(el.dataset.target), el.dataset.currency === "true"));
 
+<<<<<<< HEAD
     const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const ticketWeights = [8, 14, 10, 18, 22, 30, 20];
     renderLineChart($("#ticketSalesChart"), days, ticketWeights, (v) => `${v} tickets`);
     renderDonutChart($("#categoryChart2"), categorySalesBreakdown());
   }
+=======
+  const salesData = await api.analytics.ticketSales(); // {"Mon": 5, "Tue": 12, ...}
+  const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  renderLineChart($("#ticketSalesChart"), days, days.map(d => salesData[d] || 0), (v) => `${v} tickets`);
+>>>>>>> 5f9632d3230dfd8e1c7b181ab90d5e9bacd91db6
 
-  function renderRevenueView() {
-    const s = computeStats();
-    const avgOrder = bookings.length ? Math.round(bookings.reduce((sum, b) => sum + b.amount, 0) / bookings.length) : 0;
-    const refunded = bookings.filter(b => b.status === "refunded").reduce((sum, b) => sum + b.amount, 0);
-    $("#revenueStats").innerHTML = [
-      statCardHTML({ key: "revenue", label: "Total Revenue", value: s.revenue, isCurrency: true, trend: 16, tint: "var(--success-tint)", color: "var(--success)" }),
-      statCardHTML({ key: "tickets", label: "Avg. Order Value", value: avgOrder, isCurrency: true, trend: 6, tint: "var(--accent-tint)", color: "#0891B2" }),
-      statCardHTML({ key: "events", label: "Refunded", value: refunded, isCurrency: true, trend: -3, tint: "var(--danger-tint)", color: "var(--danger)" }),
-      statCardHTML({ key: "upcoming", label: "Net Revenue", value: s.revenue - refunded, isCurrency: true, trend: 14, tint: "var(--secondary-tint)", color: "var(--secondary)" })
-    ].join("");
-    $$("[data-count]", $("#revenueStats")).forEach(el => animateCounter(el, Number(el.dataset.target), el.dataset.currency === "true"));
+  const categories = await api.analytics.popularCategories(); // {"VIP": 45, "General": 120}
+  const colorEntries = Object.entries(categories).map(([label, value], i) => ({ label, value, color: TICKET_COLORS[i % TICKET_COLORS.length] }));
+  renderDonutChart($("#categoryChart2"), colorEntries);
 
-    const months = ["Feb", "Mar", "Apr", "May", "Jun", "Jul"];
-    const total = s.revenue || 60000;
-    const weights = [0.1, 0.12, 0.15, 0.18, 0.2, 0.25];
-    renderLineChart($("#revenueTrendChart"), months, weights.map(w => Math.round(total * w)), (v) => currency(v));
-  }
+  // Daily Visitors chart has no backend data source yet — leave as-is or hide
+}
+
+ async function renderRevenueView() {
+  const overview = await api.revenue.overview();
+  $("#revenueStats").innerHTML = [
+    statCardHTML({ key: "revenue", label: "Total Revenue", value: overview.total_revenue, isCurrency: true, trend: 16, tint: "var(--success-tint)", color: "var(--success)" }),
+    statCardHTML({ key: "tickets", label: "Avg. Order Value", value: overview.avg_order_value, isCurrency: true, trend: 6, tint: "var(--accent-tint)", color: "#0891B2" }),
+    statCardHTML({ key: "events", label: "Refunded", value: overview.refunded, isCurrency: true, trend: -3, tint: "var(--danger-tint)", color: "var(--danger)" }),
+    statCardHTML({ key: "upcoming", label: "Net Revenue", value: overview.net_revenue, isCurrency: true, trend: 14, tint: "var(--secondary-tint)", color: "var(--secondary)" })
+  ].join("");
+  $$("[data-count]", $("#revenueStats")).forEach(el => animateCounter(el, Number(el.dataset.target), el.dataset.currency === "true"));
+
+  const trend = await api.revenue.trend(); // {"Feb": 1000, "Mar": 1500, ...}
+  const months = Object.keys(trend);
+  renderLineChart($("#revenueTrendChart"), months, Object.values(trend), (v) => currency(v));
+}
 
   /* ------------------------------------------------------------------ */
   /* Bookings table                                                       */
@@ -1189,14 +1377,23 @@
     });
 
     $("#confirmDeleteBtn").addEventListener("click", async () => {
-      if (!pendingDeleteId) return;
-      await api.events.remove(pendingDeleteId);
-      events = await api.events.list();
-      refreshAllEventViews();
-      closeModal("deleteModal");
-      toast("Event deleted", "danger");
-      pendingDeleteId = null;
-    });
+  if (!pendingDeleteId) {
+    alert("No event selected to delete — this is a bug.");
+    return;
+  }
+  try {
+    alert("Attempting to delete event ID: " + pendingDeleteId);
+    const result = await api.events.remove(pendingDeleteId);
+    alert("Delete API call finished. Result: " + JSON.stringify(result));
+    events = await api.events.list();
+    refreshAllEventViews();
+    closeModal("deleteModal");
+    toast("Event deleted", "danger");
+    pendingDeleteId = null;
+  } catch (err) {
+    alert("DELETE FAILED WITH ERROR: " + err.message);
+  }
+});
 
     // Filters / search / sort
     ["eventSearch", "filterStatus", "filterCategory", "sortBy"].forEach(id => {

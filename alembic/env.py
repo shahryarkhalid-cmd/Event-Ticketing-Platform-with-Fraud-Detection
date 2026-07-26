@@ -14,6 +14,7 @@ import sqlmodel
 
 # Add your project root to the path so imports work
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'app'))
 
 # Import your models here so Alembic knows about them
 from app.models.Users import User

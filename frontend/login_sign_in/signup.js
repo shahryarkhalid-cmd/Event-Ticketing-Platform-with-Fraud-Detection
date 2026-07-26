@@ -222,7 +222,7 @@
       .then((result) => {
         if (result && result.ok) {
           showStatus('Account created — redirecting you to log in…', false);
-          // window.location.href = 'index.html'; // hook up real redirect here
+          window.location.href = 'login_full.html'; // hook up real redirect here
         } else {
           showStatus('Something went wrong. Please try again.', true);
         }

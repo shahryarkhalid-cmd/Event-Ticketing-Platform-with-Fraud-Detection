@@ -1,10 +1,9 @@
-# app/models/event.py
 from sqlmodel import SQLModel, Field
 from typing import Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel
 from typing import List 
-from models.Ticket import TicketTierCreate , TicketTierRead
+from models.Ticket import TicketTierCreate, TicketTierRead
 class Event(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     
@@ -86,6 +85,29 @@ class EventRead(BaseModel):
     
     
 
+class EventWithTiersRead(BaseModel):
+    event: EventRead
+    ticket_tiers: List[TicketTierRead]
+    
+    
+class EventUpdateWithTiers(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    venue: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    start_datetime: Optional[datetime] = None
+    end_datetime: Optional[datetime] = None
+    max_capacity: Optional[int] = None
+    dress_code: Optional[str] = None
+    age_restriction: Optional[int] = None
+    parking_available: Optional[bool] = None
+    food_available: Optional[bool] = None
+    refund_policy: Optional[str] = None
+    ticket_tiers: Optional[List[TicketTierCreate]] = None
+    
 class EventWithTiersRead(BaseModel):
     event: EventRead
     ticket_tiers: List[TicketTierRead]
