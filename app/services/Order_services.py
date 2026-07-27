@@ -72,3 +72,15 @@ def book_cart(order_data: OrderCreate, user: User, session: Session):
 def get_my_orders(user: User, session: Session):
     orders = session.exec(select(Order).where(Order.user_id == user.id)).all()
     return orders
+
+from fastapi import HTTPException
+# get_order_status:
+
+
+def get_order_status(order_id: int, user: User, session: Session):
+    order = session.get(Order, order_id)
+    if not order:
+         raise HTTPException(status_code=404, detail="Order not found")
+    if order.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not your order")
+    return order

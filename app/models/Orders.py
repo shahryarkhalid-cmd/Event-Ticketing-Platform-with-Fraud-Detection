@@ -20,6 +20,7 @@ class Order(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 from typing import List
+
 class CartItem(BaseModel):
     ticket_tier_id: int
     quantity: int

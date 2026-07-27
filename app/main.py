@@ -26,6 +26,7 @@ from models.Orders import OrderCreate , OrderRead
 from services.Order_services import get_my_orders , book_cart
 from services.Customer_services import search_events_customer
 from services.Payment_services import create_checkout_session
+from services.Customer_services import get_public_event_detail
 def lifespan(app : FastAPI):
     create_table()
     yield
@@ -189,16 +190,24 @@ def update_event(
 
 
 # Customer Session: 
+from datetime import datetime
 @app.get("/events/customer", response_model=List[EventRead])
 def search_events(
     session: Session = Depends(get_session),
-    search: Optional[str] = Query(None, description="Search by event name"),
+    search: Optional[str] = Query(None),
     venue: Optional[str] = Query(None),
     city: Optional[str] = Query(None),
     country: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
+    date_from: Optional[datetime] = Query(None),
+    date_to: Optional[datetime] = Query(None),
+    min_price: Optional[float] = Query(None),
+    max_price: Optional[float] = Query(None),
 ):
-    return search_events_customer(session, search, venue, city, country, category)
+    return search_events_customer(
+        session, search, venue, city, country, category,
+        date_from, date_to, min_price, max_price
+    )
 
 # placing the order :
 from services.Order_services import book_cart
@@ -235,3 +244,17 @@ async def stripe_webhook(request: Request, session: Session = Depends(get_sessio
     sig_header = request.headers.get("stripe-signature")
     return handle_stripe_webhook(payload, sig_header, session)
 
+@app.get("/events/customer/{id}", response_model=EventWithTiersRead)
+def public_event_detail(id: int, session: Session = Depends(get_session)):
+    return get_public_event_detail(id, session)
+
+
+# Getting order status and sending to the afterward stripe page:
+from services.Order_services get_order_status
+@app.get("/orders/{order_id}", response_model=OrderRead)
+def order_status(
+    order_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return get_order_status(order_id, user, session)
