@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tixora — Discover &amp; Book Events</title>
+  <meta name="description" content="Tixora — AI-powered event ticketing with built-in fraud protection.">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="apple-touch-icon" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <a href="#mainContent" class="skip-link">Skip to content</a>
+
+  <!-- Global loader (first paint only) -->
+  <div id="globalLoader"
+    style="position:fixed;inset:0;z-index:999;background:#F8FAFC;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .3s ease;">
+    <div class="brand-mark brand-mark--lg"><img src="assets/logo.png" alt="Tixora"></div>
+    <div class="spinner dark" style="width:28px;height:28px;border-width:3px;"></div>
+  </div>
+
+  <!-- ============================== NAVBAR =============================== -->
+  <header class="navbar" id="navbar">
+    <div class="container">
+      <a href="#" class="brand" data-goto="home">
+        <span class="brand-mark"><img src="assets/logo.png" alt="Tixora logo"></span> Tixora
+      </a>
+
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#" class="nav-link active" data-view="home">Home</a>
+        <a href="#" class="nav-link" data-view="browse">Browse Events</a>
+        <a href="#" class="nav-link" data-view="bookings">My Bookings</a>
+        <a href="#" class="nav-link" data-view="wishlist">Wishlist</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button class="icon-btn" data-goto="notifications" aria-label="Notifications">
+          🔔<span class="count" id="notifCount">0</span>
+        </button>
+        <a href="#" class="avatar-btn" data-goto="profile" aria-label="Profile">
+          <img src="https://i.pravatar.cc/80?img=32" alt="">
+        </a>
+        <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Side menu — holds secondary / support-type features, replaces the old website-style footer nav -->
+  <div class="mobile-drawer" id="mobileDrawer">
+    <div class="drawer-overlay" id="drawerOverlay"></div>
+    <div class="drawer-panel">
+      <button class="icon-btn drawer-close" id="drawerClose" aria-label="Close menu">✕</button>
+      <div class="drawer-brand"><span class="brand-mark"><img src="assets/logo.png" alt=""></span>
+        <strong>Tixora</strong></div>
+
+      <div class="drawer-group-title">Menu</div>
+      <a href="#" class="nav-link" data-view="home"><span class="d-ico">🏠</span>Home</a>
+      <a href="#" class="nav-link" data-view="browse"><span class="d-ico">🔎</span>Browse Events</a>
+      <a href="#" class="nav-link" data-view="bookings"><span class="d-ico">🎫</span>My Bookings <span class="badge-dot"
+          id="notifDotBookings" style="display:none;margin-left:auto;"></span></a>
+      <a href="#" class="nav-link" data-view="wishlist"><span class="d-ico">♥</span>Wishlist</a>
+      <a href="#" class="nav-link" data-view="notifications"><span class="d-ico">🔔</span>Notifications <span
+          class="badge-dot" id="notifDot" style="margin-left:auto;"></span></a>
+
+      <hr>
+      <div class="drawer-group-title">Account &amp; support</div>
+      <a href="#" class="nav-link" data-view="profile"><span class="d-ico">👤</span>Profile &amp; account settings</a>
+      <!-- <a href="#" class="nav-link" data-goto-support="1"><span class="d-ico">💬</span>Customer support / help center</a> -->
+      <!-- <a href="#" class="nav-link" data-goto-about="1"><span class="d-ico">ℹ️</span>About us</a> -->
+      <!-- <a href="#" class="nav-link" data-goto-legal="1"><span class="d-ico">📄</span>Terms &amp; privacy policy</a> -->
+
+      <hr>
+      <button class="nav-link" id="logoutBtn"
+        style="text-align:left;width:100%;border:none;background:none;font-family:inherit;cursor:pointer;color:var(--danger);"><span
+          class="d-ico">↩</span>Log out</button>
+    </div>
+  </div>
+
+  <!-- Bottom tab bar — persistent primary navigation for the mobile app pattern -->
+  <nav class="bottom-tabbar" id="bottomTabbar" aria-label="Primary">
+    <div class="bottom-tabbar-inner">
+      <a href="#" class="bottom-tab active" data-view="home"><span class="bt-ico">🏠</span>Home</a>
+      <a href="#" class="bottom-tab" data-view="browse"><span class="bt-ico">🔎</span>Search</a>
+      <a href="#" class="bottom-tab" data-view="bookings"><span class="bt-ico">🎫</span>Tickets</a>
+      <a href="#" class="bottom-tab" data-view="wishlist"><span class="bt-ico">♥</span>Saved</a>
+      <a href="#" class="bottom-tab" data-view="profile"><span class="bt-ico">👤</span>Profile</a>
+    </div>
+  </nav>
+
+  <main id="mainContent">
+
+    <!-- ============================== HOME VIEW ============================= -->
+    <section class="view page-view" data-view="home">
+
+      <div class="hero">
+        <div class="container">
+          <div class="hero-grid">
+            <div>
+              <span class="eyebrow hero-eyebrow">● AI Fraud Protection Included</span>
+              <h1>Every ticket verified.<br>Every event <span>unforgettable.</span></h1>
+              <p>Discover concerts, conferences and experiences near you — booked in seconds, protected by real-time
+                fraud detection.</p>
+              <div class="hero-stats">
+                <div>
+                  <div class="stat-num" data-count="12400">0</div>
+                  <div class="stat-label">Events hosted</div>
+                </div>
+                <div>
+                  <div class="stat-num" data-count="980000">0</div>
+                  <div class="stat-label">Tickets sold</div>
+                </div>
+                <!-- <div>
+                  <div class="stat-num" data-count="99">0</div>
+                  <div class="stat-label">% fraud caught</div>
+                </div> -->
+              </div>
+            </div>
+            <div class="hero-visual" aria-hidden="true">
+              <div class="floating-ticket t1">
+                <div class="ft-top"><span class="ft-cat">Music</span><span>🎟️</span></div>
+                <div class="ft-title">Skyline Music Festival</div>
+                <div class="ft-meta">Austin · Sep 12</div>
+              </div>
+              <div class="floating-ticket t2">
+                <div class="ft-top"><span class="ft-cat">Technology</span><span>🎟️</span></div>
+                <div class="ft-title">Tech &amp; AI Conference</div>
+                <div class="ft-meta">Austin · Sep 28</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="search-bar">
+            <div class="search-field">
+              <label for="heroSearchInput">Search</label>
+              <input type="text" id="heroSearchInput" placeholder="Search events, artists, venues" autocomplete="off">
+              <div class="search-suggestions" id="searchSuggestions" role="listbox"></div>
+            </div>
+            <div class="search-field">
+              <label for="heroCity">City</label>
+              <select id="heroCity">
+                <option>Any city</option>
+                <option>Austin</option>
+                <option>New York</option>
+                <option>San Francisco</option>
+                <option>Las Vegas</option>
+              </select>
+            </div>
+            <div class="search-field">
+              <label for="heroDate">Date</label>
+              <input type="date" id="heroDate">
+            </div>
+            <button class="btn btn-primary btn-lg" id="heroSearchBtn">Search Events</button>
+          </div>
+        </div>
+      </div>
+
+      <section class="section">
+        <div class="container">
+          <div class="section-head">
+            <div><span class="eyebrow">Handpicked</span>
+              <h2 class="section-title">Featured events</h2>
+            </div>
+            <a href="#" class="link-arrow" data-goto="browse">View all <svg width="14" height="14" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg></a>
+          </div>
+          <div class="grid" id="featuredGrid"></div>
+        </div>
+      </section>
+
+      <section class="section section-alt">
+        <div class="container">
+          <div class="section-head">
+            <div><span class="eyebrow">Selling fast</span>
+              <h2 class="section-title">Trending near you</h2>
+            </div>
+            <a href="#" class="link-arrow" data-goto="browse">View all <svg width="14" height="14" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg></a>
+          </div>
+          <div class="grid" id="trendingGrid"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="section-head">
+            <div><span class="eyebrow">Coming up</span>
+              <h2 class="section-title">Upcoming events</h2>
+            </div>
+            <a href="#" class="link-arrow" data-goto="browse">View all <svg width="14" height="14" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg></a>
+          </div>
+          <div class="grid" id="upcomingGrid"></div>
+        </div>
+      </section>
+
+      <section class="section section-alt">
+        <div class="container">
+          <div class="section-head">
+            <div><span class="eyebrow">Explore</span>
+              <h2 class="section-title">Browse by category</h2>
+            </div>
+          </div>
+          <div class="cat-grid" id="categoriesGrid"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="section-head">
+            <div><span class="eyebrow">Where it's happening</span>
+              <h2 class="section-title">Popular cities</h2>
+            </div>
+          </div>
+          <div class="city-grid" id="citiesGrid"></div>
+        </div>
+      </section>
+
+      <section class="section section-alt">
+        <div class="container">
+          <div class="stats-band">
+            <div class="stat">
+              <div class="stat-value" data-count="12400">0</div>
+              <div class="stat-name">Events hosted</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value" data-count="340">0</div>
+              <div class="stat-name">Cities covered</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value" data-count="980000">0</div>
+              <div class="stat-name">Tickets sold</div>
+            </div>
+            <!-- <div class="stat">
+              <div class="stat-value" data-count="45000">0</div>
+              <div class="stat-name">Fraud attempts blocked</div>
+            </div> -->
+          </div>
+        </div>
+      </section>
+
+      <!-- <section class="section">
+        <div class="container">
+          <div class="newsletter">
+            <h3>Never miss an event</h3>
+            <p>Get curated recommendations and early access drops in your inbox.</p>
+            <form class="newsletter-form" id="newsletterForm">
+              <input type="email" id="newsletterEmail" placeholder="you@example.com" aria-label="Email address">
+              <button class="btn btn-dark" type="submit">Subscribe</button>
+            </form>
+          </div>
+        </div>
+      </section> -->
+
+      <section class="home-reviews">
+        <div class="container">
+          <div class="section-head" style="border:none;">
+            <div><span class="eyebrow">Loved by attendees</span>
+              <h2 class="section-title">What people are saying</h2>
+            </div>
+          </div>
+          <div class="home-reviews-grid" id="homeReviewsGrid"></div>
+        </div>
+      </section>
+
+    </section>
+
+    <!-- ============================= BROWSE VIEW ============================= -->
+    <section class="view hidden" data-view="browse">
+      <div class="container">
+        <div class="page-head">
+          <div class="breadcrumbs"><a href="#" data-goto="home">Home</a><span>/</span><span>Browse Events</span></div>
+          <h1 class="page-title">Browse events</h1>
+        </div>
+
+        <div class="tabs-row" style="margin-top:22px;">
+          <button class="tab-chip active" data-cat="all">All</button>
+          <button class="tab-chip" data-cat="Music">Music</button>
+          <button class="tab-chip" data-cat="Business">Business</button>
+          <button class="tab-chip" data-cat="Art">Art</button>
+          <button class="tab-chip" data-cat="Sports">Sports</button>
+          <button class="tab-chip" data-cat="Comedy">Comedy</button>
+          <button class="tab-chip" data-cat="Technology">Technology</button>
+        </div>
+
+        <div class="filters-bar">
+          <div class="search-inline">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input type="text" id="filterSearch" placeholder="Search by event name">
+          </div>
+          <div class="filter-field">
+            <label for="filterCategory">Category</label>
+            <select id="filterCategory">
+              <option value="all">All categories</option>
+              <option value="Music">Music</option>
+              <option value="Business">Business</option>
+              <option value="Art">Art</option>
+              <option value="Sports">Sports</option>
+              <option value="Comedy">Comedy</option>
+              <option value="Technology">Technology</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="filterCountry">Country</label>
+            <select id="filterCountry">
+              <option value="all">All countries</option>
+              <option value="United States">United States</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="filterCity">City</label>
+            <input type="text" id="filterCity" list="cityOptions" placeholder="Any city" autocomplete="off">
+            <datalist id="cityOptions">
+              <option value="Austin">
+              <option value="New York">
+              <option value="San Francisco">
+              <option value="Las Vegas">
+              <option value="Chicago">
+            </datalist>
+          </div>
+          <div class="filter-field">
+            <label for="filterDateFrom">Date from</label>
+            <input type="date" id="filterDateFrom">
+          </div>
+          <div class="filter-field">
+            <label for="filterDateTo">Date to</label>
+            <input type="date" id="filterDateTo">
+          </div>
+          <div class="filter-field">
+            <label for="filterPrice">Price</label>
+            <select id="filterPrice">
+              <option value="all">Any price</option>
+              <option value="under50">Under $50</option>
+              <option value="50-150">$50 – $150</option>
+              <option value="over150">$150+</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label>Time of day</label>
+            <div class="time-chip-group">
+              <button type="button" class="time-chip active" data-time="all">Any</button>
+              <button type="button" class="time-chip" data-time="morning">Morning</button>
+              <button type="button" class="time-chip" data-time="afternoon">Afternoon</button>
+              <button type="button" class="time-chip" data-time="evening">Evening</button>
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-sm filters-clear" id="filtersClear">Clear filters</button>
+        </div>
+
+        <div class="active-filter-chips" id="activeFilterChips"></div>
+
+        <div class="results-meta" id="resultsMeta">
+          <span>0 events found</span>
+          <div>
+            <label for="sortSelect" class="visually-hidden">Sort by</label>
+            <select class="sort-select" id="sortSelect">
+              <option value="popular">Sort: Popular</option>
+              <option value="date">Sort: Date</option>
+              <option value="price-asc">Sort: Price (low to high)</option>
+              <option value="price-desc">Sort: Price (high to low)</option>
+              <option value="seats">Sort: Fewest seats left</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid" id="browseGrid"></div>
+
+        <div class="empty-state hidden" id="browseEmpty">
+          <div class="icon-wrap">🔍</div>
+          <h3>No events match your filters</h3>
+          <p>Try widening your search or clearing a filter.</p>
+          <button class="btn btn-outline" id="browseEmptyClear">Clear filters</button>
+        </div>
+
+        <nav class="pagination" id="pagination" aria-label="Pagination"></nav>
+      </div>
+      <div style="height:64px;"></div>
+    </section>
+
+    <!-- ============================ PAYMENT VIEW ============================= -->
+    <section class="view hidden" data-view="payment">
+      <div class="container" style="max-width:640px;">
+        <div class="page-head">
+          <div class="breadcrumbs"><a href="#" data-goto="browse">Browse</a><span>/</span><span>Checkout</span></div>
+          <h1 class="page-title">Complete your payment</h1>
+        </div>
+
+        <div class="panel" style="margin-top:22px;">
+          <h4>Booking summary</h4>
+          <div class="price-summary" style="background:var(--bg);">
+            <div class="price-row"><span>Event</span><span id="paySummaryEvent">—</span></div>
+            <div class="price-row"><span>Date &amp; venue</span><span id="paySummaryMeta">—</span></div>
+            <div class="price-row"><span>Order ID</span><span id="paySummaryOrderId">—</span></div>
+          </div>
+          <div class="modal-divider" style="margin:16px 0;"></div>
+          <span class="field-label">Itemized breakdown</span>
+          <div class="checkout-items" id="paySummaryItems"></div>
+          <div class="price-summary" style="background:var(--bg);margin-top:0;">
+            <div class="price-row"><span>Total quantity</span><span id="paySummaryQty">—</span></div>
+            <div class="price-row total"><span>Total amount</span><span id="paySummaryTotal">$0.00</span></div>
+          </div>
+        </div>
+
+        <div class="panel" id="payIdle">
+          <h4>Payment method</h4>
+          <div class="tier-list">
+            <button type="button" class="tier-card selected pay-method">
+              <div class="tier-left"><span class="tier-dot" style="background:var(--secondary)"></span>
+                <div>
+                  <div class="tier-name">Credit / Debit Card</div>
+                  <div class="tier-remaining">Visa, Mastercard, Amex</div>
+                </div>
+              </div>
+              <div class="tier-price">💳</div>
+            </button>
+            <button type="button" class="tier-card pay-method">
+              <div class="tier-left"><span class="tier-dot" style="background:var(--accent)"></span>
+                <div>
+                  <div class="tier-name">Digital Wallet</div>
+                  <div class="tier-remaining">Apple Pay, Google Pay</div>
+                </div>
+              </div>
+              <div class="tier-price">📱</div>
+            </button>
+            <button type="button" class="tier-card pay-method">
+              <div class="tier-left"><span class="tier-dot" style="background:var(--warning)"></span>
+                <div>
+                  <div class="tier-name">Bank Transfer</div>
+                  <div class="tier-remaining">2–3 business days</div>
+                </div>
+              </div>
+              <div class="tier-price">🏦</div>
+            </button>
+          </div>
+          <button class="btn btn-primary btn-lg btn-block" style="margin-top:20px;" id="confirmPaymentBtn">Confirm
+            Payment</button>
+        </div>
+
+        <div class="panel hidden" id="payLoading" style="text-align:center;padding:48px 24px;">
+          <div class="spinner dark" style="width:32px;height:32px;border-width:3px;margin:0 auto 16px;"></div>
+          <h4 style="margin-bottom:4px;">Processing payment…</h4>
+          <p class="text-muted" style="font-size:13.5px;">Please don't close this window.</p>
+        </div>
+
+        <div class="panel hidden" id="paySuccess" style="text-align:center;padding:40px 24px;">
+          <span class="brand-mark" style="margin:0 auto 14px;"><img src="assets/logo.png" alt="Tixora"></span>
+          <div class="icon-wrap"
+            style="background:#DCFCE7;color:var(--success);width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px;">
+            ✓</div>
+          <h3 style="font-size:19px;font-weight:700;">Payment successful</h3>
+          <p class="text-muted" style="margin:8px 0 20px;">Your tickets have been booked and a confirmation was sent to
+            your email.</p>
+          <div style="display:flex;gap:10px;justify-content:center;">
+            <button class="btn btn-outline" data-goto="bookings">View my bookings</button>
+            <button class="btn btn-primary" data-goto="home">Back to home</button>
+          </div>
+        </div>
+
+        <div class="panel hidden" id="payFailed" style="text-align:center;padding:40px 24px;">
+          <div class="icon-wrap"
+            style="background:#FEE2E2;color:var(--danger);width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px;">
+            ✕</div>
+          <h3 style="font-size:19px;font-weight:700;">Payment failed</h3>
+          <p class="text-muted" style="margin:8px 0 20px;">Your card was declined. No amount has been charged.</p>
+          <div style="display:flex;gap:10px;justify-content:center;">
+            <button class="btn btn-outline" data-goto="browse">Browse events</button>
+            <button class="btn btn-primary" id="retryPaymentBtn">Try again</button>
+          </div>
+        </div>
+      </div>
+      <div style="height:64px;"></div>
+    </section>
+
+    <!-- ============================ BOOKINGS VIEW ============================= -->
+    <section class="view hidden" data-view="bookings">
+      <div class="container">
+        <div class="page-head">
+          <div class="breadcrumbs"><a href="#" data-goto="home">Home</a><span>/</span><span>My Bookings</span></div>
+          <h1 class="page-title">My bookings</h1>
+        </div>
+
+        <!-- Fraud detection notice (frontend only) -->
+        <!-- <div class="fraud-alert" style="margin-top:24px;">
+          <div class="fa-icon">⚠️</div>
+          <div style="flex:1;">
+            <h4>Fraud review on booking BK-88117</h4>
+            <p class="text-muted" style="font-size:13px;margin-top:4px;">Our AI flagged unusual activity on this order.
+              It's on hold until reviewed — no action is required from you right now.</p>
+            <div class="fraud-detail-grid">
+              <div class="fd">
+                <div class="fd-label">Booking ID</div>
+                <div class="fd-value">BK-88117</div>
+              </div>
+              <div class="fd">
+                <div class="fd-label">Status</div>
+                <div class="fd-value">Under review</div>
+              </div>
+              <div class="fd">
+                <div class="fd-label">Reason</div>
+                <div class="fd-value">Multiple rapid purchase attempts</div>
+              </div>
+            </div>
+            <div class="fd" style="margin-top:12px;">
+              <div class="fd-label">Suggested next step</div>
+              <div class="fd-value">Verify your identity to release this booking within 24 hours.</div>
+            </div>
+            <div class="fa-actions">
+              <button class="btn btn-dark btn-sm" id="contactSupportBtn">Contact support</button>
+              <button class="btn btn-ghost btn-sm" data-goto="notifications">View in notifications</button>
+            </div>
+          </div>
+        </div> -->
+
+        <h3 style="font-size:16px;font-weight:700;margin:30px 0 14px;">Upcoming</h3>
+        <div id="upcomingBookings" style="display:flex;flex-direction:column;gap:16px;"></div>
+
+        <h3 style="font-size:16px;font-weight:700;margin:34px 0 14px;">Previous</h3>
+        <div id="previousBookings" style="display:flex;flex-direction:column;gap:16px;"></div>
+      </div>
+      <div style="height:64px;"></div>
+    </section>
+
+    <!-- ============================= WISHLIST VIEW ============================ -->
+    <section class="view hidden" data-view="wishlist">
+      <div class="container">
+        <div class="page-head">
+          <div class="breadcrumbs"><a href="#" data-goto="home">Home</a><span>/</span><span>Wishlist</span></div>
+          <h1 class="page-title">Your wishlist</h1>
+        </div>
+        <div class="wishlist-toolbar" style="margin-top:22px;">
+          <p class="text-muted">Events you've saved to book later.</p>
+        </div>
+        <div class="grid" id="wishlistGrid"></div>
+        <div class="empty-state hidden" id="wishlistEmpty">
+          <div class="icon-wrap">♡</div>
+          <h3>Your wishlist is empty</h3>
+          <p>Tap the heart icon on any event to save it here.</p>
+          <button class="btn btn-primary" data-goto="browse">Browse events</button>
+        </div>
+      </div>
+      <div style="height:64px;"></div>
+    </section>
+
+    <!-- =========================== NOTIFICATIONS VIEW ========================== -->
+    <section class="view hidden" data-view="notifications">
+      <div class="container" style="max-width:720px;">
+        <div class="page-head">
+          <div class="breadcrumbs"><a href="#" data-goto="home">Home</a><span>/</span><span>Notifications</span></div>
+          <h1 class="page-title">Notifications</h1>
+        </div>
+        <div class="panel" style="margin-top:22px;">
+          <div class="notif-list" id="notifList"></div>
+        </div>
+      </div>
+      <div style="height:64px;"></div>
+    </section>
+
+    <!-- =============================== PROFILE VIEW ============================ -->
+    <section class="view hidden" data-view="profile">
+      <div class="container">
+        <div class="page-head">
+          <div class="breadcrumbs"><a href="#" data-goto="home">Home</a><span>/</span><span>Profile</span></div>
+          <h1 class="page-title">Your profile</h1>
+        </div>
+
+        <div class="profile-grid" style="margin-top:22px;">
+          <div class="profile-card">
+            <div class="profile-avatar-wrap">
+              <img id="profileAvatarImg" src="https://i.pravatar.cc/160?img=32" alt="Profile photo">
+              <label class="avatar-edit" for="avatarUpload" aria-label="Upload profile photo" style="cursor:pointer;">
+                ✎
+                <input type="file" id="avatarUpload" accept="image/*" class="visually-hidden">
+              </label>
+            </div>
+            <h3>Amara Whitfield</h3>
+            <p class="muted">amara.whitfield@example.com</p>
+            <!-- <div class="profile-stats">
+              <div>
+                <div class="p-num">12</div>
+                <div class="p-lab">Bookings</div>
+              </div>
+              <div>
+                <div class="p-num">4</div>
+                <div class="p-lab">Wishlist</div>
+              </div>
+              <div>
+                <div class="p-num">2yr</div>
+                <div class="p-lab">Member</div>
+              </div>
+            </div> -->
+          </div>
+
+          <div>
+            <form class="panel" id="profileForm" novalidate>
+              <h4>Personal information</h4>
+              <div class="form-grid">
+                <div class="form-field">
+                  <label for="fullName">Full name</label>
+                  <input type="text" id="fullName" value="Amara Whitfield" required>
+                  <span class="error-msg">Please enter your full name.</span>
+                </div>
+                <div class="form-field">
+                  <label for="emailField">Email address</label>
+                  <input type="email" id="emailField" value="amara.whitfield@example.com" required>
+                  <span class="error-msg">Please enter a valid email.</span>
+                </div>
+                <div class="form-field">
+                  <label for="phoneField">Phone number</label>
+                  <input type="tel" id="phoneField" value="+1 (512) 555-0148">
+                  <span class="error-msg">Please enter a valid phone number.</span>
+                </div>
+                <div class="form-field">
+                  <label for="cityField">City</label>
+                  <input type="text" id="cityField" value="Austin, TX">
+                  <span class="error-msg">Please enter a city.</span>
+                </div>
+              </div>
+              <div class="panel-actions">
+                <button type="reset" class="btn btn-ghost">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save changes</button>
+              </div>
+            </form>
+
+            <form class="panel" id="passwordForm">
+              <h4>Change password</h4>
+              <div class="form-grid">
+                <div class="form-field">
+                  <label for="currentPassword">Current password</label>
+                  <input type="password" id="currentPassword" required>
+                </div>
+                <div class="form-field"></div>
+                <div class="form-field">
+                  <label for="newPassword">New password</label>
+                  <input type="password" id="newPassword" required minlength="8">
+                  <span class="error-msg">Use at least 8 characters.</span>
+                </div>
+                <div class="form-field">
+                  <label for="confirmPassword">Confirm new password</label>
+                  <input type="password" id="confirmPassword" required>
+                  <span class="error-msg">Passwords don't match.</span>
+                </div>
+              </div>
+              <div class="panel-actions">
+                <button type="submit" class="btn btn-dark">Update password</button>
+              </div>
+            </form>
+
+            <div class="panel">
+              <h4>Booking &amp; payment history</h4>
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <div
+                  style="display:flex;justify-content:space-between;font-size:13.5px;padding:10px 0;border-bottom:1px solid var(--border);">
+                  <span>BK-88213 · Skyline Music Festival</span><span class="text-muted">$190.00</span>
+                </div>
+                <div
+                  style="display:flex;justify-content:space-between;font-size:13.5px;padding:10px 0;border-bottom:1px solid var(--border);">
+                  <span>BK-87650 · Stand-Up Comedy Night</span><span class="text-muted">$110.00</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:13.5px;padding:10px 0;">
+                  <span>BK-87910 · Contemporary Art Expo</span><span class="text-muted">Refunded</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="height:64px;"></div>
+    </section>
+
+  </main>
+
+  <!-- Minimal legal strip. Support / About / Terms / Privacy now live in the side menu (see drawer). -->
+  <footer class="app-legal-strip">
+    <div class="container">
+      <span>© 2026 Tixora, Inc. — Made for event people, protected by AI.</span>
+      <span>
+        <a href="#" data-goto-support="1">Support</a>
+        <a href="#" data-goto-about="1">About</a>
+        <a href="#" data-goto-legal="1">Terms &amp; Privacy</a>
+      </span>
+    </div>
+  </footer>
+
+  <!-- ========================= QUICK TICKET PURCHASE MODAL ========================= -->
+  <div class="modal-overlay" id="ticketModal" aria-hidden="true" role="dialog" aria-modal="true"
+    aria-labelledby="modalEventTitle">
+    <div class="modal-box">
+      <div class="modal-banner">
+        <img id="modalBanner" src="" alt="">
+        <button class="modal-close" id="modalCloseBtn" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <h3 class="modal-event-title" id="modalEventTitle">Event name</h3>
+        <div class="modal-event-date" id="modalEventDate">Date · Venue</div>
+        <p class="modal-event-desc" id="modalEventDesc">Description</p>
+
+        <div class="modal-divider"></div>
+
+        <span class="field-label">Select ticket classes &amp; quantities</span>
+        <p class="text-muted" style="font-size:12px;margin-top:-8px;margin-bottom:12px;">Mix and match — add as many
+          classes as you like to one order.</p>
+        <div class="class-list" id="classList"></div>
+        <p class="text-muted" id="qtyWarning" style="font-size:12px;color:var(--danger);margin-top:8px;"></p>
+
+        <div class="ticket-cart-summary">
+          <div class="tc-title">Your order</div>
+          <div id="cartItems">
+            <p class="ticket-cart-empty">No tickets added yet — pick a quantity above.</p>
+          </div>
+        </div>
+
+        <div class="price-summary">
+          <div class="price-row"><span>Subtotal</span><span id="sumSubtotal">$0.00</span></div>
+          <div class="price-row"><span>Total quantity</span><span id="sumQty">0</span></div>
+          <div class="price-row"><span>Service fee</span><span id="sumFees">$0.00</span></div>
+          <div class="price-row total"><span>Total</span><span id="sumTotal">$0.00</span></div>
+        </div>
+
+        <button class="btn btn-primary btn-lg btn-block" style="margin-top:18px;" id="proceedBtn" disabled>Proceed to
+          Payment</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toasts -->
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>

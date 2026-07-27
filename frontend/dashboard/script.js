@@ -27,6 +27,18 @@
     return date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
   }
 
+  // `dt` is the exact organizer-selected value from an <input type="datetime-local">,
+  // e.g. "2026-07-19T18:30". Kept as local wall-clock time — never re-derived
+  // from the device clock — so what the organizer picked is what gets stored
+  // and displayed everywhere.
+  function formatDateTime(dt) {
+    if (!dt) return "—";
+    const date = new Date(dt);
+    if (isNaN(date)) return dt;
+    return date.toLocaleString("en-US", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+  }
+
+
   function toast(message, type = "default") {
     const stack = $("#toastStack");
     const el = document.createElement("div");
@@ -42,10 +54,32 @@
 
   const TICKET_COLORS = ["#0B5ED7", "#4CC9F0", "#F59E0B", "#10B981", "#8B5CF6", "#EF4444", "#EC4899"];
 
+  // Key under which the logged-in organizer's record is kept for this session.
+  // On a real backend this is replaced entirely by a GET /api/auth/me call
+  // (or by decoding the session/JWT), so swap it there and everything below
+  // that reads from `currentUser` keeps working unchanged.
+  const AUTH_STORAGE_KEY = "tixora_auth_user";
+
+  function getInitials(name) {
+    const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return "U";
+    return parts.slice(0, 2).map(p => p[0].toUpperCase()).join("");
+  }
+
   /* ------------------------------------------------------------------ */
   /* Seed / mock data (stand-in for real database rows)                   */
   /* ------------------------------------------------------------------ */
   const store = {
+    // Stand-in for the record a real backend would return for the
+    // currently authenticated organizer (e.g. from the session/JWT).
+    // Every user gets their own copy once a real login flow writes to
+    // `AUTH_STORAGE_KEY` — nothing in the UI is hardcoded to this name.
+    currentUser: {
+      name: "Sana Malik",
+      email: "sana.malik@tixora.com",
+      phone: "+92 300 7654321",
+      company: "Tixora Events"
+    },
     events: [],
     bookings: [
       { id: uid("bk"), customer: "Sara Khan", email: "sara.khan@example.com", eventName: "Lahore Music Fest", category: "VIP", qty: 2, amount: 10000, date: "2026-07-18", status: "paid", qr: true },
@@ -74,6 +108,61 @@
   /* ------------------------------------------------------------------ */
   /* API layer (swap-ready for a real backend)                           */
   /* ------------------------------------------------------------------ */
+<<<<<<< HEAD
+  const api = {
+    events: {
+      // GET /api/events
+      async list() { await delay(); return structuredClone(store.events); },
+      // GET /api/events/:id
+      async get(id) { await delay(120); return structuredClone(store.events.find(e => e.id === id)); },
+      // POST /api/events
+      async create(payload) {
+        await delay();
+        const evt = { ...payload, id: uid("evt") };
+        store.events.unshift(evt);
+        return structuredClone(evt);
+      },
+      // PUT /api/events/:id
+      async update(id, payload) {
+        await delay();
+        const idx = store.events.findIndex(e => e.id === id);
+        if (idx > -1) store.events[idx] = { ...store.events[idx], ...payload, id };
+        return structuredClone(store.events[idx]);
+      },
+      // DELETE /api/events/:id
+      async remove(id) {
+        await delay();
+        store.events = store.events.filter(e => e.id !== id);
+        return { success: true };
+      }
+    },
+    bookings: {
+      // GET /api/bookings
+      async list() { await delay(); return structuredClone(store.bookings); }
+    },
+    notifications: {
+      // GET /api/notifications
+      async list() { await delay(120); return structuredClone(store.notifications); }
+    },
+    fraud: {
+      // GET /api/fraud
+      async list() { await delay(120); return structuredClone(store.fraudRecords); }
+    },
+    auth: {
+      // GET /api/auth/me — on the real backend this resolves the organizer
+      // from the authenticated session/JWT. Here it reads whatever the login
+      // flow persisted for this browser, falling back to the mock record so
+      // the dashboard still works standalone.
+      async me() {
+        await delay(100);
+        try {
+          const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+          if (raw) return JSON.parse(raw);
+        } catch (e) { /* private mode / no storage — ignore */ }
+        return structuredClone(store.currentUser);
+      }
+    }
+=======
   const API_BASE = "http://localhost:8000";
 
 function authHeaders() {
@@ -105,6 +194,7 @@ function mapEventFromBackend(evt, tiers) {
     refund: evt.refund_policy,
     status: "published", // backend has no draft concept yet
     tickets: (tiers || []).map(mapTierFromBackend)
+>>>>>>> 5f9632d3230dfd8e1c7b181ab90d5e9bacd91db6
   };
 }
 
@@ -254,6 +344,7 @@ const api = {
   /* ------------------------------------------------------------------ */
   /* App state                                                            */
   /* ------------------------------------------------------------------ */
+  let currentUser = null;
   let events = [];
   let bookings = [];
   let notifications = [];
@@ -269,7 +360,7 @@ const api = {
     dashboard: { title: "Dashboard", crumb: "Overview" },
     events: { title: "My Events", crumb: "All Events" },
     create: { title: "Create Event", crumb: "New Event" },
-    tickets: { title: "Manage Tickets", crumb: "Ticket Categories" },
+    tickets: { title: "Manage Events", crumb: "Ticket Categories" },
     bookings: { title: "Bookings", crumb: "All Bookings" },
     analytics: { title: "Analytics", crumb: "Performance" },
     revenue: { title: "Revenue", crumb: "Earnings" },
@@ -387,7 +478,7 @@ const api = {
         </p>
         <p class="event-meta">
           <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-          ${formatDate(evt.startDate)} · ${evt.startTime}
+          ${formatDateTime(evt.startDateTime)}
         </p>
         <p class="event-meta">
           <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"/></svg>
@@ -508,8 +599,8 @@ const api = {
       <div class="detail-row"><span class="k">Status</span><span class="v">${statusBadge(evt.status)}</span></div>
       <div class="detail-row"><span class="k">Category</span><span class="v">${evt.category}</span></div>
       <div class="detail-row"><span class="k">Venue</span><span class="v">${evt.venue}, ${evt.city}, ${evt.country}</span></div>
-      <div class="detail-row"><span class="k">Date</span><span class="v">${formatDate(evt.startDate)} – ${formatDate(evt.endDate)}</span></div>
-      <div class="detail-row"><span class="k">Time</span><span class="v">${evt.startTime} – ${evt.endTime}</span></div>
+      <div class="detail-row"><span class="k">Starts</span><span class="v">${formatDateTime(evt.startDateTime)}</span></div>
+      <div class="detail-row"><span class="k">Ends</span><span class="v">${formatDateTime(evt.endDateTime)}</span></div>
       <div class="detail-row"><span class="k">Capacity</span><span class="v">${evt.capacity} seats</span></div>
       <div class="detail-row"><span class="k">Tickets Sold</span><span class="v">${sold}</span></div>
       <div class="detail-row"><span class="k">Revenue</span><span class="v">${currency(revenue)}</span></div>
@@ -776,10 +867,8 @@ const api = {
     $("#f_address").value = evt.address || "";
     $("#f_city").value = evt.city;
     $("#f_country").value = evt.country;
-    $("#f_startDate").value = evt.startDate;
-    $("#f_endDate").value = evt.endDate;
-    $("#f_startTime").value = evt.startTime;
-    $("#f_endTime").value = evt.endTime;
+    $("#f_startDateTime").value = evt.startDateTime;
+    $("#f_endDateTime").value = evt.endDateTime;
     $("#f_capacity").value = evt.capacity;
     $("#f_dresscode").value = evt.dresscode || "";
     $("#f_age").value = evt.age || "";
@@ -800,10 +889,8 @@ const api = {
       address: $("#f_address").value.trim(),
       city: $("#f_city").value.trim(),
       country: $("#f_country").value.trim(),
-      startDate: $("#f_startDate").value,
-      endDate: $("#f_endDate").value,
-      startTime: $("#f_startTime").value,
-      endTime: $("#f_endTime").value,
+      startDateTime: $("#f_startDateTime").value,
+      endDateTime: $("#f_endDateTime").value,
       capacity: Number($("#f_capacity").value) || 0,
       dresscode: $("#f_dresscode").value.trim(),
       age: $("#f_age").value.trim(),
@@ -819,8 +906,12 @@ const api = {
       toast("Please fill in all required fields marked with *", "danger");
       return false;
     }
-    if (!data.startDate || !data.endDate || !data.startTime || !data.endTime) {
+    if (!data.startDateTime || !data.endDateTime) {
       toast("Please set the event date and time", "danger");
+      return false;
+    }
+    if (new Date(data.endDateTime) < new Date(data.startDateTime)) {
+      toast("Event end must be after the start", "danger");
       return false;
     }
     if (!$("#f_terms").checked) {
@@ -862,7 +953,8 @@ const api = {
       <p style="color:var(--muted);font-size:13.5px;margin:0 0 16px;">${data.description || "No description yet."}</p>
       <div class="detail-row"><span class="k">Category</span><span class="v">${data.category || "—"}</span></div>
       <div class="detail-row"><span class="k">Venue</span><span class="v">${data.venue || "—"}, ${data.city || "—"}</span></div>
-      <div class="detail-row"><span class="k">Date</span><span class="v">${data.startDate ? formatDate(data.startDate) : "—"} – ${data.endDate ? formatDate(data.endDate) : "—"}</span></div>
+      <div class="detail-row"><span class="k">Starts</span><span class="v">${data.startDateTime ? formatDateTime(data.startDateTime) : "—"}</span></div>
+      <div class="detail-row"><span class="k">Ends</span><span class="v">${data.endDateTime ? formatDateTime(data.endDateTime) : "—"}</span></div>
       <div class="detail-row"><span class="k">Capacity</span><span class="v">${used} / ${data.capacity || 0} seats planned</span></div>
       <h4 style="margin:18px 0 10px;font-size:14px;">Ticket Categories</h4>
       <div class="ticket-categories">
@@ -1025,9 +1117,17 @@ const api = {
   ].join("");
   $$("[data-count]", $("#analyticsStats")).forEach(el => animateCounter(el, Number(el.dataset.target), el.dataset.currency === "true"));
 
+<<<<<<< HEAD
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const ticketWeights = [8, 14, 10, 18, 22, 30, 20];
+    renderLineChart($("#ticketSalesChart"), days, ticketWeights, (v) => `${v} tickets`);
+    renderDonutChart($("#categoryChart2"), categorySalesBreakdown());
+  }
+=======
   const salesData = await api.analytics.ticketSales(); // {"Mon": 5, "Tue": 12, ...}
   const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   renderLineChart($("#ticketSalesChart"), days, days.map(d => salesData[d] || 0), (v) => `${v} tickets`);
+>>>>>>> 5f9632d3230dfd8e1c7b181ab90d5e9bacd91db6
 
   const categories = await api.analytics.popularCategories(); // {"VIP": 45, "General": 120}
   const colorEntries = Object.entries(categories).map(([label, value], i) => ({ label, value, color: TICKET_COLORS[i % TICKET_COLORS.length] }));
@@ -1358,6 +1458,24 @@ const api = {
   }
 
   /* ------------------------------------------------------------------ */
+  /* Logged-in organizer identity                                         */
+  /* ------------------------------------------------------------------ */
+  function applyOrganizerIdentity(user) {
+    const name = (user && user.name) || "Organizer";
+    const firstName = name.split(" ")[0];
+    const initials = getInitials(name);
+
+    $("#welcomeName").textContent = `${firstName} 👋`;
+    $("#topbarAvatar").textContent = initials;
+    $("#topbarUserName").textContent = name;
+    $("#profileAvatarLarge").textContent = initials;
+    $("#profileNameInput").value = name;
+    $("#profileEmailInput").value = (user && user.email) || "";
+    $("#profilePhoneInput").value = (user && user.phone) || "";
+    $("#profileCompanyInput").value = (user && user.company) || "";
+  }
+
+  /* ------------------------------------------------------------------ */
   /* Welcome section                                                      */
   /* ------------------------------------------------------------------ */
   function renderWelcome() {
@@ -1373,6 +1491,9 @@ const api = {
   async function init() {
     renderWelcome();
     bindGlobalUI();
+
+    currentUser = await api.auth.me();
+    applyOrganizerIdentity(currentUser);
 
     events = await api.events.list();
     bookings = await api.bookings.list();
