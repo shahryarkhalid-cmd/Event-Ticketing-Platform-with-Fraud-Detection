@@ -15,13 +15,15 @@ from dependencies.exception import (Email_exist , User_Exist ,password_mismatch 
             Not_customer , not_customer , Ticket_Tier_not_found , no_ticket_tier ,Order_Quantity_Error , less_order_quantity , 
             Not_Enough_Tickets , not_enough_tickets , booking_contention , BookingContention ,
             not_order , Not_Order , order_mismatch , paid_refund , Paid_Refund ,
-            Order_Mismatch , not_pending_order ,Not_Pending_Order , not_your_event , Not_Your_Event)
+            Order_Mismatch , not_pending_order ,
+            Not_Pending_Order , not_your_event , Not_Your_Event 
+            , invalid_webhook_payload_handler , invalid_webhook_signature_handler ,InvalidWebhookPayload ,InvalidWebhookSignature)
 from models.Ticket import TicketTierRead
 from typing import Optional 
 from fastapi import Query
 from typing import List
 from models.Orders import OrderCreate , OrderRead
-from services.Order_services import get_my_orders , book_ticket
+from services.Order_services import get_my_orders , book_cart
 from services.Customer_services import search_events_customer
 from services.Payment_services import create_checkout_session
 def lifespan(app : FastAPI):
@@ -65,6 +67,8 @@ app.add_exception_handler(Order_Mismatch , order_mismatch )
 app.add_exception_handler(Not_Pending_Order , not_pending_order)
 app.add_exception_handler(Not_Your_Event , not_your_event)
 app.add_exception_handler(Paid_Refund , paid_refund)
+app.add_exception_handler(InvalidWebhookSignature , invalid_webhook_signature_handler)
+app.add_exception_handler(InvalidWebhookPayload , invalid_webhook_payload_handler)
 
 logger = logging.getLogger(__name__)
 # Health checking and home page:
@@ -90,10 +94,15 @@ def db_health_check(session: Session = Depends(get_session)):
 def register(user : UserCreate , session : Session = Depends(get_session)):
     return register_user(user , session)
 from fastapi.security import OAuth2PasswordRequestForm
+
 @ app.post('/auth/login')
-def login(user : UserLogin , session : Session = Depends(get_session)):
+def login(user : OAuth2PasswordRequestForm = Depends() , session : Session = Depends(get_session)):
     return logging_in(user , session)
 
+'''@ app.post('/auth/login')
+def login(user : UserLogin , session : Session = Depends(get_session)):
+    return logging_in(user , session)
+'''
 @app.post("/publish-event")
 def publish_event_route(
     event_data: EventCreateWithTiers,
@@ -192,20 +201,18 @@ def search_events(
     return search_events_customer(session, search, venue, city, country, category)
 
 # placing the order :
-@app.post("/orders", response_model=OrderRead)
+from services.Order_services import book_cart
+@app.post("/orders" ,  response_model=OrderRead)
 def create_order(
     order_data: OrderCreate,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    return book_ticket(order_data, user, session)
+    return book_cart(order_data, user, session)
 
 
 @app.get("/orders/me", response_model=List[OrderRead])
-def my_orders(
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
+def my_orders(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     return get_my_orders(user, session)
 
 @app.post("/orders/{order_id}/checkout")
@@ -215,4 +222,16 @@ def checkout_order(
     session: Session = Depends(get_session)
 ):
     return create_checkout_session(order_id, user, session)
+
+
+# webhook for payment:
+from fastapi import Request
+from services.Payment_services import handle_stripe_webhook
+
+@app.post("/webhooks/stripe")
+async def stripe_webhook(request: Request, session: Session = Depends(get_session)):
+    payload = await request.body()
+    logging.info(f"Received webhook payload, length: {len(payload)}")
+    sig_header = request.headers.get("stripe-signature")
+    return handle_stripe_webhook(payload, sig_header, session)
 

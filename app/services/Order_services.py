@@ -1,59 +1,74 @@
 
 from sqlmodel import Session , select
-from models.Orders import OrderCreate , Order
+from models.Orders import OrderCreate , Order , CartItem ,OrderItem , OrderRead
 from models.Ticket import TicketTier
 from models.Users import User , UserRole
 import logging
 from dependencies.exception import Not_customer , Ticket_Tier_not_found , Order_Quantity_Error , Not_Enough_Tickets , BookingContention
 from core.redis_client import redis_client
 from core.locking import acquire_lock , release_lock
-def book_ticket(order_data: OrderCreate, user: User, session: Session):
+def book_cart(order_data: OrderCreate, user: User, session: Session):
     if user.role != UserRole.customer:
-        logging.warning(f"User {user.id} with role {user.role} attempted to book a ticket")
+        raise Not_customer()
+    if not order_data.items:
         raise Not_customer()
 
-    if order_data.quantity <= 0:
-        raise Order_Quantity_Error()
-
-    resource_key = f"tier:{order_data.ticket_tier_id}"
-    lock_id = acquire_lock(redis_client, resource_key)
-    print(f"LOCK ATTEMPT for {resource_key}: {'ACQUIRED' if lock_id else 'FAILED'}")
-
-    if lock_id is None:
-        logging.warning(f"Could not acquire lock for {resource_key} — high contention")
-        raise BookingContention()
+    sorted_items = sorted(order_data.items, key=lambda i: i.ticket_tier_id)
+    acquired_locks = []
 
     try:
-        tier = session.get(TicketTier, order_data.ticket_tier_id)
-        if not tier:
-            raise Ticket_Tier_not_found()
+        for item in sorted_items:
+            if item.quantity <= 0:
+                raise Order_Quantity_Error()
+            resource_key = f"tier:{item.ticket_tier_id}"
+            lock_id = acquire_lock(redis_client, resource_key)
+            if lock_id is None:
+                raise BookingContention()
+            acquired_locks.append((resource_key, lock_id))
 
-        available = tier.total_seats - tier.sold_quantity
-        if order_data.quantity > available:
-            raise Not_Enough_Tickets()
+        order_items = []
+        total_price = 0.0
 
-        tier.sold_quantity += order_data.quantity
-        session.add(tier)
+        for item in sorted_items:
+            tier = session.get(TicketTier, item.ticket_tier_id)
+            if not tier:
+                raise Ticket_Tier_not_found()
+            available = tier.total_seats - tier.sold_quantity
+            if item.quantity > available:
+                raise Not_Enough_Tickets()
+
+            tier.sold_quantity += item.quantity
+            session.add(tier)
+
+            subtotal = tier.price * item.quantity
+            total_price += subtotal
+            order_items.append((tier, item.quantity, subtotal))
+
         new_order = Order(
             user_id=user.id,
-            event_id=tier.event_id,
-            ticket_tier_id=tier.id,
-            quantity=order_data.quantity,
-            total_price=tier.price * order_data.quantity,
+            event_id=order_data.event_id,
+            total_price=total_price,
             status="pending"
         )
         session.add(new_order)
-        session.flush()
+        session.flush() 
+        for tier, qty, subtotal in order_items:
+            session.add(OrderItem(
+                order_id=new_order.id,
+                ticket_tier_id=tier.id,
+                quantity=qty,
+                subtotal=subtotal
+            ))
+
+        session.commit()
         session.refresh(new_order)
-        logging.info(f"Order {new_order.id} created for user {user.id}, tier {tier.id}")
         return new_order
 
     finally:
-        release_lock(redis_client, resource_key, lock_id)
+        for resource_key, lock_id in acquired_locks:
+            release_lock(redis_client, resource_key, lock_id)
 
 
 def get_my_orders(user: User, session: Session):
-    if user.role != UserRole.customer:
-            raise Not_customer()
     orders = session.exec(select(Order).where(Order.user_id == user.id)).all()
     return orders
