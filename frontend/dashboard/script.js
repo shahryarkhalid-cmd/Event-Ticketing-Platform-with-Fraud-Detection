@@ -108,61 +108,6 @@
   /* ------------------------------------------------------------------ */
   /* API layer (swap-ready for a real backend)                           */
   /* ------------------------------------------------------------------ */
-<<<<<<< HEAD
-  const api = {
-    events: {
-      // GET /api/events
-      async list() { await delay(); return structuredClone(store.events); },
-      // GET /api/events/:id
-      async get(id) { await delay(120); return structuredClone(store.events.find(e => e.id === id)); },
-      // POST /api/events
-      async create(payload) {
-        await delay();
-        const evt = { ...payload, id: uid("evt") };
-        store.events.unshift(evt);
-        return structuredClone(evt);
-      },
-      // PUT /api/events/:id
-      async update(id, payload) {
-        await delay();
-        const idx = store.events.findIndex(e => e.id === id);
-        if (idx > -1) store.events[idx] = { ...store.events[idx], ...payload, id };
-        return structuredClone(store.events[idx]);
-      },
-      // DELETE /api/events/:id
-      async remove(id) {
-        await delay();
-        store.events = store.events.filter(e => e.id !== id);
-        return { success: true };
-      }
-    },
-    bookings: {
-      // GET /api/bookings
-      async list() { await delay(); return structuredClone(store.bookings); }
-    },
-    notifications: {
-      // GET /api/notifications
-      async list() { await delay(120); return structuredClone(store.notifications); }
-    },
-    fraud: {
-      // GET /api/fraud
-      async list() { await delay(120); return structuredClone(store.fraudRecords); }
-    },
-    auth: {
-      // GET /api/auth/me — on the real backend this resolves the organizer
-      // from the authenticated session/JWT. Here it reads whatever the login
-      // flow persisted for this browser, falling back to the mock record so
-      // the dashboard still works standalone.
-      async me() {
-        await delay(100);
-        try {
-          const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-          if (raw) return JSON.parse(raw);
-        } catch (e) { /* private mode / no storage — ignore */ }
-        return structuredClone(store.currentUser);
-      }
-    }
-=======
   const API_BASE = "http://localhost:8000";
 
 function authHeaders() {
@@ -192,9 +137,10 @@ function mapEventFromBackend(evt, tiers) {
     parking: evt.parking_available,
     food: evt.food_available,
     refund: evt.refund_policy,
-    status: "published", // backend has no draft concept yet
+    status: "published",
     tickets: (tiers || []).map(mapTierFromBackend)
->>>>>>> 5f9632d3230dfd8e1c7b181ab90d5e9bacd91db6
+  };
+}
   };
 }
 
@@ -313,7 +259,10 @@ const api = {
     async list() { return []; } // not built on backend yet
   },
   fraud: {
-    async list() { return []; } // waiting on teammate's model
+    async list() {
+      const res = await fetch(`${API_BASE}/organizer/fraud-orders`, { headers: authHeaders() });
+      return res.json();
+    }
   },
   analytics: {
     async summary() {

@@ -341,3 +341,31 @@ def update_event_with_tiers(id: int, event_data: EventUpdateWithTiers, user: Use
 
     all_tiers = session.exec(select(TicketTier).where(TicketTier.event_id == id)).all()
     return {"event": event, "ticket_tiers": all_tiers}
+
+
+def get_fraud_orders(user: User, session: Session):
+    if user.role != "organizer":
+        raise Forbidden()
+    events = session.exec(select(Event).where(Event.organizer_id == user.id)).all()
+    event_ids = [e.id for e in events]
+
+    flagged = session.exec(
+        select(Order).where(Order.event_id.in_(event_ids), Order.status == "fraud_review")
+    ).all() if event_ids else []
+
+    result = []
+    for order in flagged:
+        customer = session.get(User, order.user_id)
+        event = session.get(Event, order.event_id)
+        tier = session.get(TicketTier, order.ticket_tier_id)
+        result.append({
+            "id": order.id,
+            "userName": customer.full_name if customer else "Unknown",
+            "email": customer.email if customer else "",
+            "eventName": event.name if event else "Unknown",
+            "bookingDate": order.created_at.isoformat() if order.created_at else "",
+            "reason": "Flagged by fraud detection model",
+            "riskScore": 75,
+            "status": "flagged",
+        })
+    return result

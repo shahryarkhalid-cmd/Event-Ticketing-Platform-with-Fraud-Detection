@@ -75,12 +75,11 @@ def _build_app_schema_features(ctx: OrderContext) -> Dict[str, Any]:
     hours_since_tier_listed = 0.0
     if ctx.event_created_at:
         created = ctx.event_created_at
+        now_for_calc = now
         if created.tzinfo is None and now.tzinfo is not None:
             created = created.replace(tzinfo=timezone.utc)
         elif created.tzinfo is not None and now.tzinfo is None:
-            now_for_calc = now
-        else:
-            now_for_calc = now
+            created = created.replace(tzinfo=None)
         delta = now_for_calc - created
         hours_since_tier_listed = delta.total_seconds() / 3600.0
 
