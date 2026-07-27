@@ -9,13 +9,12 @@ legitimate orders.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import numpy as np
 
 from .config import fraud_config
 from .feature_builder import build_features
-from .model_loader import get_model, get_preprocessing, is_loaded
+from .model_loader import get_model, is_loaded
 from .schemas import FraudPrediction, OrderContext
 
 logger = logging.getLogger(__name__)
@@ -67,10 +66,9 @@ def _run_prediction(ctx: OrderContext) -> FraudPrediction:
         ctx.quantity,
         ctx.total_price,
     )
-    # Load model + preprocessing (cached after first call)
+    # Load model (cached after first call)
     try:
         model = get_model()
-        preprocessing = get_preprocessing()
         logger.info(
         "Fraud model loaded successfully: %s",
         fraud_config.model_name,
@@ -87,8 +85,9 @@ def _run_prediction(ctx: OrderContext) -> FraudPrediction:
             reason=f"Model artifacts not found: {exc}",
         )
 
-    # Build features
-    features_df = build_features(ctx, preprocessing)
+    # Build features (the full Pipeline in best_model.pkl handles schema
+    # alignment, cleaning, encoding, and scaling internally)
+    features_df = build_features(ctx)
     logger.debug(
         "Features built for user=%s event=%s: shape=%s",
         ctx.user_id,
@@ -168,14 +167,22 @@ def _build_reason(
     if not is_fraud:
         return "Passed fraud check"
     parts = [f"Fraud probability {probability:.2%} exceeds threshold"]
-    if ctx.order_value_ratio > 3.0:
+    order_value_ratio = (
+        ctx.total_price / ctx.user_avg_order_value
+        if ctx.user_avg_order_value > 0 else 0.0
+    )
+    if order_value_ratio > 3.0:
         parts.append(
             f"Order value {ctx.total_price:.2f} is "
-            f"{ctx.order_value_ratio:.1f}x average spend"
+            f"{order_value_ratio:.1f}x average spend"
         )
     if ctx.quantity > 10:
         parts.append(f"Unusually high quantity: {ctx.quantity}")
-    if ctx.seat_occupancy_ratio > 0.95:
+    seat_occupancy_ratio = (
+        ctx.tier_sold_quantity / ctx.tier_total_seats
+        if ctx.tier_total_seats > 0 else 0.0
+    )
+    if seat_occupancy_ratio > 0.95:
         parts.append("Near-sold-out event (possible scalping)")
     return "; ".join(parts)
 

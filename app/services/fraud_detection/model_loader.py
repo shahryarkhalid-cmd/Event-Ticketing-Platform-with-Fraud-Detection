@@ -21,7 +21,7 @@ import sys
 import types
 from pathlib import Path
 from threading import Lock
-from typing import Any, Optional, Tuple
+from typing import Any, Tuple
 
 import joblib
 
@@ -31,7 +31,6 @@ logger = logging.getLogger(__name__)
 
 # Module-level cache (process singleton)
 _model: Any = None
-_preprocessing: Any = None
 _load_lock = Lock()
 _loaded = False
 
@@ -113,24 +112,26 @@ def _load_pickle(path: str) -> Any:
 
 
 def load_artifacts() -> Tuple[Any, Any]:
-    """Load model and preprocessing artifacts, with thread-safe caching.
+    """Load model artifact with thread-safe caching.
+
+    The full Pipeline (best_model.pkl) contains preprocessing internally,
+    so preprocessor.pkl is not loaded separately.
 
     Returns:
-        Tuple of (model, preprocessing).
+        Tuple of (model, None) — second element kept for backwards compatibility.
 
     Raises:
-        FileNotFoundError: If either artifact path does not exist.
+        FileNotFoundError: If the model path does not exist.
         Exception: On deserialization failure.
     """
-    global _model, _preprocessing, _loaded
+    global _model, _loaded
 
     if _loaded:
-        return _model, _preprocessing
+        return _model, None
 
     with _load_lock:
-        # Double-check after acquiring lock
         if _loaded:
-            return _model, _preprocessing
+            return _model, None
 
         _ensure_pipeline_shim()
 
@@ -142,20 +143,8 @@ def load_artifacts() -> Tuple[Any, Any]:
             "Model loaded: type=%s", type(_model).__name__
         )
 
-        logger.info(
-            "Loading preprocessing artifacts from %s",
-            fraud_config.preprocessing_path,
-        )
-        _preprocessing = _load_pickle(fraud_config.preprocessing_path)
-        logger.info(
-            "Preprocessing artifacts loaded: keys=%s",
-            list(_preprocessing.keys())
-            if isinstance(_preprocessing, dict)
-            else type(_preprocessing).__name__,
-        )
-
         _loaded = True
-        return _model, _preprocessing
+        return _model, None
 
 
 def get_model() -> Any:
@@ -164,10 +153,10 @@ def get_model() -> Any:
     return model
 
 
-def get_preprocessing() -> Any:
-    """Return the loaded preprocessing artifacts (loads on first call)."""
-    _, preprocessing = load_artifacts()
-    return preprocessing
+def get_preprocessing() -> None:
+    """No longer loads preprocessor.pkl — the full Pipeline in best_model.pkl
+    contains preprocessing internally."""
+    return None
 
 
 def is_loaded() -> bool:
@@ -181,9 +170,8 @@ def reset() -> None:
     After calling this, the next access to get_model() / get_preprocessing()
     will reload from disk.
     """
-    global _model, _preprocessing, _loaded
+    global _model, _loaded
     with _load_lock:
         _model = None
-        _preprocessing = None
         _loaded = False
         logger.info("Model loader cache reset")

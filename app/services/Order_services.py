@@ -18,7 +18,7 @@ def book_ticket(order_data: OrderCreate, user: User, session: Session):
 
     resource_key = f"tier:{order_data.ticket_tier_id}"
     lock_id = acquire_lock(redis_client, resource_key)
-    print(f"LOCK ATTEMPT for {resource_key}: {'ACQUIRED' if lock_id else 'FAILED'}")
+    logging.info(f"LOCK ATTEMPT for {resource_key}: {'ACQUIRED' if lock_id else 'FAILED'}")
 
     if lock_id is None:
         logging.warning(f"Could not acquire lock for {resource_key} — high contention")

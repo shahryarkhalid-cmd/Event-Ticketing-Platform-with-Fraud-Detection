@@ -25,7 +25,6 @@ except ImportError:
     pd = None  # type: ignore[assignment]
     _ML_AVAILABLE = False
 
-from .config import fraud_config
 from .schemas import OrderContext
 
 logger = logging.getLogger(__name__)
