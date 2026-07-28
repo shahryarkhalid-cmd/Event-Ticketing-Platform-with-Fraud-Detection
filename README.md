@@ -165,6 +165,41 @@ This runs the full automated test suite — auth, events, bookings, concurrency 
 
 ---
 
+## Connecting the fraud detection UI to the backend
+
+The fraud detection model already runs automatically inside `book_ticket()` (`app/services/Order_services.py:47`). When fraud is detected, the order `status` is set to `fraud_review` — this is visible in the organizer bookings view.
+
+The dashboard's **Fraud Detection** panel (`frontend/dashboard/script.js:315-317`) is a stub:
+
+```js
+fraud: {
+  async list() { return []; } // waiting on teammate's model
+},
+```
+
+To wire it up, create a `GET /organizer/fraud-orders` endpoint that returns flagged orders with extra fraud details. The UI expects per-record fields: `userName`, `email`, `eventName`, `bookingDate`, `reason`, `riskScore` (0-100), `status` (`flagged`/`reviewing`/`confirmed`/`dismissed`).
+
+**If you only want the bare minimum now**, replace the stub with a filtered call to the existing bookings endpoint:
+
+```js
+async list() {
+  const res = await fetch(`${API_BASE}/organizer/bookings`, { headers: authHeaders() });
+  const bookings = await res.json();
+  return bookings.filter(b => b.status === "fraud_review").map(b => ({
+    id: b.id || b.order_id,
+    userName: b.customer,
+    email: b.email,
+    eventName: b.event,
+    bookingDate: b.date,
+    reason: b.status === "fraud_review" ? "Flagged by fraud detection model" : "",
+    riskScore: 75,
+    status: "flagged"
+  }));
+}
+```
+
+This won't show probability or detailed reason, but it will populate the fraud panel with real flagged orders.
+
 ## Notes
 
 - Never commit your real `.env` file — only `.env.example` (with placeholder values) goes to GitHub

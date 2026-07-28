@@ -56,6 +56,14 @@ class Paid_Refund(Exception):
     pass
     
     
+class InvalidWebhookPayload(Exception):
+    pass
+
+class InvalidWebhookSignature(Exception):
+    pass
+
+
+    
 from fastapi.responses import JSONResponse
 
 from fastapi import Request
@@ -108,3 +116,9 @@ def not_your_event(req : Request , exec : Not_Your_Event):
 
 def paid_refund(req : Request , exec : Paid_Refund):
     return JSONResponse(status_code=403 , content = {'detail' : 'Only paid event can be refunded'})
+
+def invalid_webhook_payload_handler(request: Request, exc: InvalidWebhookPayload):
+    return JSONResponse(status_code=400, content={"detail": "Invalid webhook payload"})
+
+def invalid_webhook_signature_handler(request: Request, exc: InvalidWebhookSignature):
+    return JSONResponse(status_code=400, content={"detail": "Invalid webhook signature"})

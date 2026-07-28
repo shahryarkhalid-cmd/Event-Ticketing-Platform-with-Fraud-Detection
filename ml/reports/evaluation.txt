@@ -1,0 +1,39 @@
+==============================================================================
+Tixora FRAUD DETECTION — MODEL EVALUATION REPORT
+==============================================================================
+Generated: 2026-07-23T23:58:03.170936
+
+------------------------------------------------------------------------------
+MODEL COMPARISON (sorted by PR AUC)
+------------------------------------------------------------------------------
+                         model  accuracy  precision   recall  f1_score  roc_auc   pr_auc
+      LogisticRegression_SMOTE  0.972424   0.821586 0.270748  0.407279 0.860811 0.464125
+LogisticRegression_ClassWeight  0.832306   0.140148 0.738447  0.235585 0.867147 0.440866
+
+------------------------------------------------------------------------------
+SELECTED MODEL: LogisticRegression_SMOTE
+------------------------------------------------------------------------------
+    accuracy: 0.9724
+   precision: 0.8216
+      recall: 0.2707
+    f1_score: 0.4073
+     roc_auc: 0.8608
+      pr_auc: 0.4641
+
+------------------------------------------------------------------------------
+OBSERVATIONS
+------------------------------------------------------------------------------
+- The dataset is severely imbalanced (~3-4% fraud); accuracy alone is not a
+  meaningful metric and was de-prioritized in model selection.
+- Both class-weighting and SMOTE were evaluated for every algorithm; results
+  above show which strategy performed better per algorithm on this data.
+- Gradient-boosted tree models (XGBoost, LightGBM) are generally expected to
+  outperform linear baselines on this kind of tabular, mixed-type feature set.
+- The chosen operating threshold (default 0.5) should be tuned against the real
+  business cost ratio of false positives vs. false negatives before production use.
+
+------------------------------------------------------------------------------
+CONCLUSION
+------------------------------------------------------------------------------
+LogisticRegression_SMOTE is recommended for deployment based on its leading PR AUC of 0.4641. Artifacts (model + preprocessing objects) have been serialized to the models/ directory and are ready for the inference pipeline in Section 17.
+==============================================================================
