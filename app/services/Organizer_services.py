@@ -4,7 +4,7 @@ from models.Event import EventCreateWithTiers , Event
 from models.Users import User
 import logging
 from dependencies.exception import Forbidden ,Event_Not_Found
-from models.Ticket import TicketTierBulkCreate , TicketTier
+from models.Ticket import TicketTier
 def Make_Event( event_data : EventCreateWithTiers , user : User , session : Session):
     user_info = session.exec(select(User).where(User.email == user.email)).first()
     if user_info.role != "organizer":
@@ -71,7 +71,7 @@ def delete_organizer_event(id : int , user : User , session : Session):
     if not to_delete:
        raise Event_Not_Found()
     tiers = session.exec(select(TicketTier).where(TicketTier.event_id == id)).all()
-    print(f"FOUND {len(tiers)} TIERS TO DELETE FOR EVENT {id}")
+    logging.info(f"FOUND {len(tiers)} TIERS TO DELETE FOR EVENT {id}")
     for tier in tiers:
         session.delete(tier)
     session.flush()
@@ -102,33 +102,7 @@ def get_specific_event(id , user , session):
 
 
 
-# Creating the Ticket:
-def add_ticket_tiers(event_id: int, tiers_data: TicketTierBulkCreate, user: User, session: Session):
-    event = session.get(Event, event_id)
-    if not event:
-        logging.error("Event not found")
-        raise Event_Not_Found()
-    if event.organizer_id != user.id:
-        logging.error("User not organizer")
-        raise Forbidden()
 
-    created_tiers = []
-    for tier in tiers_data.tiers:
-        new_tier = TicketTier(
-            event_id=event_id,
-            tier_name=tier.tier_name,
-            price=tier.price,
-            total_quantity=tier.total_quantity
-        )
-        session.add(new_tier)
-        created_tiers.append(new_tier)
-
-    session.flush()
-    for tier in created_tiers:
-        session.refresh(tier)
-
-    return created_tiers
-    
 def List_Tickets(event_id : int , user : User , session : Session):
     if user.role != "organizer":
         logging.error("User is not the organizer")
@@ -367,3 +341,31 @@ def update_event_with_tiers(id: int, event_data: EventUpdateWithTiers, user: Use
 
     all_tiers = session.exec(select(TicketTier).where(TicketTier.event_id == id)).all()
     return {"event": event, "ticket_tiers": all_tiers}
+
+
+def get_fraud_orders(user: User, session: Session):
+    if user.role != "organizer":
+        raise Forbidden()
+    events = session.exec(select(Event).where(Event.organizer_id == user.id)).all()
+    event_ids = [e.id for e in events]
+
+    flagged = session.exec(
+        select(Order).where(Order.event_id.in_(event_ids), Order.status == "fraud_review")
+    ).all() if event_ids else []
+
+    result = []
+    for order in flagged:
+        customer = session.get(User, order.user_id)
+        event = session.get(Event, order.event_id)
+        tier = session.get(TicketTier, order.ticket_tier_id)
+        result.append({
+            "id": order.id,
+            "userName": customer.full_name if customer else "Unknown",
+            "email": customer.email if customer else "",
+            "eventName": event.name if event else "Unknown",
+            "bookingDate": order.created_at.isoformat() if order.created_at else "",
+            "reason": "Flagged by fraud detection model",
+            "riskScore": 75,
+            "status": "flagged",
+        })
+    return result

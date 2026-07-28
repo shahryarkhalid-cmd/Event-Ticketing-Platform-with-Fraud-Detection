@@ -7,7 +7,8 @@ import logging
 from dependencies.exception import Not_customer , Ticket_Tier_not_found , Order_Quantity_Error , Not_Enough_Tickets , BookingContention
 from core.redis_client import redis_client
 from core.locking import acquire_lock , release_lock
-def book_cart(order_data: OrderCreate, user: User, session: Session):
+from services.fraud_detection import predict_order, fraud_config
+def book_ticket(order_data: OrderCreate, user: User, session: Session):
     if user.role != UserRole.customer:
         raise Not_customer()
     if not order_data.items:
@@ -16,15 +17,9 @@ def book_cart(order_data: OrderCreate, user: User, session: Session):
     sorted_items = sorted(order_data.items, key=lambda i: i.ticket_tier_id)
     acquired_locks = []
 
-    try:
-        for item in sorted_items:
-            if item.quantity <= 0:
-                raise Order_Quantity_Error()
-            resource_key = f"tier:{item.ticket_tier_id}"
-            lock_id = acquire_lock(redis_client, resource_key)
-            if lock_id is None:
-                raise BookingContention()
-            acquired_locks.append((resource_key, lock_id))
+    resource_key = f"tier:{order_data.ticket_tier_id}"
+    lock_id = acquire_lock(redis_client, resource_key)
+    logging.info(f"LOCK ATTEMPT for {resource_key}: {'ACQUIRED' if lock_id else 'FAILED'}")
 
         order_items = []
         total_price = 0.0
@@ -51,16 +46,16 @@ def book_cart(order_data: OrderCreate, user: User, session: Session):
             status="pending"
         )
         session.add(new_order)
-        session.flush() 
-        for tier, qty, subtotal in order_items:
-            session.add(OrderItem(
-                order_id=new_order.id,
-                ticket_tier_id=tier.id,
-                quantity=qty,
-                subtotal=subtotal
-            ))
-
-        session.commit()
+        fraud_prediction = predict_order(new_order, user, tier, session)
+        logging.info(
+        "Fraud prediction: is_fraud=%s probability=%.4f reason=%s",
+        fraud_prediction.is_fraud,
+        fraud_prediction.fraud_probability,
+        fraud_prediction.reason,
+        )
+        if fraud_prediction.is_fraud:
+            new_order.status = fraud_config.flag_status
+        session.flush()
         session.refresh(new_order)
         return new_order
 

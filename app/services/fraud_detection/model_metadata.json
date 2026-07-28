@@ -1,0 +1,35 @@
+{
+  "model_name": "xgboost",
+  "trained_at_utc": "2026-07-25T18:24:23.212343+00:00",
+  "python_version": "3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]",
+  "platform": "Linux-6.18.5-x86_64-with-glibc2.39",
+  "git_commit": null,
+  "training_seconds_total": 275.2447111606598,
+  "smote_decision": {
+    "baseline_pr_auc_mean": 0.5848002293615272,
+    "baseline_pr_auc_std": 0.006724058938461465,
+    "smote_pr_auc_mean": 0.5694899113749877,
+    "smote_pr_auc_std": 0.009951361486976895,
+    "use_smote": false
+  },
+  "test_metrics": {
+    "threshold": 0.5,
+    "accuracy": 0.9467700258397933,
+    "precision": 0.4068627450980392,
+    "recall": 0.8355704697986577,
+    "f1": 0.5472527472527473,
+    "roc_auc": 0.9634827002195052,
+    "pr_auc": 0.825411393665651,
+    "confusion_matrix": [
+      [
+        7079,
+        363
+      ],
+      [
+        49,
+        249
+      ]
+    ]
+  },
+  "decision_threshold": 0.5
+}

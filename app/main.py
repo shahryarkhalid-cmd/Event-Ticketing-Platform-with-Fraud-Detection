@@ -7,7 +7,7 @@ from services.User_services import register_user , logging_in
 from models.Users import UserCreate , UserLogin , User
 from models.Event import EventCreateWithTiers
 from services.User_services import get_current_user
-from services.Organizer_services import Make_Event , get_organizer_events , delete_organizer_event , delete_all_organizer_event , get_specific_event , List_Tickets , get_analytics_summary , get_popular_ticket_categories , get_ticket_sales_last_7_days , refund_order , get_monthly_revenue_trend , get_revenue_overview ,get_organizer_all_bookings
+from services.Organizer_services import Make_Event , get_organizer_events , delete_organizer_event , delete_all_organizer_event , get_specific_event , List_Tickets , get_analytics_summary , get_popular_ticket_categories , get_ticket_sales_last_7_days , refund_order , get_monthly_revenue_trend , get_revenue_overview ,get_organizer_all_bookings, get_fraud_orders
 from fastapi.middleware.cors import CORSMiddleware
 from models.Event import EventRead
 from dependencies.exception import (Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , 
@@ -154,6 +154,13 @@ def all_bookings(
     session: Session = Depends(get_session)
 ):
     return get_organizer_all_bookings(user, session)
+
+@app.get("/organizer/fraud-orders")
+def fraud_orders(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return get_fraud_orders(user, session)
 
 @app.get("/organizer/revenue/overview")
 def revenue_overview(
