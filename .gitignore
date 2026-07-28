@@ -10,3 +10,4 @@ app.log
 .pytest_cache
 .env.*
 !.env.example
+ml/mlruns/
