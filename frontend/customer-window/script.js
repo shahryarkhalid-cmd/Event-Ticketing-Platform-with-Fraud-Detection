@@ -82,14 +82,82 @@
   ];
 
   /* ------------------------------ API stubs ------------------------------ */
-  const api = {
-    getEvents: async () => MOCK_EVENTS,
-    getBookings: async () => MOCK_BOOKINGS,
-    createOrder: async (payload) => {
-      await wait(1400);
-      return { orderId: "ORD-" + Math.floor(100000 + Math.random() * 900000), ...payload };
-    },
+  const API_BASE = "http://localhost:8000";
+
+function authHeaders() {
+  const token = localStorage.getItem("access_token");
+  return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+}
+
+const TIER_COLORS = { VIP: "#F59E0B", Premium: "#0B5ED7", General: "#10B981", VVIP: "#8B5CF6" };
+
+// backend Event + TicketTier[] -> shape this file's rendering code expects
+function mapEventFromBackend(evt, tiers) {
+  const [date] = (evt.start_datetime || "").split("T");
+  const time = (evt.start_datetime || "").split("T")[1]?.slice(0, 5) || "";
+  const lowestPrice = tiers.length ? Math.min(...tiers.map(t => t.price)) : 0;
+  const totalRemaining = tiers.reduce((s, t) => s + (t.total_seats - t.sold_quantity), 0);
+
+  return {
+    id: String(evt.id),
+    title: evt.name,
+    category: evt.category,
+    city: evt.city,
+    country: evt.country,
+    date,
+    time,
+    venue: evt.venue,
+    organizer: "", // no organizer name on Event yet — see note below
+    banner: evt.image_url || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop",
+    price: lowestPrice,
+    seatsLeft: totalRemaining,
+    trending: false, // not implemented on backend
+    tiers: tiers.map(t => ({
+      id: t.id,
+      name: t.category_name,
+      price: t.price,
+      remaining: t.total_seats - t.sold_quantity,
+      color: TIER_COLORS[t.category_name] || "#6B7280"
+    }))
   };
+}
+
+const api = {
+  getEvents: async () => {
+    const res = await fetch(`${API_BASE}/events/customer`);
+    const rawEvents = await res.json();
+    const full = await Promise.all(rawEvents.map(async (evt) => {
+      const tRes = await fetch(`${API_BASE}/events/${evt.id}/ticket-tiers`, { headers: authHeaders() });
+      const tiers = await tRes.json();
+      return mapEventFromBackend(evt, tiers);
+    }));
+    return full;
+  },
+  getBookings: async () => {
+    const res = await fetch(`${API_BASE}/orders/me`, { headers: authHeaders() });
+    const orders = await res.json();
+    return orders; // shape differs from MOCK_BOOKINGS — see note below
+  },
+  createOrder: async (payload) => {
+    const res = await fetch(`${API_BASE}/orders`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        event_id: Number(payload.eventId),
+        items: payload.items.map(i => ({
+          ticket_tier_id: i.tierId,
+          quantity: i.qty
+        }))
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Order failed");
+    }
+    const order = await res.json();
+    return { orderId: order.id, ...payload };
+  },
+};
   const wait = (ms) => new Promise((res) => setTimeout(res, ms));
 
   /* ------------------------------- State ---------------------------------- */
@@ -615,7 +683,7 @@
     if (!ev) return;
     state.activeModalEvent = ev;
     state.cart = {};
-    ev.tiers.forEach((t) => { state.cart[t.name] = 0; });
+    ev.tiers.forEach((t) => { state.cart[t.id] = 0; });
 
     $("#modalBanner").src = ev.banner;
     $("#modalBanner").alt = ev.title;
@@ -632,7 +700,7 @@
     overlay.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
     setTimeout(() => $("#modalCloseBtn")?.focus(), 50);
-  }
+}
 
   function closeTicketModal() {
     const overlay = $("#ticketModal");
@@ -646,9 +714,9 @@
     const ev = state.activeModalEvent;
     list.innerHTML = ev.tiers.map((tier) => {
       const soldout = tier.remaining <= 0;
-      const qty = state.cart[tier.name] || 0;
+      const qty = state.cart[tier.id] || 0;
       return `
-      <div class="class-row ${qty > 0 ? "has-qty" : ""} ${soldout ? "soldout" : ""}" data-tier="${tier.name}">
+      <div class="class-row ${qty > 0 ? "has-qty" : ""} ${soldout ? "soldout" : ""}" data-tier="${tier.id}">
         <div class="class-left">
           <span class="class-dot" style="background:${tier.color}"></span>
           <div>
@@ -659,23 +727,23 @@
         <div class="class-right">
           <span class="class-price">${money(tier.price)}</span>
           <div class="stepper">
-            <button type="button" class="st-minus" data-act="minus" data-tier="${tier.name}" ${qty <= 0 ? "disabled" : ""} aria-label="Decrease ${tier.name} quantity">−</button>
+            <button type="button" class="st-minus" data-act="minus" data-tier="${tier.id}" ${qty <= 0 ? "disabled" : ""} aria-label="Decrease ${tier.name} quantity">−</button>
             <span class="stepper-val">${qty}</span>
-            <button type="button" class="st-plus" data-act="plus" data-tier="${tier.name}" ${soldout || qty >= tier.remaining ? "disabled" : ""} aria-label="Increase ${tier.name} quantity">+</button>
+            <button type="button" class="st-plus" data-act="plus" data-tier="${tier.id}" ${soldout || qty >= tier.remaining ? "disabled" : ""} aria-label="Increase ${tier.name} quantity">+</button>
           </div>
         </div>
       </div>`;
     }).join("");
     $$("[data-act]", list).forEach((btn) => {
       btn.addEventListener("click", () => {
-        const tierName = btn.dataset.tier;
-        const tier = ev.tiers.find((t) => t.name === tierName);
-        const cur = state.cart[tierName] || 0;
+        const tierId = Number(btn.dataset.tier);
+        const tier = ev.tiers.find((t) => t.id === tierId);
+        const cur = state.cart[tierId] || 0;
         if (btn.dataset.act === "plus") {
           if (cur >= tier.remaining) { $("#qtyWarning").textContent = `Only ${tier.remaining} ${tier.name} tickets remaining.`; return; }
-          state.cart[tierName] = cur + 1;
+          state.cart[tierId] = cur + 1;
         } else {
-          state.cart[tierName] = Math.max(0, cur - 1);
+          state.cart[tierId] = Math.max(0, cur - 1);
         }
         $("#qtyWarning").textContent = "";
         renderClassList();
@@ -688,7 +756,7 @@
     const box = $("#cartItems");
     const ev = state.activeModalEvent;
     const entries = ev.tiers
-      .map((t) => ({ ...t, qty: state.cart[t.name] || 0 }))
+      .map((t) => ({ ...t, qty: state.cart[t.id] || 0 }))
       .filter((t) => t.qty > 0);
     if (!entries.length) {
       box.innerHTML = `<p class="ticket-cart-empty">No tickets added yet — pick a quantity above.</p>`;
@@ -697,7 +765,7 @@
     box.innerHTML = entries.map((t) => `
       <div class="cart-item">
         <span class="ci-name"><span class="ci-dot" style="background:${t.color}"></span>${t.name} × ${t.qty}</span>
-        <span class="ci-right">${money(t.price * t.qty)}<button type="button" class="ci-remove" data-remove="${t.name}" aria-label="Remove ${t.name}">✕</button></span>
+        <span class="ci-right">${money(t.price * t.qty)}<button type="button" class="ci-remove" data-remove="${t.id}" aria-label="Remove ${t.name}">✕</button></span>
       </div>`).join("");
     $$("[data-remove]", box).forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -711,7 +779,7 @@
   function updatePriceSummary() {
     renderCartItems();
     const ev = state.activeModalEvent;
-    const entries = ev.tiers.map((t) => ({ ...t, qty: state.cart[t.name] || 0 })).filter((t) => t.qty > 0);
+    const entries = ev.tiers.map((t) => ({ ...t, qty: state.cart[t.id] || 0 })).filter((t) => t.qty > 0);
     const totalQty = entries.reduce((s, t) => s + t.qty, 0);
     const subtotal = entries.reduce((s, t) => s + t.price * t.qty, 0);
     const fees = subtotal > 0 ? +(subtotal * 0.06).toFixed(2) : 0;
@@ -737,7 +805,7 @@
       const btn = $("#proceedBtn");
       const ev = state.activeModalEvent;
       if (!ev) return;
-      const entries = ev.tiers.map((t) => ({ ...t, qty: state.cart[t.name] || 0 })).filter((t) => t.qty > 0);
+      const entries = ev.tiers.map((t) => ({ ...t, qty: state.cart[t.id] || 0 })).filter((t) => t.qty > 0);
       if (!entries.length) return;
       const originalHTML = btn.innerHTML;
       btn.disabled = true;
@@ -745,7 +813,7 @@
       try {
         const order = await api.createOrder({
           eventId: ev.id,
-          items: entries.map((t) => ({ tier: t.name, qty: t.qty, price: t.price })),
+          items: entries.map((t) => ({ tierId: t.id, tierName: t.name, qty: t.qty, price: t.price })),
           total: parseFloat($("#sumTotal").textContent.replace("$", "")),
         });
         toast("Order created", `${order.orderId} — proceed to payment.`, "ok");
@@ -791,15 +859,27 @@
     $("#confirmPaymentBtn")?.addEventListener("click", async () => {
       $("#payIdle").classList.add("hidden");
       $("#payLoading").classList.remove("hidden");
-      await wait(1600);
-      $("#payLoading").classList.add("hidden");
-      const willSucceed = Math.random() > 0.15;
-      if (willSucceed) {
-        $("#paySuccess").classList.remove("hidden");
-        toast("Payment successful", "Your tickets are confirmed.", "ok");
-      } else {
+
+      const orderId = $("#paySummaryOrderId").textContent;
+
+      try {
+        const res = await fetch(`${API_BASE}/orders/${orderId}/checkout`, {
+          method: "POST",
+          headers: authHeaders()
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || "Could not start checkout");
+        }
+
+        // Redirect the whole page to Stripe's hosted checkout
+        window.location.href = data.checkout_url;
+
+      } catch (err) {
+        $("#payLoading").classList.add("hidden");
         $("#payFailed").classList.remove("hidden");
-        toast("Payment failed", "Your card was declined.", "err");
+        toast("Payment failed", err.message, "err");
       }
     });
     $("#retryPaymentBtn")?.addEventListener("click", resetPaymentState);

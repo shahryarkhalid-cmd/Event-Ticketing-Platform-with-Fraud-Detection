@@ -7,7 +7,7 @@ from services.User_services import register_user , logging_in
 from models.Users import UserCreate , UserLogin , User
 from models.Event import EventCreateWithTiers
 from services.User_services import get_current_user
-from services.Organizer_services import Make_Event , get_organizer_events , delete_organizer_event , delete_all_organizer_event , get_specific_event , List_Tickets , get_analytics_summary , get_popular_ticket_categories , get_ticket_sales_last_7_days , refund_order , get_monthly_revenue_trend , get_revenue_overview ,get_organizer_all_bookings, get_fraud_orders
+from services.Organizer_services import Make_Event , get_organizer_events , delete_organizer_event , delete_all_organizer_event , get_specific_event , List_Tickets , get_analytics_summary , get_popular_ticket_categories , get_ticket_sales_last_7_days , refund_order , get_monthly_revenue_trend , get_revenue_overview ,get_organizer_all_bookings  , get_fraud_orders
 from fastapi.middleware.cors import CORSMiddleware
 from models.Event import EventRead
 from dependencies.exception import (Email_exist , User_Exist ,password_mismatch , Email_registration , email_existing , user_existence , 
@@ -23,7 +23,7 @@ from typing import Optional
 from fastapi import Query
 from typing import List
 from models.Orders import OrderCreate , OrderRead
-from services.Order_services import get_my_orders , book_cart
+from services.Order_services import get_my_orders , book_ticket
 from services.Customer_services import search_events_customer
 from services.Payment_services import create_checkout_session
 from services.Customer_services import get_public_event_detail
@@ -102,8 +102,8 @@ def login(user : OAuth2PasswordRequestForm = Depends() , session : Session = Dep
 
 '''@ app.post('/auth/login')
 def login(user : UserLogin , session : Session = Depends(get_session)):
-    return logging_in(user , session)
-'''
+    return logging_in(user , session)'''
+
 @app.post("/publish-event")
 def publish_event_route(
     event_data: EventCreateWithTiers,
@@ -154,13 +154,6 @@ def all_bookings(
     session: Session = Depends(get_session)
 ):
     return get_organizer_all_bookings(user, session)
-
-@app.get("/organizer/fraud-orders")
-def fraud_orders(
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
-):
-    return get_fraud_orders(user, session)
 
 @app.get("/organizer/revenue/overview")
 def revenue_overview(
@@ -217,14 +210,14 @@ def search_events(
     )
 
 # placing the order :
-from services.Order_services import book_cart
+from services.Order_services import book_ticket
 @app.post("/orders" ,  response_model=OrderRead)
 def create_order(
     order_data: OrderCreate,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
-    return book_cart(order_data, user, session)
+    return book_ticket(order_data, user, session)
 
 
 @app.get("/orders/me", response_model=List[OrderRead])
@@ -257,7 +250,7 @@ def public_event_detail(id: int, session: Session = Depends(get_session)):
 
 
 # Getting order status and sending to the afterward stripe page:
-from services.Order_services get_order_status
+from services.Order_services import get_order_status
 @app.get("/orders/{order_id}", response_model=OrderRead)
 def order_status(
     order_id: int,
@@ -265,3 +258,11 @@ def order_status(
     session: Session = Depends(get_session)
 ):
     return get_order_status(order_id, user, session)
+
+
+@app.get("/organizer/fraud-orders")
+def fraud_orders(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return get_fraud_orders(user, session)

@@ -12,14 +12,19 @@ def book_ticket(order_data: OrderCreate, user: User, session: Session):
     if user.role != UserRole.customer:
         raise Not_customer()
     if not order_data.items:
-        raise Not_customer()
+        raise Order_Quantity_Error()
 
     sorted_items = sorted(order_data.items, key=lambda i: i.ticket_tier_id)
     acquired_locks = []
 
-    resource_key = f"tier:{order_data.ticket_tier_id}"
-    lock_id = acquire_lock(redis_client, resource_key)
-    logging.info(f"LOCK ATTEMPT for {resource_key}: {'ACQUIRED' if lock_id else 'FAILED'}")
+    try:
+        for item in sorted_items:
+            resource_key = f"tier:{item.ticket_tier_id}"
+            lock_id = acquire_lock(redis_client, resource_key)
+            logging.info(f"LOCK ATTEMPT for {resource_key}: {'ACQUIRED' if lock_id else 'FAILED'}")
+            if lock_id is None:
+                raise BookingContention()
+            acquired_locks.append((resource_key, lock_id))
 
         order_items = []
         total_price = 0.0
@@ -46,15 +51,26 @@ def book_ticket(order_data: OrderCreate, user: User, session: Session):
             status="pending"
         )
         session.add(new_order)
-        fraud_prediction = predict_order(new_order, user, tier, session)
+        session.flush()
+
+        for tier, qty, subtotal in order_items:
+            session.add(OrderItem(
+                order_id=new_order.id,
+                ticket_tier_id=tier.id,
+                quantity=qty,
+                subtotal=subtotal
+            ))
+
+        fraud_prediction = predict_order(new_order, user, order_items, session)
         logging.info(
-        "Fraud prediction: is_fraud=%s probability=%.4f reason=%s",
-        fraud_prediction.is_fraud,
-        fraud_prediction.fraud_probability,
-        fraud_prediction.reason,
+            "Fraud prediction: is_fraud=%s probability=%.4f reason=%s",
+            fraud_prediction.is_fraud,
+            fraud_prediction.fraud_probability,
+            fraud_prediction.reason,
         )
         if fraud_prediction.is_fraud:
             new_order.status = fraud_config.flag_status
+
         session.flush()
         session.refresh(new_order)
         return new_order
@@ -62,7 +78,6 @@ def book_ticket(order_data: OrderCreate, user: User, session: Session):
     finally:
         for resource_key, lock_id in acquired_locks:
             release_lock(redis_client, resource_key, lock_id)
-
 
 def get_my_orders(user: User, session: Session):
     orders = session.exec(select(Order).where(Order.user_id == user.id)).all()
