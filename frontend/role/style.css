@@ -1,0 +1,523 @@
+/* =========================================================
+   Tixora Role Selection Page — Stylesheet
+   Design system mirrored 1:1 from the Login / Sign Up pages
+   ========================================================= */
+
+:root {
+  /* Brand palette */
+  --color-primary: #001F54;
+  --color-secondary: #00B4D8;
+  --color-accent: #48CAE4;
+  --color-success: #2ECC71;
+  --color-background: #F0F4F8;
+  --color-border: #D1D9E6;
+  --color-text: #1A1A2E;
+
+  /* Derived / support tones */
+  --color-primary-soft: #0A2E6E;
+  --color-error: #E63946;
+  --color-white: #FFFFFF;
+  --color-muted: #6B7385;
+
+  /* Typography */
+  --font-heading: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Layout */
+  --card-radius: clamp(18px, 3vw, 28px);
+  --control-radius: 12px;
+  --card-max-width: 460px;
+  --card-max-width-roles: 720px;
+  --transition-fast: 200ms ease;
+  --transition-med: 250ms ease;
+
+  /* Shadow */
+  --shadow-card: 0 10px 30px rgba(0, 31, 84, 0.08);
+  --shadow-card-lg: 0 20px 45px rgba(0, 31, 84, 0.12);
+  --shadow-option: 0 6px 18px rgba(0, 31, 84, 0.06);
+  --shadow-option-hover: 0 16px 34px rgba(0, 180, 216, 0.20);
+}
+
+/* =========================================================
+   Reset & base
+   ========================================================= */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-heading);
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =========================================================
+   Page shell
+   ========================================================= */
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: left;
+  padding: 0 clamp(16px, 4vw, 24px) clamp(32px, 6vw, 56px);
+}
+
+/* =========================================================
+   Branded header panel
+   ========================================================= */
+.brand-panel {
+  position: relative;
+  background: linear-gradient(115deg, var(--color-primary) 0%, var(--color-primary-soft) 45%, var(--color-secondary) 100%);
+  padding: clamp(28px, 6vw, 56px) clamp(16px, 4vw, 24px) clamp(56px, 9vw, 88px);
+  text-align: center;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.brand-panel__glow {
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 160%;
+  background: radial-gradient(closest-side, rgba(72, 202, 228, 0.35), transparent 70%);
+  animation: glow-drift 10s ease-in-out infinite alternate;
+  z-index: -1;
+}
+
+@keyframes glow-drift {
+  from { transform: translate(-6%, -4%) scale(1); }
+  to   { transform: translate(6%, 4%) scale(1.08); }
+}
+
+.brand-panel__inner {
+  max-width: 480px;
+  margin: 0 auto;
+  animation: fade-drop 700ms ease both;
+}
+
+@keyframes fade-drop {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.brand-panel__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(72px, 11vw, 112px);
+  height: clamp(72px, 11vw, 112px);
+  margin: 0 auto 14px;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.22));
+  animation: logo-float 5s ease-in-out infinite;
+}
+
+@keyframes logo-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+.brand-panel__logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.brand-panel__name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 4vw, 1.9rem);
+  color: var(--color-white);
+  letter-spacing: 0.02em;
+}
+
+.brand-panel__tagline {
+  margin-top: 6px;
+  font-size: clamp(0.85rem, 2vw, 0.95rem);
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 500;
+}
+
+/* =========================================================
+   Card
+   ========================================================= */
+.card {
+  position: relative;
+  width: 100%;
+  max-width: var(--card-max-width);
+  margin-top: clamp(-48px, -8vw, -32px);
+  background: var(--color-white);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-card);
+  padding: clamp(28px, 6vw, 40px) clamp(20px, 5vw, 36px) clamp(28px, 5vw, 32px);
+  animation: card-rise 650ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
+  transition: box-shadow var(--transition-med);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-card-lg);
+}
+
+.card--roles {
+  max-width: var(--card-max-width-roles);
+}
+
+@keyframes card-rise {
+  from { opacity: 0; transform: translateY(22px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.card__head {
+  text-align: center;
+  margin-bottom: clamp(20px, 4vw, 28px);
+}
+
+.card__title {
+  font-size: clamp(1.4rem, 4vw, 1.75rem);
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.card__subtitle {
+  margin-top: 8px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+/* =========================================================
+   Role selection grid + option cards
+   ========================================================= */
+.role-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.role-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: var(--color-white);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--card-radius);
+  padding: clamp(24px, 4vw, 30px) clamp(18px, 3vw, 22px) clamp(22px, 3vw, 26px);
+  box-shadow: var(--shadow-option);
+  transition: transform var(--transition-fast), box-shadow var(--transition-med), border-color var(--transition-fast);
+  opacity: 0;
+  transform: translateY(14px);
+  animation: option-enter 550ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+#customerCard  { animation-delay: 260ms; }
+#organizerCard { animation-delay: 420ms; }
+
+@keyframes option-enter {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.role-option:hover,
+.role-option:focus-visible {
+  transform: translateY(-6px) scale(1.03);
+  box-shadow: var(--shadow-option-hover);
+  border-color: var(--color-secondary);
+}
+
+.role-option:active .role-option__cta {
+  transform: scale(0.96);
+}
+
+.role-option__illustration {
+  width: 92px;
+  height: 92px;
+  margin-bottom: 16px;
+}
+
+.role-option__illustration svg {
+  width: 100%;
+  height: 100%;
+}
+
+.role-option__title {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+
+.role-option__desc {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--color-muted);
+  margin-bottom: 20px;
+  min-height: 58px;
+}
+
+.role-option__cta {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--color-primary);
+  color: var(--color-white);
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: var(--control-radius);
+  box-shadow: 0 8px 18px rgba(0, 31, 84, 0.2);
+  transition: background var(--transition-med), box-shadow var(--transition-med), transform var(--transition-fast);
+}
+
+.role-option:hover .role-option__cta {
+  background: var(--color-secondary);
+  box-shadow: 0 10px 22px rgba(0, 180, 216, 0.32);
+}
+
+.role-option__arrow {
+  width: 16px;
+  height: 16px;
+  transition: transform var(--transition-fast);
+}
+
+.role-option:hover .role-option__arrow {
+  transform: translateX(3px);
+}
+
+/* Button press ripple */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  transform: scale(0);
+  animation: ripple-out 600ms ease-out;
+  pointer-events: none;
+}
+
+@keyframes ripple-out {
+  to { transform: scale(3.2); opacity: 0; }
+}
+
+/* =========================================================
+   Sign-up note (reused as helper text below the card)
+   ========================================================= */
+.signup-note {
+  margin-top: 22px;
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--color-muted);
+}
+
+/* =========================================================
+   Footer
+   ========================================================= */
+.site-footer {
+  flex-shrink: 0;
+  background: var(--color-primary);
+  color: rgba(255, 255, 255, 0.85);
+  padding: clamp(24px, 5vw, 36px) clamp(16px, 5vw, 48px) 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.site-footer__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  width: 100%;
+  max-width: 360px;
+  justify-content: center;
+}
+
+.site-footer__brand img {
+  flex-shrink: 0;
+}
+
+.site-footer__name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--color-white);
+  font-size: 1.05rem;
+  text-align: left;
+}
+
+.site-footer__tagline {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 2px;
+  text-align: left;
+}
+
+.site-footer__bottom {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* =========================================================
+   Responsive breakpoints
+   ========================================================= */
+
+/* <=480px : small phones */
+@media (max-width: 480px) {
+  .brand-panel {
+    padding: 22px 16px 46px;
+  }
+  .brand-panel__logo {
+    width: 60px;
+    height: 60px;
+  }
+  .card {
+    border-radius: 20px;
+    padding: 24px 18px 26px;
+  }
+}
+
+/* <=640px : stack role cards */
+@media (max-width: 640px) {
+  .role-grid {
+    grid-template-columns: 1fr;
+  }
+  .role-option__desc {
+    min-height: 0;
+  }
+}
+
+/* 769-1024px : tablets / iPad */
+@media (min-width: 769px) {
+  .main {
+    padding-top: 8px;
+  }
+}
+
+/* >=1200px: optional split side-panel layout on very wide screens */
+@media (min-width: 1200px) {
+  .page {
+    flex-direction: column;
+  }
+  .main {
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: center;
+    gap: clamp(48px, 6vw, 96px);
+    padding-top: clamp(48px, 6vw, 72px);
+    padding-bottom: clamp(48px, 6vw, 72px);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .brand-panel {
+    display: none;
+  }
+  .main::before {
+    content: '';
+    flex: 1 1 40%;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-soft) 45%, var(--color-secondary) 100%);
+    border-radius: 28px;
+    background-image:
+      linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-soft) 45%, var(--color-secondary) 100%),
+      url("assets/logo-white.png");
+    background-repeat: no-repeat, no-repeat;
+    background-position: 0 0, center;
+    background-size: cover, 30%;
+    opacity: 0.97;
+    min-height: 520px;
+    box-shadow: var(--shadow-card-lg);
+    animation: fade-drop 700ms ease both;
+  }
+  .card {
+    margin-top: 0;
+    align-self: center;
+  }
+  .signup-note {
+    grid-column: 2;
+  }
+}
+
+/* >=1441px : large desktops / 4K */
+@media (min-width: 1441px) {
+  .main {
+    max-width: 1320px;
+  }
+  .card {
+    max-width: 500px;
+  }
+  .card--roles {
+    max-width: 760px;
+  }
+}
+
+/* iOS safe area support */
+@supports (padding: max(0px)) {
+  .brand-panel {
+    padding-top: max(clamp(28px, 6vw, 56px), env(safe-area-inset-top));
+  }
+  .site-footer {
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+}
