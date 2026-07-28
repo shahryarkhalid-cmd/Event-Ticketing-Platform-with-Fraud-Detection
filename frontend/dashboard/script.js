@@ -1,12 +1,10 @@
 /* ==========================================================================
    Tixora Organizer Dashboard — Application Logic
    Architecture note:
-   All data operations go through the `api` object below. Right now `api`
-   resolves against an in-memory store so the dashboard works standalone.
-   Every method already mirrors a REST call (method + endpoint shown in
-   comments), so swapping the internals for real `fetch()` calls to your
-   Node/Express + PostgreSQL backend will not require touching any of the
-   rendering or event-handling code elsewhere in this file.
+   All data operations go through the `api` object below, which talks to the
+   Node/Express + PostgreSQL backend at API_BASE. Every method's real endpoint
+   is shown in comments so the mapping between backend shape <-> frontend
+   shape stays in one place (mapEventFromBackend / buildPublishPayload etc.)
    ========================================================================== */
 
 (() => {
@@ -19,7 +17,13 @@
   const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
   const uid = (p = "id") => `${p}_${Math.random().toString(36).slice(2, 9)}`;
   const currency = (n) => `PKR ${Number(n || 0).toLocaleString("en-PK")}`;
-  const delay = (ms = 250) => new Promise((res) => setTimeout(res, ms));
+  // NOTE: ticket tiers can carry their own currency (PKR/USD/AED — see
+  // mapTierFromBackend), but every revenue sum in this file (computeStats,
+  // analytics, revenue) just adds raw numbers together and labels the total
+  // "PKR" via this function. If organizers actually use multiple currencies,
+  // those totals will be wrong. Proper fix needs backend-side conversion to
+  // a single reporting currency — flagging here rather than silently
+  // pretending this file handles it.
 
   function formatDate(d) {
     const date = new Date(d);
@@ -38,7 +42,6 @@
     return date.toLocaleString("en-US", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
   }
 
-
   function toast(message, type = "default") {
     const stack = $("#toastStack");
     const el = document.createElement("div");
@@ -54,10 +57,8 @@
 
   const TICKET_COLORS = ["#0B5ED7", "#4CC9F0", "#F59E0B", "#10B981", "#8B5CF6", "#EF4444", "#EC4899"];
 
-  // Key under which the logged-in organizer's record is kept for this session.
-  // On a real backend this is replaced entirely by a GET /api/auth/me call
-  // (or by decoding the session/JWT), so swap it there and everything below
-  // that reads from `currentUser` keeps working unchanged.
+  // Key under which a locally-cached organizer record may be kept for this
+  // session (used only as a fallback if /auth/me can't be reached).
   const AUTH_STORAGE_KEY = "tixora_auth_user";
 
   function getInitials(name) {
@@ -67,279 +68,228 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Seed / mock data (stand-in for real database rows)                   */
+  /* Fallback data (used only if the backend can't be reached)            */
   /* ------------------------------------------------------------------ */
   const store = {
-    // Stand-in for the record a real backend would return for the
-    // currently authenticated organizer (e.g. from the session/JWT).
-    // Every user gets their own copy once a real login flow writes to
-    // `AUTH_STORAGE_KEY` — nothing in the UI is hardcoded to this name.
+    // Fallback organizer record — only used if GET /auth/me fails (offline,
+    // backend down, etc). Real data always comes from the API when available.
     currentUser: {
       name: "Sana Malik",
       email: "sana.malik@tixora.com",
       phone: "+92 300 7654321",
       company: "Tixora Events"
-    },
-    events: [],
-    bookings: [
-      { id: uid("bk"), customer: "Sara Khan", email: "sara.khan@example.com", eventName: "Lahore Music Fest", category: "VIP", qty: 2, amount: 10000, date: "2026-07-18", status: "paid", qr: true },
-      { id: uid("bk"), customer: "Bilal Ahmed", email: "bilal.a@example.com", eventName: "Lahore Music Fest", category: "General", qty: 4, amount: 4800, date: "2026-07-19", status: "paid", qr: true },
-      { id: uid("bk"), customer: "Ayesha Noor", email: "ayesha.noor@example.com", eventName: "Founders Summit 2026", category: "Premium", qty: 1, amount: 7500, date: "2026-07-19", status: "pending", qr: false },
-      { id: uid("bk"), customer: "Hamza Tariq", email: "hamza.t@example.com", eventName: "Lahore Music Fest", category: "VVIP", qty: 1, amount: 9000, date: "2026-07-20", status: "refunded", qr: false },
-      { id: uid("bk"), customer: "Mehak Ali", email: "mehak.ali@example.com", eventName: "Founders Summit 2026", category: "General", qty: 2, amount: 7000, date: "2026-07-20", status: "paid", qr: true },
-      { id: uid("bk"), customer: "Usman Sheikh", email: "usman.sheikh@example.com", eventName: "Karachi Marathon", category: "Runner", qty: 1, amount: 800, date: "2026-07-21", status: "paid", qr: true }
-    ],
-    notifications: [
-      { id: uid("nt"), type: "sold", title: "12 tickets sold", body: "Lahore Music Fest · VIP category", time: "5 min ago" },
-      { id: uid("nt"), type: "published", title: "Event published", body: "Founders Summit 2026 is now live for booking", time: "2 hours ago" },
-      { id: uid("nt"), type: "low", title: "Low ticket alert", body: "VVIP — only 40 seats left for Lahore Music Fest", time: "3 hours ago" },
-      { id: uid("nt"), type: "payment", title: "Payment received", body: "PKR 7,500 from Ayesha Noor", time: "Yesterday" },
-      { id: uid("nt"), type: "refund", title: "Refund requested", body: "Hamza Tariq requested a refund for VVIP", time: "Yesterday" }
-    ],
-    fraudRecords: [
-      { id: uid("fr"), userName: "Zainab Malik", email: "zainab.malik@example.com", eventName: "Lahore Music Fest", bookingDate: "2026-07-20", reason: "Multiple bookings from the same card in under 2 minutes", riskScore: 92, status: "flagged" },
-      { id: uid("fr"), userName: "Faisal Iqbal", email: "faisal.iqbal@example.com", eventName: "Founders Summit 2026", bookingDate: "2026-07-19", reason: "Billing address doesn't match card-issuing country", riskScore: 76, status: "reviewing" },
-      { id: uid("fr"), userName: "Areeba Siddiqui", email: "areeba.s@example.com", eventName: "Lahore Music Fest", bookingDate: "2026-07-18", reason: "Device previously linked to a chargeback", riskScore: 88, status: "confirmed" },
-      { id: uid("fr"), userName: "Omar Farooq", email: "omar.farooq@example.com", eventName: "Karachi Marathon", bookingDate: "2026-07-17", reason: "Unusually high ticket quantity for a first-time buyer", riskScore: 54, status: "dismissed" },
-      { id: uid("fr"), userName: "Hira Baig", email: "hira.baig@example.com", eventName: "Comedy Night Vol. 3", bookingDate: "2026-07-16", reason: "Email domain flagged in prior fraud reports", riskScore: 63, status: "reviewing" }
-    ]
+    }
   };
 
   /* ------------------------------------------------------------------ */
-  /* API layer (swap-ready for a real backend)                           */
+  /* API layer                                                            */
   /* ------------------------------------------------------------------ */
-<<<<<<< HEAD
+  const API_BASE = "http://localhost:8000";
+
+  function authHeaders() {
+    const token = localStorage.getItem("access_token");
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return headers;
+  }
+
+  // Thin wrapper so every call gets the same error handling instead of
+  // silently trying to JSON-parse an error page / 401 response as data.
+  async function fetchJSON(url, options = {}) {
+    const res = await fetch(url, options);
+    if (!res.ok) {
+      let detail = "";
+      try { detail = await res.text(); } catch (e) { /* ignore */ }
+      throw new Error(`${options.method || "GET"} ${url} → ${res.status}${detail ? `: ${detail}` : ""}`);
+    }
+    return res.json();
+  }
+
+  // backend event + tiers -> shape the frontend rendering code expects
+  function mapEventFromBackend(evt, tiers) {
+    return {
+      id: String(evt.id),
+      name: evt.name,
+      category: evt.category,
+      description: evt.description,
+      venue: evt.venue,
+      address: evt.address,
+      city: evt.city,
+      country: evt.country,
+      // Keep the organizer-selected instant intact as ONE value (never split
+      // back into separate date/time) — sliced to "YYYY-MM-DDTHH:mm" so it
+      // drops straight into an <input type="datetime-local">.
+      startDateTime: (evt.start_datetime || "").slice(0, 16),
+      endDateTime: (evt.end_datetime || "").slice(0, 16),
+      capacity: evt.max_capacity,
+      dresscode: evt.dress_code,
+      age: evt.age_restriction,
+      parking: evt.parking_available,
+      food: evt.food_available,
+      refund: evt.refund_policy,
+      // TODO: the backend doesn't distinguish draft/published yet, so
+      // "Save as Draft" in the UI doesn't actually persist as a draft —
+      // it will come back as whatever `evt.status` is (or "published" if
+      // the field isn't sent at all). Once the backend adds a real status
+      // column, nothing else here needs to change.
+      status: evt.status || "published",
+      tickets: (tiers || []).map(mapTierFromBackend)
+    };
+  }
+
+  function mapTierFromBackend(t) {
+    return {
+      id: String(t.id),
+      name: t.category_name,
+      price: t.price,
+      currency: t.currency,
+      totalSeats: t.total_seats,
+      sold: t.sold_quantity,
+      availableSeats: t.total_seats - t.sold_quantity,
+      description: t.description || "",
+      benefits: t.benefits_included || "",
+      color: "#0B5ED7"
+    };
+  }
+
+  // frontend form data -> backend /publish-event payload
+  function buildPublishPayload(data) {
+    return {
+      name: data.name,
+      category: data.category,
+      description: data.description,
+      venue: data.venue,
+      address: data.address,
+      city: data.city,
+      country: data.country,
+      // `data.startDateTime` / `data.endDateTime` come straight from the
+      // <input type="datetime-local">, e.g. "2026-08-01T19:30" — append
+      // seconds for the backend's expected ISO format. This is the organizer's
+      // exact selection, never the device clock.
+      start_datetime: data.startDateTime ? `${data.startDateTime}:00` : null,
+      end_datetime: data.endDateTime ? `${data.endDateTime}:00` : null,
+      max_capacity: data.capacity,
+      dress_code: data.dresscode,
+      age_restriction: data.age ? Number(data.age) : null,
+      parking_available: data.parking,
+      food_available: data.food,
+      refund_policy: data.refund,
+      terms_accepted: true,
+      // NOTE: the ticket-category editor also collects `color`, `salesStart`,
+      // `salesEnd`, and `maxPerPerson` per tier, but the backend's ticket-tier
+      // schema (as used elsewhere in this file) has no fields for them, so
+      // they are intentionally NOT sent here — sending unknown keys silently
+      // to an unfamiliar backend is worse than dropping them loudly. Flag to
+      // the backend team if these need to persist.
+      ticket_tiers: data.tickets.map(t => ({
+        category_name: t.name,
+        price: t.price,
+        currency: t.currency,
+        total_seats: t.totalSeats,
+        benefits_included: t.benefits,
+        description: t.description
+      }))
+    };
+  }
+
+  function mapBookingFromBackend(b) {
+    return {
+      customer: b.customer,
+      email: b.email,
+      eventName: b.event,
+      category: b.category,
+      qty: b.qty,
+      amount: b.amount,
+      date: b.date,
+      status: b.status,
+      qr: b.qr_generated
+    };
+  }
+
   const api = {
     events: {
-      // GET /api/events
-      async list() { await delay(); return structuredClone(store.events); },
-      // GET /api/events/:id
-      async get(id) { await delay(120); return structuredClone(store.events.find(e => e.id === id)); },
-      // POST /api/events
+      // GET /get_all_events (+ GET /events/:id/ticket-tiers per event)
+      async list() {
+        const rawEvents = await fetchJSON(`${API_BASE}/get_all_events`, { headers: authHeaders() });
+        return Promise.all(rawEvents.map(async (evt) => {
+          const tiers = await fetchJSON(`${API_BASE}/events/${evt.id}/ticket-tiers`, { headers: authHeaders() });
+          return mapEventFromBackend(evt, tiers);
+        }));
+      },
+      // GET /get_event/:id
+      async get(id) {
+        const evt = await fetchJSON(`${API_BASE}/get_event/${id}`, { headers: authHeaders() });
+        const tiers = await fetchJSON(`${API_BASE}/events/${id}/ticket-tiers`, { headers: authHeaders() });
+        return mapEventFromBackend(evt, tiers);
+      },
+      // POST /publish-event
       async create(payload) {
-        await delay();
-        const evt = { ...payload, id: uid("evt") };
-        store.events.unshift(evt);
-        return structuredClone(evt);
+        const data = await fetchJSON(`${API_BASE}/publish-event`, {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify(buildPublishPayload(payload))
+        });
+        return mapEventFromBackend(data.event, data.ticket_tiers);
       },
-      // PUT /api/events/:id
+      // PUT /update_event/:id
       async update(id, payload) {
-        await delay();
-        const idx = store.events.findIndex(e => e.id === id);
-        if (idx > -1) store.events[idx] = { ...store.events[idx], ...payload, id };
-        return structuredClone(store.events[idx]);
+        const data = await fetchJSON(`${API_BASE}/update_event/${id}`, {
+          method: "PUT",
+          headers: authHeaders(),
+          body: JSON.stringify(buildPublishPayload(payload))
+        });
+        return mapEventFromBackend(data.event, data.ticket_tiers);
       },
-      // DELETE /api/events/:id
+      // DELETE /delete_event/:id
       async remove(id) {
-        await delay();
-        store.events = store.events.filter(e => e.id !== id);
-        return { success: true };
+        return fetchJSON(`${API_BASE}/delete_event/${id}`, { method: "DELETE", headers: authHeaders() });
       }
     },
     bookings: {
-      // GET /api/bookings
-      async list() { await delay(); return structuredClone(store.bookings); }
+      // GET /organizer/bookings
+      async list() {
+        const raw = await fetchJSON(`${API_BASE}/organizer/bookings`, { headers: authHeaders() });
+        return raw.map(mapBookingFromBackend);
+      }
     },
     notifications: {
-      // GET /api/notifications
-      async list() { await delay(120); return structuredClone(store.notifications); }
+      async list() { return []; } // not built on backend yet
     },
     fraud: {
-      // GET /api/fraud
-      async list() { await delay(120); return structuredClone(store.fraudRecords); }
+      async list() { return []; } // waiting on teammate's model
+    },
+    analytics: {
+      // GET /organizer/analytics/summary
+      async summary() { return fetchJSON(`${API_BASE}/organizer/analytics/summary`, { headers: authHeaders() }); },
+      // GET /organizer/analytics/ticket-sales
+      async ticketSales() { return fetchJSON(`${API_BASE}/organizer/analytics/ticket-sales`, { headers: authHeaders() }); },
+      // GET /organizer/analytics/popular-categories
+      async popularCategories() { return fetchJSON(`${API_BASE}/organizer/analytics/popular-categories`, { headers: authHeaders() }); }
+    },
+    revenue: {
+      // GET /organizer/revenue/overview
+      async overview() { return fetchJSON(`${API_BASE}/organizer/revenue/overview`, { headers: authHeaders() }); },
+      // GET /organizer/revenue/trend
+      async trend() { return fetchJSON(`${API_BASE}/organizer/revenue/trend`, { headers: authHeaders() }); }
     },
     auth: {
-      // GET /api/auth/me — on the real backend this resolves the organizer
-      // from the authenticated session/JWT. Here it reads whatever the login
-      // flow persisted for this browser, falling back to the mock record so
-      // the dashboard still works standalone.
+      // GET /auth/me — resolves the authenticated organizer from the
+      // session/JWT. TODO: confirm this exact path with the backend team
+      // (only place that needs to change if it differs).
       async me() {
-        await delay(100);
         try {
-          const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-          if (raw) return JSON.parse(raw);
-        } catch (e) { /* private mode / no storage — ignore */ }
-        return structuredClone(store.currentUser);
+          return await fetchJSON(`${API_BASE}/auth/me`, { headers: authHeaders() });
+        } catch (err) {
+          console.warn("Falling back to local organizer record:", err.message);
+          try {
+            const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+            if (raw) return JSON.parse(raw);
+          } catch (e) { /* private mode / no storage — ignore */ }
+          return structuredClone(store.currentUser);
+        }
       }
     }
-=======
-  const API_BASE = "http://localhost:8000";
-
-function authHeaders() {
-  const token = localStorage.getItem("access_token");
-  return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
-}
-
-// backend event + tiers -> shape the frontend rendering code expects
-function mapEventFromBackend(evt, tiers) {
-  const [startDate, startTime] = (evt.start_datetime || "").split("T");
-  const [endDate, endTime] = (evt.end_datetime || "").split("T");
-  return {
-    id: String(evt.id),
-    name: evt.name,
-    category: evt.category,
-    description: evt.description,
-    venue: evt.venue,
-    address: evt.address,
-    city: evt.city,
-    country: evt.country,
-    startDate, endDate,
-    startTime: (startTime || "").slice(0, 5),
-    endTime: (endTime || "").slice(0, 5),
-    capacity: evt.max_capacity,
-    dresscode: evt.dress_code,
-    age: evt.age_restriction,
-    parking: evt.parking_available,
-    food: evt.food_available,
-    refund: evt.refund_policy,
-    status: "published", // backend has no draft concept yet
-    tickets: (tiers || []).map(mapTierFromBackend)
->>>>>>> 5f9632d3230dfd8e1c7b181ab90d5e9bacd91db6
   };
-}
-
-function mapTierFromBackend(t) {
-  return {
-    id: String(t.id),
-    name: t.category_name,
-    price: t.price,
-    currency: t.currency,
-    totalSeats: t.total_seats,
-    sold: t.sold_quantity,
-    availableSeats: t.total_seats - t.sold_quantity,
-    description: t.description || "",
-    benefits: t.benefits_included || "",
-    color: "#0B5ED7"
-  };
-}
-
-// frontend form data -> backend /publish-event payload
-function buildPublishPayload(data) {
-  return {
-    name: data.name,
-    category: data.category,
-    description: data.description,
-    venue: data.venue,
-    address: data.address,
-    city: data.city,
-    country: data.country,
-    start_datetime: `${data.startDate}T${data.startTime}:00`,
-    end_datetime: `${data.endDate}T${data.endTime}:00`,
-    max_capacity: data.capacity,
-    dress_code: data.dresscode,
-    age_restriction: data.age ? Number(data.age) : null,
-    parking_available: data.parking,
-    food_available: data.food,
-    refund_policy: data.refund,
-    terms_accepted: true,
-    ticket_tiers: data.tickets.map(t => ({
-      category_name: t.name,
-      price: t.price,
-      currency: t.currency,
-      total_seats: t.totalSeats,
-      benefits_included: t.benefits,
-      description: t.description
-    }))
-  };
-}
-
-function mapBookingFromBackend(b) {
-  return {
-    customer: b.customer,
-    email: b.email,
-    eventName: b.event,
-    category: b.category,
-    qty: b.qty,
-    amount: b.amount,
-    date: b.date,
-    status: b.status,
-    qr: b.qr_generated
-  };
-}
-
-const api = {
-  events: {
-    async list() {
-      const res = await fetch(`${API_BASE}/get_all_events`, { headers: authHeaders() });
-      const rawEvents = await res.json();
-      const full = await Promise.all(rawEvents.map(async (evt) => {
-        const tRes = await fetch(`${API_BASE}/events/${evt.id}/ticket-tiers`, { headers: authHeaders() });
-        const tiers = await tRes.json();
-        return mapEventFromBackend(evt, tiers);
-      }));
-      return full;
-    },
-    async get(id) {
-      const res = await fetch(`${API_BASE}/get_event/${id}`, { headers: authHeaders() });
-      const evt = await res.json();
-      const tRes = await fetch(`${API_BASE}/events/${id}/ticket-tiers`, { headers: authHeaders() });
-      const tiers = await tRes.json();
-      return mapEventFromBackend(evt, tiers);
-    },
-    async create(payload) {
-      const res = await fetch(`${API_BASE}/publish-event`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify(buildPublishPayload(payload))
-      });
-      const data = await res.json();
-      return mapEventFromBackend(data.event, data.ticket_tiers);
-    },
-    async update(id, payload) {
-      const res = await fetch(`${API_BASE}/update_event/${id}`, {
-      method: "PUT",
-      headers: authHeaders(),
-      body: JSON.stringify(buildPublishPayload(payload))
-  });
-  const data = await res.json();
-  return mapEventFromBackend(data.event, data.ticket_tiers);
-},
-    async remove(id) {
-      const res = await fetch(`${API_BASE}/delete_event/${id}`, {
-        method: "DELETE",
-        headers: authHeaders()
-      });
-      return res.json();
-    }
-  },
-  bookings: {
-    async list() {
-      const res = await fetch(`${API_BASE}/organizer/bookings`, { headers: authHeaders() });
-      const raw = await res.json();
-      return raw.map(mapBookingFromBackend);
-    }
-  },
-  notifications: {
-    async list() { return []; } // not built on backend yet
-  },
-  fraud: {
-    async list() { return []; } // waiting on teammate's model
-  },
-  analytics: {
-    async summary() {
-      const res = await fetch(`${API_BASE}/organizer/analytics/summary`, { headers: authHeaders() });
-      return res.json();
-    },
-    async ticketSales() {
-      const res = await fetch(`${API_BASE}/organizer/analytics/ticket-sales`, { headers: authHeaders() });
-      return res.json();
-    },
-    async popularCategories() {
-      const res = await fetch(`${API_BASE}/organizer/analytics/popular-categories`, { headers: authHeaders() });
-      return res.json();
-    }
-  },
-  revenue: {
-    async overview() {
-      const res = await fetch(`${API_BASE}/organizer/revenue/overview`, { headers: authHeaders() });
-      return res.json();
-    },
-    async trend() {
-      const res = await fetch(`${API_BASE}/organizer/revenue/trend`, { headers: authHeaders() });
-      return res.json();
-    }
-  }
-};
 
   /* ------------------------------------------------------------------ */
   /* App state                                                            */
@@ -408,8 +358,12 @@ const api = {
   };
 
   function computeStats() {
+    const now = new Date();
     const totalEvents = events.length;
-    const upcoming = events.filter(e => e.status === "upcoming" || e.status === "live").length;
+    // The backend has no "upcoming"/"live" status (see mapEventFromBackend),
+    // so derive it from the event's own start time instead of a status flag
+    // that will never actually be set to those values.
+    const upcoming = events.filter(e => e.startDateTime && new Date(e.startDateTime) > now).length;
     const ticketsSold = events.reduce((sum, e) => sum + e.tickets.reduce((s, t) => s + (t.sold || 0), 0), 0);
     const revenue = events.reduce((sum, e) => sum + e.tickets.reduce((s, t) => s + (t.sold || 0) * t.price, 0), 0);
     return { totalEvents, upcoming, ticketsSold, revenue };
@@ -578,12 +532,17 @@ const api = {
     const copy = structuredClone(evt);
     delete copy.id;
     copy.name = `${copy.name} (Copy)`;
-    copy.status = "draft";
+    copy.status = "draft"; // NOTE: backend has no draft concept yet — see TODO in mapEventFromBackend
     copy.tickets = copy.tickets.map(t => ({ ...t, id: uid("tkt"), sold: 0, availableSeats: t.totalSeats }));
-    const created = await api.events.create(copy);
-    events = await api.events.list();
-    refreshAllEventViews();
-    toast(`Duplicated "${evt.name}"`, "success");
+    try {
+      await api.events.create(copy);
+      events = await api.events.list();
+      refreshAllEventViews();
+      toast(`Duplicated "${evt.name}"`, "success");
+    } catch (err) {
+      console.error(err);
+      toast("Couldn't duplicate this event — please try again.", "danger");
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -932,17 +891,22 @@ const api = {
     data.status = status;
     if (status === "published" && !validateEventForm(data)) return;
 
-    if (editingEventId) {
-      await api.events.update(editingEventId, data);
-      toast("Event updated successfully", "success");
-    } else {
-      await api.events.create(data);
-      toast(status === "draft" ? "Event saved as draft" : "Event published successfully", "success");
+    try {
+      if (editingEventId) {
+        await api.events.update(editingEventId, data);
+        toast("Event updated successfully", "success");
+      } else {
+        await api.events.create(data);
+        toast(status === "draft" ? "Event saved as draft" : "Event published successfully", "success");
+      }
+      events = await api.events.list();
+      refreshAllEventViews();
+      resetEventForm();
+      goTo("events");
+    } catch (err) {
+      console.error(err);
+      toast("Couldn't save this event — please check your connection and try again.", "danger");
     }
-    events = await api.events.list();
-    refreshAllEventViews();
-    resetEventForm();
-    goTo("events");
   }
 
   function openPreview() {
@@ -1098,7 +1062,9 @@ const api = {
   }
 
   function renderDashboardCharts() {
-    // mock 7-day revenue trend derived from current total revenue
+    // mock 7-day revenue trend derived from current total revenue (a quick
+    // illustrative glance — the Analytics/Revenue tabs pull the real
+    // backend-computed trends instead)
     const total = computeStats().revenue || 50000;
     const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const weights = [0.08, 0.1, 0.12, 0.14, 0.18, 0.22, 0.16];
@@ -1108,48 +1074,48 @@ const api = {
   }
 
   async function renderAnalyticsView() {
-  const summary = await api.analytics.summary();
-  $("#analyticsStats").innerHTML = [
-    statCardHTML({ key: "tickets", label: "Tickets Sold", value: summary.tickets_sold, trend: 12, tint: "var(--accent-tint)", color: "#0891B2" }),
-    statCardHTML({ key: "events", label: "Total Events", value: summary.total_events, trend: 8, tint: "var(--primary-tint)", color: "var(--primary)" }),
-    statCardHTML({ key: "upcoming", label: "Upcoming Events", value: summary.upcoming_events, trend: 4, tint: "var(--secondary-tint)", color: "var(--secondary)" }),
-    statCardHTML({ key: "revenue", label: "Total Revenue", value: summary.total_revenue, isCurrency: true, trend: 16, tint: "var(--success-tint)", color: "var(--success)" })
-  ].join("");
-  $$("[data-count]", $("#analyticsStats")).forEach(el => animateCounter(el, Number(el.dataset.target), el.dataset.currency === "true"));
+    try {
+      const summary = await api.analytics.summary();
+      $("#analyticsStats").innerHTML = [
+        statCardHTML({ key: "tickets", label: "Tickets Sold", value: summary.tickets_sold, trend: 12, tint: "var(--accent-tint)", color: "#0891B2" }),
+        statCardHTML({ key: "events", label: "Total Events", value: summary.total_events, trend: 8, tint: "var(--primary-tint)", color: "var(--primary)" }),
+        statCardHTML({ key: "upcoming", label: "Upcoming Events", value: summary.upcoming_events, trend: 4, tint: "var(--secondary-tint)", color: "var(--secondary)" }),
+        statCardHTML({ key: "revenue", label: "Total Revenue", value: summary.total_revenue, isCurrency: true, trend: 16, tint: "var(--success-tint)", color: "var(--success)" })
+      ].join("");
+      $$("[data-count]", $("#analyticsStats")).forEach(el => animateCounter(el, Number(el.dataset.target), el.dataset.currency === "true"));
 
-<<<<<<< HEAD
-    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const ticketWeights = [8, 14, 10, 18, 22, 30, 20];
-    renderLineChart($("#ticketSalesChart"), days, ticketWeights, (v) => `${v} tickets`);
-    renderDonutChart($("#categoryChart2"), categorySalesBreakdown());
+      const salesData = await api.analytics.ticketSales(); // {"Mon": 5, "Tue": 12, ...}
+      const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      renderLineChart($("#ticketSalesChart"), days, days.map(d => salesData[d] || 0), (v) => `${v} tickets`);
+
+      const categories = await api.analytics.popularCategories(); // {"VIP": 45, "General": 120}
+      const colorEntries = Object.entries(categories).map(([label, value], i) => ({ label, value, color: TICKET_COLORS[i % TICKET_COLORS.length] }));
+      renderDonutChart($("#categoryChart2"), colorEntries);
+    } catch (err) {
+      console.error(err);
+      toast("Couldn't load analytics right now.", "danger");
+    }
   }
-=======
-  const salesData = await api.analytics.ticketSales(); // {"Mon": 5, "Tue": 12, ...}
-  const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-  renderLineChart($("#ticketSalesChart"), days, days.map(d => salesData[d] || 0), (v) => `${v} tickets`);
->>>>>>> 5f9632d3230dfd8e1c7b181ab90d5e9bacd91db6
 
-  const categories = await api.analytics.popularCategories(); // {"VIP": 45, "General": 120}
-  const colorEntries = Object.entries(categories).map(([label, value], i) => ({ label, value, color: TICKET_COLORS[i % TICKET_COLORS.length] }));
-  renderDonutChart($("#categoryChart2"), colorEntries);
+  async function renderRevenueView() {
+    try {
+      const overview = await api.revenue.overview();
+      $("#revenueStats").innerHTML = [
+        statCardHTML({ key: "revenue", label: "Total Revenue", value: overview.total_revenue, isCurrency: true, trend: 16, tint: "var(--success-tint)", color: "var(--success)" }),
+        statCardHTML({ key: "tickets", label: "Avg. Order Value", value: overview.avg_order_value, isCurrency: true, trend: 6, tint: "var(--accent-tint)", color: "#0891B2" }),
+        statCardHTML({ key: "events", label: "Refunded", value: overview.refunded, isCurrency: true, trend: -3, tint: "var(--danger-tint)", color: "var(--danger)" }),
+        statCardHTML({ key: "upcoming", label: "Net Revenue", value: overview.net_revenue, isCurrency: true, trend: 14, tint: "var(--secondary-tint)", color: "var(--secondary)" })
+      ].join("");
+      $$("[data-count]", $("#revenueStats")).forEach(el => animateCounter(el, Number(el.dataset.target), el.dataset.currency === "true"));
 
-  // Daily Visitors chart has no backend data source yet — leave as-is or hide
-}
-
- async function renderRevenueView() {
-  const overview = await api.revenue.overview();
-  $("#revenueStats").innerHTML = [
-    statCardHTML({ key: "revenue", label: "Total Revenue", value: overview.total_revenue, isCurrency: true, trend: 16, tint: "var(--success-tint)", color: "var(--success)" }),
-    statCardHTML({ key: "tickets", label: "Avg. Order Value", value: overview.avg_order_value, isCurrency: true, trend: 6, tint: "var(--accent-tint)", color: "#0891B2" }),
-    statCardHTML({ key: "events", label: "Refunded", value: overview.refunded, isCurrency: true, trend: -3, tint: "var(--danger-tint)", color: "var(--danger)" }),
-    statCardHTML({ key: "upcoming", label: "Net Revenue", value: overview.net_revenue, isCurrency: true, trend: 14, tint: "var(--secondary-tint)", color: "var(--secondary)" })
-  ].join("");
-  $$("[data-count]", $("#revenueStats")).forEach(el => animateCounter(el, Number(el.dataset.target), el.dataset.currency === "true"));
-
-  const trend = await api.revenue.trend(); // {"Feb": 1000, "Mar": 1500, ...}
-  const months = Object.keys(trend);
-  renderLineChart($("#revenueTrendChart"), months, Object.values(trend), (v) => currency(v));
-}
+      const trend = await api.revenue.trend(); // {"Feb": 1000, "Mar": 1500, ...}
+      const months = Object.keys(trend);
+      renderLineChart($("#revenueTrendChart"), months, Object.values(trend), (v) => currency(v));
+    } catch (err) {
+      console.error(err);
+      toast("Couldn't load revenue data right now.", "danger");
+    }
+  }
 
   /* ------------------------------------------------------------------ */
   /* Bookings table                                                       */
@@ -1377,23 +1343,20 @@ const api = {
     });
 
     $("#confirmDeleteBtn").addEventListener("click", async () => {
-  if (!pendingDeleteId) {
-    alert("No event selected to delete — this is a bug.");
-    return;
-  }
-  try {
-    alert("Attempting to delete event ID: " + pendingDeleteId);
-    const result = await api.events.remove(pendingDeleteId);
-    alert("Delete API call finished. Result: " + JSON.stringify(result));
-    events = await api.events.list();
-    refreshAllEventViews();
-    closeModal("deleteModal");
-    toast("Event deleted", "danger");
-    pendingDeleteId = null;
-  } catch (err) {
-    alert("DELETE FAILED WITH ERROR: " + err.message);
-  }
-});
+      if (!pendingDeleteId) return;
+      try {
+        await api.events.remove(pendingDeleteId);
+        events = await api.events.list();
+        refreshAllEventViews();
+        closeModal("deleteModal");
+        toast("Event deleted", "danger");
+      } catch (err) {
+        console.error(err);
+        toast("Couldn't delete this event — please try again.", "danger");
+      } finally {
+        pendingDeleteId = null;
+      }
+    });
 
     // Filters / search / sort
     ["eventSearch", "filterStatus", "filterCategory", "sortBy"].forEach(id => {
@@ -1492,13 +1455,27 @@ const api = {
     renderWelcome();
     bindGlobalUI();
 
-    currentUser = await api.auth.me();
+    try {
+      currentUser = await api.auth.me();
+    } catch (err) {
+      console.error(err);
+      currentUser = structuredClone(store.currentUser);
+    }
     applyOrganizerIdentity(currentUser);
 
-    events = await api.events.list();
-    bookings = await api.bookings.list();
-    notifications = await api.notifications.list();
-    fraudRecords = await api.fraud.list();
+    try {
+      events = await api.events.list();
+      bookings = await api.bookings.list();
+      notifications = await api.notifications.list();
+      fraudRecords = await api.fraud.list();
+    } catch (err) {
+      console.error(err);
+      toast("Couldn't reach the server — some data may be missing.", "danger");
+      events = events.length ? events : [];
+      bookings = bookings.length ? bookings : [];
+      notifications = notifications.length ? notifications : [];
+      fraudRecords = fraudRecords.length ? fraudRecords : [];
+    }
 
     refreshAllEventViews();
     renderNotifications($("#notifList"), notifications.slice(0, 4));
