@@ -194,7 +194,24 @@
       return { ok: false };
     }
 
-    return { ok: true };
+    // Immediately log the freshly-created account in so we have a token
+    // to call /auth/select-role with on the role-selection page. The user
+    // never sees a separate login step right after signing up.
+    const loginResponse = await fetch('http://localhost:8000/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ username: email, password: password })
+    });
+
+    if (!loginResponse.ok) {
+      // Account was created but auto-login failed for some reason -
+      // fall back to sending them to the login page.
+      return { ok: true, autoLoggedIn: false };
+    }
+
+    const loginData = await loginResponse.json();
+    localStorage.setItem('access_token', loginData.access_token);
+    return { ok: true, autoLoggedIn: true };
   } catch (err) {
     console.error('Signup request failed:', err);
     return { ok: false };
@@ -220,9 +237,12 @@
 
     handleSignup(fullnameInput.value.trim(), emailInput.value.trim(), passwordInput.value)
       .then((result) => {
-        if (result && result.ok) {
+        if (result && result.ok && result.autoLoggedIn) {
+          showStatus('Account created — let\'s set up your account…', false);
+          window.location.href = '../role-selection/index.html';
+        } else if (result && result.ok) {
           showStatus('Account created — redirecting you to log in…', false);
-          window.location.href = 'login_full.html'; // hook up real redirect here
+          window.location.href = 'login.html';
         } else {
           showStatus('Something went wrong. Please try again.', true);
         }
