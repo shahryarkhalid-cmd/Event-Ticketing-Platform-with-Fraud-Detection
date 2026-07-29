@@ -327,20 +327,19 @@ def update_event_with_tiers(id: int, event_data: EventUpdateWithTiers, user: Use
 
         locked_tier_names = []
         for tier in existing_tiers:
-            order_count = session.exec(
-                select(func.count(Order.id)).where(Order.ticket_tier_id == tier.id)
+            order_item_count = session.exec(
+                select(func.count(OrderItem.id)).where(OrderItem.ticket_tier_id == tier.id)
             ).one()
-            if order_count == 0:
+            if order_item_count == 0:
                 session.delete(tier)
             else:
                 locked_tier_names.append(tier.category_name)
 
         session.flush()
 
-        new_tiers = []
         for tier_data in event_data.ticket_tiers:
             if tier_data.category_name in locked_tier_names:
-                continue  
+                continue
             new_tier = TicketTier(
                 event_id=id,
                 category_name=tier_data.category_name,
@@ -360,7 +359,6 @@ def update_event_with_tiers(id: int, event_data: EventUpdateWithTiers, user: Use
 
     all_tiers = session.exec(select(TicketTier).where(TicketTier.event_id == id)).all()
     return {"event": event, "ticket_tiers": all_tiers}
-
 
 def get_fraud_orders(user: User, session: Session):
     if user.role != "organizer":

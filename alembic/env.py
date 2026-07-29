@@ -23,10 +23,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'app'))
 # the files themselves import as `models.X` loads every model module TWICE
 # under two different names, which makes SQLAlchemy register the same table
 # twice on the same metadata and crash with "Table 'x' is already defined".
-from models.Users import User
-from models.Event import Event
-from models.Ticket import TicketTier
-from models.Orders import OrderItem , Order
+from app.models.Users import User
+from app.models.Event import Event
+from app.models.Ticket import TicketTier
+from app.models.Orders import OrderItem , Order
 load_dotenv()
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
