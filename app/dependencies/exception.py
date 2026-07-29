@@ -62,12 +62,6 @@ class InvalidWebhookPayload(Exception):
 class InvalidWebhookSignature(Exception):
     pass
 
-class Role_Already_Set(Exception):
-    pass
-
-class Invalid_Role_Selection(Exception):
-    pass
-
 
     
 from fastapi.responses import JSONResponse
@@ -128,9 +122,3 @@ def invalid_webhook_payload_handler(request: Request, exc: InvalidWebhookPayload
 
 def invalid_webhook_signature_handler(request: Request, exc: InvalidWebhookSignature):
     return JSONResponse(status_code=400, content={"detail": "Invalid webhook signature"})
-
-def role_already_set(req : Request , exec : Role_Already_Set):
-    return JSONResponse(status_code=403 , content={"detail" : "Role has already been selected and cannot be changed."})
-
-def invalid_role_selection(req : Request , exec : Invalid_Role_Selection):
-    return JSONResponse(status_code=400 , content={"detail" : "Role must be either 'customer' or 'organizer'."})
