@@ -33,7 +33,7 @@ def get_current_user(token: str = Depends(oauth_scheme), session: Session = Depe
 
 def register_user(user : UserCreate , session : Session):
     hashed_pass = hash_password(user.password)
-    final_user = User(full_name = user.full_name , hashed_password = hashed_pass , email=user.email)
+    final_user = User(full_name = user.full_name , hashed_password = hashed_pass , email=user.email , role = user.role)
     
     existing_email_user = session.exec(select(User).where(User.email == user.email)).first()
     

@@ -79,7 +79,8 @@ def test_event(client):
     client.post('/auth/register', json={
         'email': 'sherrykhalid86@gmail.com',
         'full_name': 'shahryar',
-        'password': '12345'
+        'password': '12345',
+        'role' : 'organizer'
     })
     login_ = client.post('/auth/login', json={
         'email': 'sherrykhalid86@gmail.com',
@@ -102,8 +103,8 @@ def test_event(client):
     assert data["ticket_tiers"][0]["category_name"] == "VIP"
     
 def test_Get_List_Event(client):
-    client.post('/auth/register' , json={'email' : 'sherrykhalid@gmail.com' , 'full_name' : 'shahryar' , 'password' : '12345'})
-    client.post('/auth/register' , json={'email' : 'ahmed12@gmail.com' , 'full_name' : 'ahmed' , 'password' : '123455'})
+    client.post('/auth/register' , json={'email' : 'sherrykhalid@gmail.com' , 'full_name' : 'shahryar' , 'password' : '12345' , 'role' : 'organizer'})
+    client.post('/auth/register' , json={'email' : 'ahmed12@gmail.com' , 'full_name' : 'ahmed' , 'password' : '123455' , 'role' : 'organizer'})
     login_ = client.post('/auth/login',  json = {'email' : 'sherrykhalid@gmail.com' , 'password': '12345'})
     login_2 = client.post('/auth/login',  json = {'email' : 'ahmed12@gmail.com' , 'password' : '123455'})
     header_1 = login_.json()['access_token']
@@ -118,7 +119,7 @@ def test_Get_List_Event(client):
     assert response.status_code == 200
     
 def test_get_event_specific_id(client):
-    client.post('/auth/register' , json={'email' : 'sherrykhalid86@gmail.com' , 'full_name' : 'shahryar' , 'password' : '12345'})
+    client.post('/auth/register' , json={'email' : 'sherrykhalid86@gmail.com' , 'full_name' : 'shahryar' , 'password' : '12345', 'role' : 'organizer'})
     login_ = client.post('/auth/login',  json = {'email' : 'sherrykhalid86@gmail.com' , 'password': '12345'})
     header_1 = login_.json()['access_token']
     event_2 = EVENT
@@ -133,7 +134,7 @@ def test_get_event_specific_id(client):
     
     
 def test_delete_event(client):
-    client.post('/auth/register' , json={'email' : 'sherrykhalid86@gmail.com' , 'full_name' : 'shahryar' , 'password' : '12345'})
+    client.post('/auth/register' , json={'email' : 'sherrykhalid86@gmail.com' , 'full_name' : 'shahryar' , 'password' : '12345' , 'role' : 'organizer'})
     login_ = client.post('/auth/login',  json = {'email' : 'sherrykhalid86@gmail.com' , 'password': '12345'})
     header_1 = login_.json()['access_token']
     event_2 = EVENT
@@ -144,7 +145,7 @@ def test_delete_event(client):
     
     
 def test_delete_specific_event(client):
-    client.post('/auth/register' , json={'email' : 'sherrykhalid86@gmail.com' , 'full_name' : 'shahryar' , 'password' : '12345'})
+    client.post('/auth/register' , json={'email' : 'sherrykhalid86@gmail.com' , 'full_name' : 'shahryar' , 'password' : '12345' , 'role':'organizer'})
     login_ = client.post('/auth/login',  json = {'email' : 'sherrykhalid86@gmail.com' , 'password': '12345'})
     header_1 = login_.json()['access_token']
     event_2 = EVENT
@@ -158,7 +159,7 @@ def test_delete_specific_event(client):
     
     
 def test_ticket_system(client):
-    client.post('/auth/register' , json={'email' : 'sherrykhalid86@gmail.com' , 'full_name' : 'shahryar' , 'password' : '12345'})
+    client.post('/auth/register' , json={'email' : 'sherrykhalid86@gmail.com' , 'full_name' : 'shahryar' , 'password' : '12345' , 'role' : 'organizer'})
     login_ = client.post('/auth/login',  json = {'email' : 'sherrykhalid86@gmail.com' , 'password': '12345'})
     header_1 = login_.json()['access_token']
     event_2 = EVENT
@@ -176,7 +177,8 @@ def test_search_events(client):
     client.post('/auth/register', json={
         'email': 'sherrykhalid86@gmail.com',
         'full_name': 'shahryar',
-        'password': '12345'
+        'password': '12345' ,
+        'role' : 'organizer'
     })
     login_ = client.post('/auth/login', json={
         'email': 'sherrykhalid86@gmail.com',
@@ -224,24 +226,25 @@ def test_search_events(client):
     
     
 # testing the order placement :
-
-def test_book_ticket(client, test_session):
-    client.post('/auth/register', json={'email': 'organizer@test.com', 'full_name': 'Org', 'password': '12345'})
+from models.Orders import CartItem
+def test_book_ticket(client):
+    client.post('/auth/register', json={'email': 'organizer@test.com', 'full_name': 'Org', 'password': '12345' , 'role' : 'organizer'})
     org_login = client.post('/auth/login', json={'email': 'organizer@test.com', 'password': '12345'})
     org_headers = {"Authorization": f'Bearer {org_login.json()["access_token"]}'}
 
     create_response = client.post("/publish-event", json=EVENT, headers=org_headers)
     assert create_response.status_code == 200
-    tier_id = create_response.json()['ticket_tiers'][0]['id']
+    event_id = create_response.json()['event']['id']
 
-    client.post('/auth/register', json={'email': 'customer@test.com', 'full_name': 'Cust', 'password': '12345'})
-    customer_user = test_session.exec(select(User).where(User.email == 'customer@test.com')).first()
-    customer_user.role = UserRole.customer
-    test_session.add(customer_user)
-    test_session.commit()
-
+    client.post('/auth/register', json={'email': 'customer@test.com', 'full_name': 'Cust', 'password': '12345' , 'role' : 'customer'})
+    
     cust_login = client.post('/auth/login', json={'email': 'customer@test.com', 'password': '12345'})
     cust_headers = {"Authorization": f'Bearer {cust_login.json()["access_token"]}'}
-
-    order_response = client.post("/orders", json={"ticket_tier_id": tier_id, "quantity": 2}, headers=cust_headers)
+    cart_item = []
+    for cart in range(2):
+        tier_id = create_response.json()['ticket_tiers'][cart]['id']
+        items = CartItem(quantity= cart + 10 , ticket_tier_id=tier_id)
+        cart_item.append(items.model_dump())
+        
+    order_response = client.post("/orders", json={"event_id": event_id, "items": cart_item}, headers=cust_headers)
     assert order_response.status_code == 200
