@@ -5,6 +5,7 @@ from models.Users import User
 import logging
 from dependencies.exception import Forbidden ,Event_Not_Found
 from models.Ticket import TicketTier
+from models.Orders import OrderItem
 def Make_Event( event_data : EventCreateWithTiers , user : User , session : Session):
     user_info = session.exec(select(User).where(User.email == user.email)).first()
     if user_info.role != "organizer":
@@ -119,22 +120,24 @@ def List_Tickets(event_id : int , user : User , session : Session):
 # Dashboard analytic summary :
 def get_analytics_summary(user: User, session: Session):
     if user.role != "organizer":
-            logging.error("User is not the organizer")
-            raise Forbidden()
+        logging.error("User is not the organizer")
+        raise Forbidden()
     events = session.exec(select(Event).where(Event.organizer_id == user.id)).all()
     event_ids = [e.id for e in events]
 
     total_events = len(events)
     upcoming_events = len([
-    e for e in events 
-    if e.start_datetime > datetime.now(timezone.utc).replace(tzinfo=None)
-])
+        e for e in events
+        if e.start_datetime > datetime.now(timezone.utc).replace(tzinfo=None)
+    ])
 
     paid_orders = session.exec(
-        select(Order).where(Order.event_id.in_(event_ids), Order.status == "pending")
+        select(Order).where(Order.event_id.in_(event_ids), Order.status == "paid")
     ).all() if event_ids else []
 
-    tickets_sold = sum(o.quantity for o in paid_orders)
+    order_ids = [o.id for o in paid_orders]
+    items = session.exec(select(OrderItem).where(OrderItem.order_id.in_(order_ids))).all() if order_ids else []
+    tickets_sold = sum(i.quantity for i in items)
     total_revenue = sum(o.total_price for o in paid_orders)
 
     return {
@@ -151,8 +154,8 @@ from models.Orders import Order
 
 def get_ticket_sales_last_7_days(user: User, session: Session):
     if user.role != "organizer":
-            logging.error("User is not the organizer")
-            raise Forbidden()
+        logging.error("User is not the organizer")
+        raise Forbidden()
     events = session.exec(select(Event).where(Event.organizer_id == user.id)).all()
     event_ids = [e.id for e in events]
 
@@ -160,62 +163,73 @@ def get_ticket_sales_last_7_days(user: User, session: Session):
     orders = session.exec(
         select(Order).where(
             Order.event_id.in_(event_ids),
-            Order.status == "pending",
+            Order.status == "paid",
             Order.created_at >= seven_days_ago
         )
     ).all() if event_ids else []
 
-    daily_counts = {}
-    for order in orders:
-        day = order.created_at.strftime("%a")  # "Mon", "Tue", etc.
-        daily_counts[day] = daily_counts.get(day, 0) + order.quantity
+    order_ids = [o.id for o in orders]
+    items = session.exec(select(OrderItem).where(OrderItem.order_id.in_(order_ids))).all() if order_ids else []
+    item_to_order = {o.id: o for o in orders}
 
-    return daily_counts  # e.g. {"Mon": 5, "Tue": 12, ...}
+    daily_counts = {}
+    for item in items:
+        order = item_to_order[item.order_id]
+        day = order.created_at.strftime("%a")
+        daily_counts[day] = daily_counts.get(day, 0) + item.quantity
+
+    return daily_counts
 
 
 def get_popular_ticket_categories(user: User, session: Session):
     if user.role != "organizer":
-            logging.error("User is not the organizer")
-            raise Forbidden()
+        logging.error("User is not the organizer")
+        raise Forbidden()
     events = session.exec(select(Event).where(Event.organizer_id == user.id)).all()
     event_ids = [e.id for e in events]
 
     orders = session.exec(
-        select(Order).where(Order.event_id.in_(event_ids), Order.status == "pending")
+        select(Order).where(Order.event_id.in_(event_ids), Order.status == "paid")
     ).all() if event_ids else []
+    order_ids = [o.id for o in orders]
+    items = session.exec(select(OrderItem).where(OrderItem.order_id.in_(order_ids))).all() if order_ids else []
 
     category_counts = {}
-    for order in orders:
-        tier = session.get(TicketTier, order.ticket_tier_id)
-        category_counts[tier.category_name] = category_counts.get(tier.category_name, 0) + order.quantity
+    for item in items:
+        tier = session.get(TicketTier, item.ticket_tier_id)
+        category_counts[tier.category_name] = category_counts.get(tier.category_name, 0) + item.quantity
 
-    return category_counts  # e.g. {"VIP": 45, "General": 120}
+    return category_counts
 
 
 def get_organizer_all_bookings(user: User, session: Session):
     if user.role != "organizer":
-            logging.error("User is not the organizer")
-            raise Forbidden()
+        logging.error("User is not the organizer")
+        raise Forbidden()
     events = session.exec(select(Event).where(Event.organizer_id == user.id)).all()
     event_ids = [e.id for e in events]
 
     orders = session.exec(select(Order).where(Order.event_id.in_(event_ids))).all() if event_ids else []
+    order_ids = [o.id for o in orders]
+    items = session.exec(select(OrderItem).where(OrderItem.order_id.in_(order_ids))).all() if order_ids else []
+    order_map = {o.id: o for o in orders}
 
     result = []
-    for order in orders:
+    for item in items:
+        order = order_map[item.order_id]
         customer = session.get(User, order.user_id)
-        tier = session.get(TicketTier, order.ticket_tier_id)
+        tier = session.get(TicketTier, item.ticket_tier_id)
         event = session.get(Event, order.event_id)
         result.append({
             "customer": customer.full_name,
             "email": customer.email,
             "event": event.name,
             "category": tier.category_name,
-            "qty": order.quantity,
-            "amount": order.total_price,
+            "qty": item.quantity,
+            "amount": item.subtotal,
             "date": order.created_at,
             "status": order.status,
-            "qr_generated": order.qr_code is not None
+            "qr_generated": False  # Order no longer has qr_code — deferred feature per your earlier decision
         })
     return result
 
@@ -229,7 +243,7 @@ def get_revenue_overview(user: User, session: Session):
 
     all_orders = session.exec(select(Order).where(Order.event_id.in_(event_ids))).all() if event_ids else []
 
-    paid_orders = [o for o in all_orders if o.status == "pending"]
+    paid_orders = [o for o in all_orders if o.status == "paid"]
     refunded_orders = [o for o in all_orders if o.status == "refunded"]
 
     total_revenue = sum(o.total_price for o in paid_orders)
@@ -252,7 +266,7 @@ def get_monthly_revenue_trend(user: User, session: Session):
     event_ids = [e.id for e in events]
 
     paid_orders = session.exec(
-        select(Order).where(Order.event_id.in_(event_ids), Order.status == "pending")
+        select(Order).where(Order.event_id.in_(event_ids), Order.status == "paid")
     ).all() if event_ids else []
 
     monthly = {}
@@ -265,23 +279,28 @@ def get_monthly_revenue_trend(user: User, session: Session):
 from dependencies.exception import Paid_Refund , Not_Your_Event
 def refund_order(order_id: int, user: User, session: Session):
     if user.role != "organizer":
-            logging.error("User is not the organizer")
-            raise Forbidden()
+        logging.error("User is not the organizer")
+        raise Forbidden()
     order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
     event = session.get(Event, order.event_id)
     if event.organizer_id != user.id:
         raise Not_Your_Event()
     if order.status != "paid":
         raise Paid_Refund()
 
-    # Stripe refund call goes here later — for now, just update status
     order.status = "refunded"
-    
-    tier = session.get(TicketTier, order.ticket_tier_id)
-    tier.sold_quantity -= order.quantity  # give the seats back
-    
+
+    # Give back seats for every tier in this order, not just one
+    items = session.exec(select(OrderItem).where(OrderItem.order_id == order.id)).all()
+    for item in items:
+        tier = session.get(TicketTier, item.ticket_tier_id)
+        tier.sold_quantity -= item.quantity
+        session.add(tier)
+
     session.add(order)
-    session.add(tier)
+    session.flush()  # matches your centralized-commit pattern from earlier
     return order
 
 from models.Event import EventUpdateWithTiers

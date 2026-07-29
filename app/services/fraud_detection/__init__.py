@@ -1,16 +1,17 @@
 """Fraud Detection Service.
-
+..
 Public API
 ----------
-``predict_order(order, user, tier, session)``  →  ``FraudPrediction``
+``predict_order(order, user, order_items, session)``  →  ``FraudPrediction``
 
 Usage from ``Order_services.py``::
 
     from services.fraud_detection import predict_order
 
-    prediction = predict_order(order, user, tier, session)
+    prediction = predict_order(order, user, order_items, session)
     if prediction.is_fraud:
         order.status = fraud_config.flag_status
+...
 
 Architecture
 ------------
@@ -170,7 +171,7 @@ def _compute_organizer_refund_rate(organizer_id: int, session: "Session") -> flo
 def predict_order(
     order: "Order",
     user: "User",
-    tier: "TicketTier",
+    order_items: list,  # list of (tier, quantity, subtotal) tuples
     session: "Session",
 ) -> FraudPrediction:
     """Evaluate an order for fraud risk.
@@ -178,17 +179,24 @@ def predict_order(
     This is the **only** function the rest of the application should call.
 
     Args:
-        order:   The newly created Order (not yet committed).
-        user:    The user placing the order.
-        tier:    The ticket tier being purchased.
-        session: The database session (for user history queries).
+        order:        The newly created Order (not yet committed).
+        user:         The user placing the order.
+        order_items:  List of (TicketTier, quantity, subtotal) tuples —
+                      one per distinct tier purchased in this order.
+        session:      The database session (for user history queries).
 
     Returns:
         A ``FraudPrediction`` indicating whether the order is suspicious.
     """
     from models.Event import Event as EventModel
 
-    event = session.get(EventModel, tier.event_id)
+    event = session.get(EventModel, order.event_id)
+
+    # Aggregate across all tiers in this order
+    total_quantity = sum(qty for _, qty, _ in order_items)
+    # Use the highest-value line item as the "representative" tier for
+    # single-tier model features (price, category, etc.)
+    primary_tier, primary_qty, primary_subtotal = max(order_items, key=lambda x: x[2])
 
     user_stats = _compute_user_stats(user.id, session)
     account_age = _compute_account_age_days(user)
@@ -198,16 +206,16 @@ def predict_order(
 
     ctx = OrderContext(
         # Order
-        quantity=order.quantity,
+        quantity=total_quantity,
         total_price=order.total_price,
-        # Tier
-        tier_price=tier.price,
-        tier_currency=tier.currency,
-        tier_total_seats=tier.total_seats,
-        tier_sold_quantity=tier.sold_quantity,
-        tier_category=tier.category_name,
+        # Tier (representative — highest-value line item)
+        tier_price=primary_tier.price,
+        tier_currency=primary_tier.currency,
+        tier_total_seats=primary_tier.total_seats,
+        tier_sold_quantity=primary_tier.sold_quantity,
+        tier_category=primary_tier.category_name,
         # Event
-        event_id=tier.event_id,
+        event_id=order.event_id,
         event_name=event.name if event else "",
         event_category=event.category if event else "",
         event_venue=event.venue if event else "",
