@@ -135,7 +135,7 @@
     const response = await fetch('http://localhost:8000/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email: email, password: password })
     });
 
     if (!response.ok) {
@@ -144,7 +144,20 @@
 
     const data = await response.json();
     localStorage.setItem('access_token', data.access_token);
-    return { ok: true };
+
+    // Find out whether this account already picked a role. First-time
+    // users (role_selected === false) go to the role-selection page
+    // exactly once; everyone else goes straight to their dashboard.
+    const meResponse = await fetch('http://localhost:8000/users/me', {
+      headers: { Authorization: `Bearer ${data.access_token}` }
+    });
+
+    if (!meResponse.ok) {
+      return { ok: false };
+    }
+
+    const me = await meResponse.json();
+    return { ok: true, roleSelected: me.role_selected, role: me.role };
   } catch (err) {
     console.error('Login request failed:', err);
     return { ok: false };
@@ -168,9 +181,19 @@
     handleLogin(emailInput.value.trim(), passwordInput.value)
       .then((result) => {
         if (result && result.ok) {
-          showStatus('Login successful — redirecting to your tickets…', false);
-          console.log("REDIRECT ABOUT TO FIRE:", '../dashboard/dashboard.html');
-          window.location.href = '../dashboard/dashboard.html';
+          if (!result.roleSelected) {
+            showStatus('Login successful — let\'s set up your account…', false);
+            window.location.href = '../role/index.html';
+            return;
+          }
+
+          if (result.role === 'organizer') {
+            showStatus('Login successful — redirecting to your dashboard…', false);
+            window.location.href = '../dashboard/dashboard.html';
+          } else {
+            showStatus('Login successful — redirecting to events…', false);
+            window.location.href = '../customer-window/index.html';
+          }
         } else {
           showStatus('Incorrect email or password. Please try again.', true);
         }
@@ -191,7 +214,7 @@
     // Hook up real OAuth redirect here, e.g. window.location.href = '/auth/google';
   }
 
-  googleBtn.addEventListener('click', () => handleSocialLogin('Google'));
-  appleBtn.addEventListener('click', () => handleSocialLogin('Apple'));
+  googleBtn?.addEventListener('click', () => handleSocialLogin('Google'));
+  appleBtn?.addEventListener('click', () => handleSocialLogin('Apple'));
 
 })();

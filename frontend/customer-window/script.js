@@ -93,6 +93,7 @@ const TIER_COLORS = { VIP: "#F59E0B", Premium: "#0B5ED7", General: "#10B981", VV
 
 // backend Event + TicketTier[] -> shape this file's rendering code expects
 function mapEventFromBackend(evt, tiers) {
+  tiers = Array.isArray(tiers) ? tiers : [];
   const [date] = (evt.start_datetime || "").split("T");
   const time = (evt.start_datetime || "").split("T")[1]?.slice(0, 5) || "";
   const lowestPrice = tiers.length ? Math.min(...tiers.map(t => t.price)) : 0;
@@ -126,12 +127,16 @@ const api = {
   getEvents: async () => {
     const res = await fetch(`${API_BASE}/events/customer`);
     const rawEvents = await res.json();
-    const full = await Promise.all(rawEvents.map(async (evt) => {
+    // Use allSettled so one event with a broken/forbidden tiers request
+    // doesn't take down the entire list — it just shows with no tiers.
+    const settled = await Promise.allSettled(rawEvents.map(async (evt) => {
       const tRes = await fetch(`${API_BASE}/events/${evt.id}/ticket-tiers`, { headers: authHeaders() });
-      const tiers = await tRes.json();
+      const tiers = tRes.ok ? await tRes.json() : [];
       return mapEventFromBackend(evt, tiers);
     }));
-    return full;
+    return settled
+      .filter(r => r.status === "fulfilled")
+      .map(r => r.value);
   },
   getBookings: async () => {
     const res = await fetch(`${API_BASE}/orders/me`, { headers: authHeaders() });
@@ -162,6 +167,7 @@ const api = {
 
   /* ------------------------------- State ---------------------------------- */
   const state = {
+    currentUser: null,
     events: [],
     filters: { q: "", category: "all", country: "all", city: "", dateFrom: "", dateTo: "", price: "all", time: "all", sort: "popular" },
     page: 1,
@@ -195,6 +201,28 @@ const api = {
     const div = document.createElement("div");
     div.textContent = String(str);
     return div.innerHTML;
+  }
+
+  /* ------------------------------ Identity --------------------------------- */
+  // Fills every on-screen spot that shows the user's name/email with the
+  // name they actually gave at signup (full_name from /users/me) — the
+  // profile card heading, the profile form's "Full name"/"Email" fields.
+  function applyCustomerIdentity(user) {
+    if (!user) return;
+    const name = user.full_name || "";
+    const email = user.email || "";
+
+    const nameDisplay = $("#profileNameDisplay");
+    if (nameDisplay) nameDisplay.textContent = name;
+
+    const emailDisplay = $("#profileEmailDisplay");
+    if (emailDisplay) emailDisplay.textContent = email;
+
+    const nameInput = $("#fullName");
+    if (nameInput) nameInput.value = name;
+
+    const emailInput = $("#emailField");
+    if (emailInput) emailInput.value = email;
   }
 
   /* ------------------------------ Ripple ---------------------------------- */
@@ -1035,12 +1063,37 @@ const api = {
   /* ---------------------------------- Logout ------------------------------------ */
   function initLogout() {
     $("#logoutBtn")?.addEventListener("click", () => {
-      toast("Logged out", "You've been signed out of Tixora.", "ok");
+      localStorage.removeItem("access_token");
+      window.location.href = "../login_sign_in/login.html";
     });
   }
 
   /* ---------------------------------- Init ------------------------------------- */
   async function init() {
+    if (!localStorage.getItem("access_token")) {
+      window.location.href = "../login_sign_in/login.html";
+      return;
+    }
+
+    try {
+      const me = await (await fetch(`${API_BASE}/users/me`, { headers: authHeaders() })).json();
+      if (!me.role_selected) {
+        window.location.href = "../role/index.html";
+        return;
+      }
+      if (me.role !== "customer") {
+        window.location.href = "../dashboard/dashboard.html";
+        return;
+      }
+      state.currentUser = me;
+      applyCustomerIdentity(me);
+    } catch (err) {
+      console.error("Couldn't verify session:", err);
+      localStorage.removeItem("access_token");
+      window.location.href = "../login_sign_in/login.html";
+      return;
+    }
+
     initNavbar();
     initViews();
     initLogout();
@@ -1053,7 +1106,13 @@ const api = {
     initFraud();
     updateNotifBadge();
 
-    state.events = await api.getEvents();
+    try {
+      state.events = await api.getEvents();
+    } catch (err) {
+      console.error("Couldn't load events:", err);
+      state.events = [];
+      toast("Couldn't reach the server", "Some content may be missing.", "warn");
+    }
 
     renderFeatured();
     renderTrending();

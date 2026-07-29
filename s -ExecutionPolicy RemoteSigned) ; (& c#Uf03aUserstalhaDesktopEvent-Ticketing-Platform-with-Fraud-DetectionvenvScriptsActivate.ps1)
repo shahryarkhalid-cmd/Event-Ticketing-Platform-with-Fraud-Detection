@@ -1,0 +1,246 @@
+[33mcommit 7bae7027118d0c75646570c2eae98d2decdceb82[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mtalha/fraud-detection[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Fri Jul 24 08:18:56 2026 +0500
+
+    Small change
+
+[33mcommit be72f562d6028356d3827ba2514bcb2b4dc7f34b[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Fri Jul 24 08:17:38 2026 +0500
+
+    Change README , Add requirement.txt
+
+[33mcommit 9be6e635dd46f5afde1f7678e42690d04e970722[m
+Merge: 4576e22 363a39f
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Fri Jul 24 08:08:23 2026 +0500
+
+    Merge branch 'main' of https://github.com/shahryarkhalid-cmd/Event-Ticketing-Platform-with-Fraud-Detection
+
+[33mcommit 4576e226ae3cc4ac7066460b50f7ca0f5d443d2f[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Fri Jul 24 08:08:02 2026 +0500
+
+    Connect Organizer Dashboard and testing
+
+[33mcommit 363a39fb3901a1369c9b2d0b78b3888362301096[m
+Author: Abu Bakar Ali <250294733+AbuBakarAli96@users.noreply.github.com>
+Date:   Fri Jul 24 04:29:36 2026 +0500
+
+    login and sign in corrections
+
+[33mcommit 67e28b1c3246b839bdf8497b72c3da432d02c63e[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Fri Jul 24 00:11:14 2026 +0500
+
+    Add Stripe payment booking connection
+
+[33mcommit c0e8985f0d6c1f2d9cdba3158eca0123d4dd77c9[m
+Author: Abu Bakar Ali <250294733+AbuBakarAli96@users.noreply.github.com>
+Date:   Thu Jul 23 20:30:35 2026 +0500
+
+    changings in dashboard 2
+
+[33mcommit 315b88f7bf8c124bf9fa57c1f59047419e9d5280[m
+Merge: a12d306 749a94c
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Thu Jul 23 19:06:29 2026 +0500
+
+    Merge branch 'main' of https://github.com/shahryarkhalid-cmd/Event-Ticketing-Platform-with-Fraud-Detection
+
+[33mcommit a12d306693b8e29d62e6fbc5e451b8b8aa4aff56[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Thu Jul 23 19:06:04 2026 +0500
+
+    Add Redis + concurrency + Booking system
+
+[33mcommit 749a94ccbf36e0bb7cc141afb3e32cfedd7d7571[m
+Author: Abu Bakar Ali <250294733+AbuBakarAli96@users.noreply.github.com>
+Date:   Thu Jul 23 04:39:28 2026 +0500
+
+    changings in dashboard
+
+[33mcommit 1578b1af2994ae51ae8a5c5ac4276d96cafbfbb2[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Thu Jul 23 03:46:22 2026 +0500
+
+    Add ordering part,Customer+testing
+
+[33mcommit c15711b3808fc7b6d70f9f7f0e3774cd070460d6[m
+Merge: 8b31ad2 37cc5ba
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Thu Jul 23 02:18:13 2026 +0500
+
+    Merge branch 'main' of https://github.com/shahryarkhalid-cmd/Event-Ticketing-Platform-with-Fraud-Detection
+
+[33mcommit 8b31ad26d16b6f1b821e3801b0d79ab989ae3684[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Thu Jul 23 02:17:46 2026 +0500
+
+    Add search event query route for customer
+
+[33mcommit 37cc5ba92340e24c8c60254bfd4059788d8c993b[m
+Author: Abu Bakar Ali <250294733+AbuBakarAli96@users.noreply.github.com>
+Date:   Thu Jul 23 01:20:30 2026 +0500
+
+    adding logo to dashboard
+
+[33mcommit 8e65e90354e1244d9f206e7eb142ea02b63eca81[m
+Author: Abu Bakar Ali <250294733+AbuBakarAli96@users.noreply.github.com>
+Date:   Thu Jul 23 01:15:56 2026 +0500
+
+    moving dashboard to frountend
+
+[33mcommit 3c7bd08663679bed1e7fc883129c8b56b7a87b5e[m
+Author: Abu Bakar Ali <250294733+AbuBakarAli96@users.noreply.github.com>
+Date:   Thu Jul 23 01:09:02 2026 +0500
+
+    Adding dashBoard
+
+[33mcommit c147114c7dd97faea56dedaa396b7be2a527008a[m
+Merge: f9ff36b c8fc489
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Thu Jul 23 00:28:25 2026 +0500
+
+    Merge branch 'main' of https://github.com/shahryarkhalid-cmd/Event-Ticketing-Platform-with-Fraud-Detection
+
+[33mcommit f9ff36ba182886c8f8a024ce267ab8b6c8ca00ad[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Thu Jul 23 00:28:08 2026 +0500
+
+    Update Backend according to frontend + test routes
+
+[33mcommit c8fc489680b27bcd5f5ad4ff9512d8db8b18bd4b[m
+Author: tasfidatabyte-ops <tasfi.databyte@gmail.com>
+Date:   Wed Jul 22 09:31:05 2026 -0700
+
+    Update login link to point to login.html
+
+[33mcommit 402107f50ba2c8a03f422097be3571768b87000e[m
+Author: tasfidatabyte-ops <tasfi.databyte@gmail.com>
+Date:   Wed Jul 22 13:40:26 2026 +0500
+
+    Update signup.html
+
+[33mcommit a922fc865762173acab61417a2c2b92e3babce84[m
+Author: tasfidatabyte-ops <tasfi.databyte@gmail.com>
+Date:   Wed Jul 22 13:36:41 2026 +0500
+
+    Update signup.html
+
+[33mcommit b4d4f02b9d7348f64546a5d8f0d543cecb7ae0c8[m
+Author: tasfidatabyte-ops <tasfi.databyte@gmail.com>
+Date:   Wed Jul 22 13:29:13 2026 +0500
+
+    Update login and signup HTML files
+
+[33mcommit 5a77e847687c407110be31e32679fd3aa0b20c1c[m
+Author: tasfidatabyte-ops <tasfi.databyte@gmail.com>
+Date:   Wed Jul 22 13:25:10 2026 +0500
+
+    Rename login folder, move signup files, and clean up signup directory
+
+[33mcommit 6eec2604da141dbf192198f70138911db23dce92[m
+Author: tasfidatabyte-ops <tasfi.databyte@gmail.com>
+Date:   Wed Jul 22 10:45:30 2026 +0500
+
+    refactor: reorganize frontend into login and signup subfolders
+
+[33mcommit ca122c45a4c4d664e119e3c61bfeb2a2b4127d9e[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Wed Jul 22 05:31:56 2026 +0500
+
+    small change
+
+[33mcommit 56ac4af4f29186c9485d5b2c7a3b50f1f39fe1dd[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Wed Jul 22 05:31:07 2026 +0500
+
+    Complete Event system and test get event
+
+[33mcommit e0acb18c4df996b0b32d12fcd7eb94635098ffa4[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Wed Jul 22 04:07:59 2026 +0500
+
+    Add listing the events
+
+[33mcommit 5352843f674ac03a8394d236393004c38ce18410[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Wed Jul 22 03:15:46 2026 +0500
+
+    Connect Frontend and Backend
+
+[33mcommit 7096527721cc8e349c000f67df4a64a30ea2bb0e[m
+Author: Abu Bakar Ali <250294733+AbuBakarAli96@users.noreply.github.com>
+Date:   Wed Jul 22 01:23:17 2026 +0500
+
+    add login and signin pages
+
+[33mcommit 884e7f6030e3a1a93592b650d3fb99e56773b647[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Wed Jul 22 01:09:55 2026 +0500
+
+    Small change in test_
+
+[33mcommit d7594413b888b553eaeebab3486050c4aaa60183[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Wed Jul 22 01:07:52 2026 +0500
+
+    Test Route:make_event
+
+[33mcommit c624d8a110afbee81255ee8dc9dbf9b9c73e6fdf[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Wed Jul 22 00:27:44 2026 +0500
+
+    Make Event Making Endpoint
+
+[33mcommit 69f86ac6794d7eb5ad2fcf9ad85e20601597b2dc[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Tue Jul 21 23:39:53 2026 +0500
+
+    Add Event Model
+
+[33mcommit f3a4d4fc7cd55c8c9c72bf72c35df0d55da006ab[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Tue Jul 21 23:38:52 2026 +0500
+
+    Small changes in Alembic
+
+[33mcommit db55f9dac9efbcbfc7b0c76e503d595492427a68[m
+Merge: 0acef66 ef20578
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Tue Jul 21 23:20:49 2026 +0500
+
+    Merge branch 'main' of https://github.com/shahryarkhalid-cmd/Event-Ticketing-Platform-with-Fraud-Detection
+
+[33mcommit 0acef66f2f387a8527e200706c1d154c513ce229[m
+Author: shahryarkhalid-cmd <sherrykhalid86@gmail.com>
+Date:   Tue Jul 21 23:19:48 2026 +0500
+
+    Add alembic
+
+[33mcommit ef20578943e20ecf57921c5030fa2062f5da396d[m
+Author: tasfidatabyte-ops <tasfi.databyte@gmail.com>
+Date:   Tue Jul 21 09:21:13 2026 -0700
+
+    Delete Frontend/Login directory
+
+[33mcommit 56e6d9ecbd95879b65268469dc89c3fb6ea608b6[m
+Author: tasfidatabyte-ops <tasfi.databyte@gmail.com>
+Date:   Tue Jul 21 09:14:25 2026 -0700
+
+    Create Frontend/login folder structure
+
+[33mcommit f753cb7b1471192dd7f0932bd92aa522443556d5[m
+Author: tasfidatabyte-ops <tasfi.databyte@gmail.com>
+Date:   Tue Jul 21 17:15:25 2026 +0500
+
+    Delete Frontend/Login
+
+[33mcommit 0a65bcc9ec4a7afe7fea67bde40688e955daf7d4[m
+Author: tasfidatabyte-ops <tasfi.databyte@gmail.com>
+Date:   Tue Jul 21 17:12:24 2026 +0500
+
+    Create Login
+
+
