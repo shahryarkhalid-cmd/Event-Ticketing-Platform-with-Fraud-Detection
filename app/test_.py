@@ -738,6 +738,54 @@ def test_checkout_non_pending_order_rejected(client, test_session):
 
     response = client.post(f'/orders/{order_id}/checkout', headers=cust_header)
     assert response.status_code == 400
+    
+    
+    
+# Testing the stripe checkout , Webhook Actually updates the order:
+from unittest.mock import patch
+from models.Orders import Order
+import stripe
+
+
+def make_fake_stripe_event(order_id: int):
+    return {
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "metadata": {"order_id": str(order_id)}
+            }
+        }
+    }
+
+
+def test_stripe_webhook_marks_order_as_paid(client, test_session):
+    # 1. Set up a normal order, same as always
+    org_header = register_and_login(client, 'orgwh@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'custwh@test.com', 'Cust', 'pass123', 'customer')
+    order_response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 1}]
+    }, headers=cust_header)
+    order_id = order_response.json()['id']
+
+    order = test_session.get(Order, order_id)
+    assert order.status == "pending"
+
+    fake_event = make_fake_stripe_event(order_id)
+    with patch("stripe.Webhook.construct_event", return_value=fake_event):
+        response = client.post(
+            "/webhooks/stripe",
+            data=b"irrelevant-fake-payload",
+            headers={"stripe-signature": "fake-signature-for-test"}
+        )
+
+    assert response.status_code == 200
+    test_session.refresh(order)
+    assert order.status == "paid"
             
 
 
