@@ -3,9 +3,9 @@ from sqlmodel import Session , select
 from models.Event import EventCreateWithTiers , Event
 from models.Users import User
 import logging
+from models.Orders import OrderItem
 from dependencies.exception import Forbidden ,Event_Not_Found
 from models.Ticket import TicketTier
-from models.Orders import OrderItem
 def Make_Event( event_data : EventCreateWithTiers , user : User , session : Session):
     user_info = session.exec(select(User).where(User.email == user.email)).first()
     if user_info.role != "organizer":
@@ -158,6 +158,7 @@ def get_ticket_sales_last_7_days(user: User, session: Session):
         raise Forbidden()
     events = session.exec(select(Event).where(Event.organizer_id == user.id)).all()
     event_ids = [e.id for e in events]
+
     seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
     orders = session.exec(
         select(Order).where(
@@ -232,7 +233,6 @@ def get_organizer_all_bookings(user: User, session: Session):
         })
     return result
 
-
 def get_revenue_overview(user: User, session: Session):
     if user.role != "organizer":
             logging.error("User is not the organizer")
@@ -259,8 +259,8 @@ def get_revenue_overview(user: User, session: Session):
 
 def get_monthly_revenue_trend(user: User, session: Session):
     if user.role != "organizer":
-            logging.error("User is not the organizer")
-            raise Forbidden()
+        logging.error("User is not the organizer")
+        raise Forbidden()
     events = session.exec(select(Event).where(Event.organizer_id == user.id)).all()
     event_ids = [e.id for e in events]
 
@@ -270,7 +270,7 @@ def get_monthly_revenue_trend(user: User, session: Session):
 
     monthly = {}
     for order in paid_orders:
-        month = order.created_at.strftime("%b")  # "Feb", "Mar"...
+        month = order.created_at.strftime("%b")
         monthly[month] = monthly.get(month, 0) + order.total_price
 
     return monthly
@@ -282,7 +282,7 @@ def refund_order(order_id: int, user: User, session: Session):
         raise Forbidden()
     order = session.get(Order, order_id)
     if not order:
-        raise Not_Order
+        raise HTTPException(status_code=404, detail="Order not found")
     event = session.get(Event, order.event_id)
     if event.organizer_id != user.id:
         raise Not_Your_Event()
@@ -358,6 +358,7 @@ def update_event_with_tiers(id: int, event_data: EventUpdateWithTiers, user: Use
 
     all_tiers = session.exec(select(TicketTier).where(TicketTier.event_id == id)).all()
     return {"event": event, "ticket_tiers": all_tiers}
+
 
 def get_fraud_orders(user: User, session: Session):
     if user.role != "organizer":

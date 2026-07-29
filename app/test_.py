@@ -2,6 +2,7 @@ import pytest
 from conftest import client
 from models.Users import User , UserRole
 from sqlmodel import select
+from models.Orders import CartItem
 EVENT = {
                 "name": "Musical Night",
                 "category": "other",
@@ -458,7 +459,7 @@ def test_monthly_revenue_trend(client , test_session):
             assert response.status_code ==200
             assert response.json()[month] == 4500
 # testing the refund system:
-def test_revenue(client , test_session):
+def test_refund(client , test_session):
             client.post('/auth/register' , json = {'email': 'organizer@test.gmail.com' ,       'password' : 'test123' ,'full_name' : 'shahryar' , 'role' : 'organizer'})
             org_client = client.post('/auth/login' , json = {'email' : 'organizer@test.gmail.com' , 'password' : 'test123'})
             assert org_client.status_code == 200
@@ -495,7 +496,6 @@ def test_revenue(client , test_session):
             assert data['status'] == 'refunded'
     
 # testing the order placement :
-from models.Orders import CartItem
 def test_book_ticket(client):
     client.post('/auth/register', json={'email': 'organizer@test.com', 'full_name': 'Org', 'password': '12345' , 'role' : 'organizer'})
     org_login = client.post('/auth/login', json={'email': 'organizer@test.com', 'password': '12345'})
@@ -517,6 +517,227 @@ def test_book_ticket(client):
         
     order_response = client.post("/orders", json={"event_id": event_id, "items": cart_item}, headers=cust_headers)
     assert order_response.status_code == 200
+    
+    
+def test_update_event(client):
+        client.post('/auth/register' , json = {'email':    'organizer@test.gmail.com' ,       'password' : 'test123' ,'full_name' : 'shahryar' , 'role' : 'organizer'})
+        org_client = client.post('/auth/login' , json = {'email' : 'organizer@test.gmail.com' , 'password' : 'test123'})
+        assert org_client.status_code == 200
+        header={"Authorization": f'Bearer {org_client.json()['access_token']}'}
+            
+        create_response = client.post('/publish-event' ,json=EVENT , headers = header)
+        event_id = create_response.json()['event']['id']
+        response = client.put(f'/update_event/{event_id}', json =EVENT_2, headers = header)
+        assert response.status_code == 200
+        assert response.json()['event']['name'] == 'Tekken Event'
+        
+        
+        
+# Testing customer Routes :
+from models.Orders import Order
 
+
+def register_and_login(client, email, full_name, password, role):
+    client.post('/auth/register', json={
+        'email': email, 'full_name': full_name, 'password': password, 'role': role
+    })
+    login_ = client.post('/auth/login', json={'email': email, 'password': password})
+    token = login_.json()['access_token']
+    return {"Authorization": f'Bearer {token}'}
+
+
+def setup_event_with_tiers(client, org_header):
+    create_response = client.post('/publish-event', json=EVENT, headers=org_header)
+    assert create_response.status_code == 200
+    return create_response.json()
+
+
+# ---------- POST /orders ----------
+
+def test_create_order_success(client):
+    org_header = register_and_login(client, 'org1@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'cust1@test.com', 'Cust', 'pass123', 'customer')
+
+    response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 2}]
+    }, headers=cust_header)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data['event_id'] == event_id
+    assert data['status'] == 'pending'
+
+
+def test_create_order_requires_customer_role(client):
+    org_header = register_and_login(client, 'org2@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    # Organizer tries to book their own event
+    response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 1}]
+    }, headers=org_header)
+
+    assert response.status_code == 404
+
+
+def test_create_order_not_enough_tickets(client):
+    org_header = register_and_login(client, 'org3@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'cust3@test.com', 'Cust', 'pass123', 'customer')
+
+    response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 999999}]
+    }, headers=cust_header)
+
+    assert response.status_code == 409
+
+
+# ---------- GET /orders/me ----------
+
+def test_get_my_orders(client):
+    org_header = register_and_login(client, 'org4@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'cust4@test.com', 'Cust', 'pass123', 'customer')
+
+    client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 1}]
+    }, headers=cust_header)
+
+    response = client.get('/orders/me', headers=cust_header)
+    assert response.status_code == 200
+    orders = response.json()
+    assert len(orders) >= 1
+    assert orders[0]['event_id'] == event_id
+
+
+def test_get_my_orders_empty_for_new_user(client):
+    cust_header = register_and_login(client, 'cust5@test.com', 'Cust', 'pass123', 'customer')
+    response = client.get('/orders/me', headers=cust_header)
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+# ---------- GET /orders/{order_id} ----------
+
+def test_get_order_status(client):
+    org_header = register_and_login(client, 'org6@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'cust6@test.com', 'Cust', 'pass123', 'customer')
+
+    order_response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 1}]
+    }, headers=cust_header)
+    order_id = order_response.json()['id']
+
+    response = client.get(f'/orders/{order_id}', headers=cust_header)
+    assert response.status_code == 200
+    assert response.json()['id'] == order_id
+    assert response.json()['status'] == 'pending'
+
+
+def test_get_order_status_wrong_user_forbidden(client):
+    org_header = register_and_login(client, 'org7@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'cust7@test.com', 'Cust', 'pass123', 'customer')
+    order_response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 1}]
+    }, headers=cust_header)
+    order_id = order_response.json()['id']
+
+    # A different customer tries to view someone else's order
+    other_header = register_and_login(client, 'cust8@test.com', 'Cust2', 'pass123', 'customer')
+    response = client.get(f'/orders/{order_id}', headers=other_header)
+    assert response.status_code == 403
+
+
+def test_get_order_status_not_found(client):
+    cust_header = register_and_login(client, 'cust9@test.com', 'Cust', 'pass123', 'customer')
+    response = client.get('/orders/999999', headers=cust_header)
+    assert response.status_code == 404
+
+
+# ---------- POST /orders/{order_id}/checkout ----------
+
+def test_create_checkout_session(client):
+    org_header = register_and_login(client, 'org10@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'cust10@test.com', 'Cust', 'pass123', 'customer')
+    order_response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 1}]
+    }, headers=cust_header)
+    order_id = order_response.json()['id']
+
+    response = client.post(f'/orders/{order_id}/checkout', headers=cust_header)
+    assert response.status_code == 200
+    assert "checkout_url" in response.json()
+
+
+def test_checkout_wrong_user_forbidden(client):
+    org_header = register_and_login(client, 'org11@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'cust11@test.com', 'Cust', 'pass123', 'customer')
+    order_response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 1}]
+    }, headers=cust_header)
+    order_id = order_response.json()['id']
+
+    other_header = register_and_login(client, 'cust12@test.com', 'Cust2', 'pass123', 'customer')
+    response = client.post(f'/orders/{order_id}/checkout', headers=other_header)
+    assert response.status_code == 409
+
+
+def test_checkout_non_pending_order_rejected(client, test_session):
+    org_header = register_and_login(client, 'org13@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'cust13@test.com', 'Cust', 'pass123', 'customer')
+    order_response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 1}]
+    }, headers=cust_header)
+    order_id = order_response.json()['id']
+
+    order = test_session.get(Order, order_id)
+    order.status = "paid"
+    test_session.add(order)
+    test_session.commit()
+
+    response = client.post(f'/orders/{order_id}/checkout', headers=cust_header)
+    assert response.status_code == 400
+            
 
 
