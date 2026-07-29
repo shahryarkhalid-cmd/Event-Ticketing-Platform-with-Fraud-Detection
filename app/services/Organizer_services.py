@@ -158,7 +158,6 @@ def get_ticket_sales_last_7_days(user: User, session: Session):
         raise Forbidden()
     events = session.exec(select(Event).where(Event.organizer_id == user.id)).all()
     event_ids = [e.id for e in events]
-
     seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
     orders = session.exec(
         select(Order).where(
@@ -275,7 +274,7 @@ def get_monthly_revenue_trend(user: User, session: Session):
         monthly[month] = monthly.get(month, 0) + order.total_price
 
     return monthly
-
+from dependencies.exception import Not_Order
 from dependencies.exception import Paid_Refund , Not_Your_Event
 def refund_order(order_id: int, user: User, session: Session):
     if user.role != "organizer":
@@ -283,7 +282,7 @@ def refund_order(order_id: int, user: User, session: Session):
         raise Forbidden()
     order = session.get(Order, order_id)
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise Not_Order
     event = session.get(Event, order.event_id)
     if event.organizer_id != user.id:
         raise Not_Your_Event()

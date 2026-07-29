@@ -164,6 +164,7 @@ def test_ticket_system(client):
     header_1 = login_.json()['access_token']
     event_2 = EVENT
     create_response = client.post("/publish-event", json = event_2 ,  headers ={"Authorization" : f'Bearer {header_1}'})
+    
     assert create_response.status_code == 200
     event_id = create_response.json()['event']['id']
     response = client.get(f'/events/{event_id}/ticket-tiers' , headers={"Authorization" : f"Bearer {header_1}"})
@@ -223,7 +224,275 @@ def test_search_events(client):
     assert response.status_code == 200
     data = response.json()
     assert data == []
+# Testing the dashboard graphs of the Organizer Window:
+from models.Orders import Order
+def test_get_analytics_summary(client , test_session):
+    client.post('/auth/register' , json = {'email': 'organizer@test.gmail.com' , 'password' : 'test123' ,'full_name' : 'shahryar' , 'role' : 'organizer'})
+    org_client = client.post('/auth/login' , json = {'email' : 'organizer@test.gmail.com' , 'password' : 'test123'})
+    assert org_client.status_code == 200
+    header={"Authorization": f'Bearer {org_client.json()['access_token']}'}
     
+    create_response = client.post('/publish-event' , json=EVENT , headers = header)
+    event_id = create_response.json()['event']['id']
+    client.post('/auth/register' , json={'email' : 'customer@gmail.com' , 'full_name' : 'customer' , 'password' : '123' , 'role' : 'customer'})
+    customer = client.post('/auth/login' , json= {'email' : 'customer@gmail.com' , 'password':'123'})
+    header_customer ={"Authorization": f'Bearer {customer.json()["access_token"]}'}
+    
+    cart_item = []
+    for cart in range(2):
+            tier_id = create_response.json()['ticket_tiers'][cart]['id']
+            items = CartItem(quantity= cart + 10 , ticket_tier_id=tier_id)
+            cart_item.append(items.model_dump())
+            
+            
+    order_response =client.post('/orders' , json = {'event_id' :event_id , 'items' : cart_item} , headers = header_customer)
+    assert order_response.status_code == 200
+    order_id = order_response.json()['id']
+    order = test_session.get(Order, int(order_id))
+    order.status = "paid"
+    test_session.add(order)
+    test_session.commit()
+    
+    
+    response = client.get("/organizer/analytics/summary" , headers=header)
+    assert response.status_code == 200
+    
+    
+ 
+def test_get_ticket_sales(client , test_session):
+            client.post('/auth/register' , json = {'email': 'organizer@test.gmail.com' , 'password' : 'test123' ,'full_name' : 'shahryar' , 'role' : 'organizer'})
+            org_client = client.post('/auth/login' , json = {'email' : 'organizer@test.gmail.com' , 'password' : 'test123'})
+            assert org_client.status_code == 200
+            header={"Authorization": f'Bearer {org_client.json()['access_token']}'}
+            
+            create_response = client.post('/publish-event' , json=EVENT , headers = header)
+            event_id = create_response.json()['event']['id']
+            client.post('/auth/register' , json={'email' : 'customer@gmail.com' , 'full_name' : 'customer' , 'password' : '123' , 'role' : 'customer'})
+            customer = client.post('/auth/login' , json= {'email' : 'customer@gmail.com' , 'password':'123'})
+            header_customer ={"Authorization": f'Bearer {customer.json()["access_token"]}'}
+            
+            cart_item = []
+            for cart in range(2):
+                    tier_id = create_response.json()['ticket_tiers'][cart]['id']
+                    items = CartItem(quantity= 10 , ticket_tier_id=tier_id)
+                    cart_item.append(items.model_dump())
+                    
+                    
+            order_response =client.post('/orders' , json = {'event_id' :event_id , 'items' : cart_item} , headers = header_customer)
+            assert order_response.status_code == 200
+            order_id = order_response.json()['id']
+            order = test_session.get(Order, int(order_id))
+            order.status = "paid"
+            test_session.add(order)
+            test_session.commit()
+            response = client.get('/organizer/analytics/ticket-sales' , headers = header)
+            day = order.created_at.strftime("%a")
+            assert response.status_code == 200
+            assert response.json()[day] == 20
+            
+    
+def test_get_ticket_popularity(client , test_session):
+        client.post('/auth/register' , json = {'email': 'organizer@test.gmail.com' ,       'password' : 'test123' ,'full_name' : 'shahryar' , 'role' : 'organizer'})
+        org_client = client.post('/auth/login' , json = {'email' : 'organizer@test.gmail.com' , 'password' : 'test123'})
+        assert org_client.status_code == 200
+        header={"Authorization": f'Bearer {org_client.json()['access_token']}'}
+        
+        create_response = client.post('/publish-event' , json=EVENT , headers = header)
+        event_id = create_response.json()['event']['id']
+        client.post('/auth/register' , json={'email' : 'customer@gmail.com' , 'full_name' : 'customer' , 'password' : '123' , 'role' : 'customer'})
+        customer = client.post('/auth/login' , json= {'email' : 'customer@gmail.com' , 'password':'123'})
+        header_customer ={"Authorization": f'Bearer {customer.json()["access_token"]}'}
+        
+        cart_item = []
+        for cart in range(2):
+                tier_id = create_response.json()['ticket_tiers'][cart]['id']
+                tier_name = create_response.json()['ticket_tiers'][cart]['category_name']
+                if tier_name == "General":
+                    quantity = 100 ;
+                if tier_name == "VIP":
+                    quantity = 10 ;
+                items = CartItem(quantity = quantity , ticket_tier_id=tier_id)
+                cart_item.append(items.model_dump())
+                
+                
+        order_response =client.post('/orders' , json = {'event_id' :event_id , 'items' : cart_item} , headers = header_customer)
+        assert order_response.status_code == 200
+        order_id = order_response.json()['id']
+        order = test_session.get(Order, int(order_id))
+        order.status = "paid"
+        test_session.add(order)
+        test_session.commit()
+        
+        assert order_response.status_code == 200
+        order_id = order_response.json()['id']
+        order = test_session.get(Order, int(order_id))
+        order.status = "paid"
+        test_session.add(order)
+        test_session.commit()
+        response = client.get("/organizer/analytics/popular-categories" , headers=header)
+        assert response.status_code == 200
+        assert response.json()["VIP"] == 10
+        
+        
+# testing the booking status : 
+def test_booking_status(client , test_session):
+        client.post('/auth/register' , json = {'email': 'organizer@test.gmail.com' ,       'password' : 'test123' ,'full_name' : 'shahryar' , 'role' : 'organizer'})
+        org_client = client.post('/auth/login' , json = {'email' : 'organizer@test.gmail.com' , 'password' : 'test123'})
+        assert org_client.status_code == 200
+        header={"Authorization": f'Bearer {org_client.json()['access_token']}'}
+        
+        create_response = client.post('/publish-event' , json=EVENT , headers = header)
+        event_id = create_response.json()['event']['id']
+        customer_2 = client.post('/auth/register' , json={'email' : 'customer@gmail.com' , 'full_name' : 'customer' , 'password' : '123' , 'role' : 'customer'})
+        customer = client.post('/auth/login' , json= {'email' : 'customer@gmail.com' , 'password':'123'})
+        header_customer ={"Authorization": f'Bearer {customer.json()["access_token"]}'}
+        
+        cart_item = []
+        for cart in range(2):
+                tier_id = create_response.json()['ticket_tiers'][cart]['id']
+                tier_name = create_response.json()['ticket_tiers'][cart]['category_name']
+                if tier_name == "General":
+                    quantity = 100 ;
+                if tier_name == "VIP":
+                    quantity = 10 ;
+                items = CartItem(quantity = quantity , ticket_tier_id=tier_id)
+                cart_item.append(items.model_dump())
+                
+                
+        order_response =client.post('/orders' , json = {'event_id' :event_id , 'items' : cart_item} , headers = header_customer)
+        assert order_response.status_code == 200
+        order_id = order_response.json()['id']
+        order = test_session.get(Order, int(order_id))
+        order.status = "paid"
+        test_session.add(order)
+        test_session.commit()
+        response = client.get('/organizer/bookings' , headers = header)
+        data = response.json()
+        vip_item = next(d for d in data if d['category'] == 'VIP')
+        general_item = next(d for d in data if d['category'] == 'General')
+
+        assert vip_item['customer'] == 'customer'
+        assert vip_item['email'] == 'customer@gmail.com'
+        assert vip_item['event'] == create_response.json()['event']['name']
+        assert vip_item['qty'] == 10
+        assert vip_item['qr_generated'] == False
+        
+
+
+# Testing revenue :
+
+def test_revenue(client , test_session):
+    
+        client.post('/auth/register' , json = {'email': 'organizer@test.gmail.com' ,       'password' : 'test123' ,'full_name' : 'shahryar' , 'role' : 'organizer'})
+        org_client = client.post('/auth/login' , json = {'email' : 'organizer@test.gmail.com' , 'password' : 'test123'})
+        assert org_client.status_code == 200
+        header={"Authorization": f'Bearer {org_client.json()['access_token']}'}
+        
+        create_response = client.post('/publish-event' , json=EVENT , headers = header)
+        event_id = create_response.json()['event']['id']
+        customer_2 = client.post('/auth/register' , json={'email' : 'customer@gmail.com' , 'full_name' : 'customer' , 'password' : '123' , 'role' : 'customer'})
+        customer = client.post('/auth/login' , json= {'email' : 'customer@gmail.com' , 'password':'123'})
+        header_customer ={"Authorization": f'Bearer {customer.json()["access_token"]}'}
+        
+        cart_item = []
+        for cart in range(2):
+                tier_id = create_response.json()['ticket_tiers'][cart]['id']
+                tier_name = create_response.json()['ticket_tiers'][cart]['category_name']
+                if tier_name == "General":
+                    quantity = 1 ;
+                if tier_name == "VIP":
+                    quantity = 1 ;
+                items = CartItem(quantity = quantity , ticket_tier_id=tier_id)
+                cart_item.append(items.model_dump())
+                
+                
+        order_response =client.post('/orders' , json = {'event_id' :event_id , 'items' : cart_item} , headers = header_customer)
+        assert order_response.status_code == 200
+        order_id = order_response.json()['id']
+        order = test_session.get(Order, int(order_id))
+        order.status = "paid"
+        test_session.add(order)
+        test_session.commit()
+        response = client.get('/organizer/revenue/overview' , headers = header) 
+        data = response.json()
+        
+        assert response.status_code == 200
+        assert data['total_revenue'] == 4500
+        assert data['refunded'] == 0
+        
+
+# tesing monthly revenue trend:
+def test_monthly_revenue_trend(client , test_session):
+            client.post('/auth/register' , json = {'email': 'organizer@test.gmail.com' ,       'password' : 'test123' ,'full_name' : 'shahryar' , 'role' : 'organizer'})
+            org_client = client.post('/auth/login' , json = {'email' : 'organizer@test.gmail.com' , 'password' : 'test123'})
+            assert org_client.status_code == 200
+            header={"Authorization": f'Bearer {org_client.json()['access_token']}'}
+            
+            create_response = client.post('/publish-event' , json=EVENT , headers = header)
+            event_id = create_response.json()['event']['id']
+            customer_2 = client.post('/auth/register' , json={'email' : 'customer@gmail.com' , 'full_name' : 'customer' , 'password' : '123' , 'role' : 'customer'})
+            customer = client.post('/auth/login' , json= {'email' : 'customer@gmail.com' , 'password':'123'})
+            header_customer ={"Authorization": f'Bearer {customer.json()["access_token"]}'}
+            
+            cart_item = []
+            for cart in range(2):
+                    tier_id = create_response.json()['ticket_tiers'][cart]['id']
+                    tier_name = create_response.json()['ticket_tiers'][cart]['category_name']
+                    if tier_name == "General":
+                        quantity = 1 ;
+                    if tier_name == "VIP":
+                        quantity = 1 ;
+                    items = CartItem(quantity = quantity , ticket_tier_id=tier_id)
+                    cart_item.append(items.model_dump())
+                    
+                    
+            order_response =client.post('/orders' , json = {'event_id' :event_id , 'items' : cart_item} , headers = header_customer)
+            assert order_response.status_code == 200
+            order_id = order_response.json()['id']
+            order = test_session.get(Order, int(order_id))
+            order.status = "paid"
+            test_session.add(order)
+            test_session.commit()
+            response = client.get('/organizer/revenue/trend' , headers = header)
+            month = order.created_at.strftime("%b")
+            assert response.status_code ==200
+            assert response.json()[month] == 4500
+# testing the refund system:
+def test_revenue(client , test_session):
+            client.post('/auth/register' , json = {'email': 'organizer@test.gmail.com' ,       'password' : 'test123' ,'full_name' : 'shahryar' , 'role' : 'organizer'})
+            org_client = client.post('/auth/login' , json = {'email' : 'organizer@test.gmail.com' , 'password' : 'test123'})
+            assert org_client.status_code == 200
+            header={"Authorization": f'Bearer {org_client.json()['access_token']}'}
+            
+            create_response = client.post('/publish-event' , json=EVENT , headers = header)
+            event_id = create_response.json()['event']['id']
+            customer_2 = client.post('/auth/register' , json={'email' : 'customer@gmail.com' , 'full_name' : 'customer' , 'password' : '123' , 'role' : 'customer'})
+            customer = client.post('/auth/login' , json= {'email' : 'customer@gmail.com' , 'password':'123'})
+            header_customer ={"Authorization": f'Bearer {customer.json()["access_token"]}'}
+            
+            cart_item = []
+            for cart in range(2):
+                    tier_id = create_response.json()['ticket_tiers'][cart]['id']
+                    tier_name = create_response.json()['ticket_tiers'][cart]['category_name']
+                    if tier_name == "General":
+                        quantity = 1 ;
+                    if tier_name == "VIP":
+                        quantity = 1 ;
+                    items = CartItem(quantity = quantity , ticket_tier_id=tier_id)
+                    cart_item.append(items.model_dump())
+                    
+                    
+            order_response =client.post('/orders' , json = {'event_id' :event_id , 'items' : cart_item} , headers = header_customer)
+            assert order_response.status_code == 200
+            order_id = order_response.json()['id']
+            order = test_session.get(Order, int(order_id))
+            order.status = "paid"
+            test_session.add(order)
+            test_session.commit()
+            response = client.post(f'/organizer/orders/{int(order_id)}/refund' , headers = header)
+            assert response.status_code == 200 
+            data = response.json()
+            assert data['status'] == 'refunded'
     
 # testing the order placement :
 from models.Orders import CartItem
@@ -248,3 +517,6 @@ def test_book_ticket(client):
         
     order_response = client.post("/orders", json={"event_id": event_id, "items": cart_item}, headers=cust_headers)
     assert order_response.status_code == 200
+
+
+
