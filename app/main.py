@@ -4,9 +4,9 @@ from database import create_table
 from sqlmodel import Session ,select
 from database import get_session
 from services.User_services import register_user , logging_in
-from models.Users import UserCreate , UserLogin , User
+from models.Users import UserCreate , UserLogin , User , RoleSelect , UserRead
 from models.Event import EventCreateWithTiers
-from services.User_services import get_current_user
+from services.User_services import get_current_user , get_me , select_role
 from services.Organizer_services import Make_Event , get_organizer_events , delete_organizer_event , delete_all_organizer_event , get_specific_event , List_Tickets , get_analytics_summary , get_popular_ticket_categories , get_ticket_sales_last_7_days , refund_order , get_monthly_revenue_trend , get_revenue_overview ,get_organizer_all_bookings  , get_fraud_orders
 from fastapi.middleware.cors import CORSMiddleware
 from models.Event import EventRead
@@ -17,7 +17,8 @@ from dependencies.exception import (Email_exist , User_Exist ,password_mismatch 
             not_order , Not_Order , order_mismatch , paid_refund , Paid_Refund ,
             Order_Mismatch , not_pending_order ,
             Not_Pending_Order , not_your_event , Not_Your_Event 
-            , invalid_webhook_payload_handler , invalid_webhook_signature_handler ,InvalidWebhookPayload ,InvalidWebhookSignature)
+            , invalid_webhook_payload_handler , invalid_webhook_signature_handler ,InvalidWebhookPayload ,InvalidWebhookSignature
+            , Role_Already_Set , Invalid_Role_Selection , role_already_set , invalid_role_selection)
 from models.Ticket import TicketTierRead
 from typing import Optional 
 from fastapi import Query
@@ -70,6 +71,8 @@ app.add_exception_handler(Not_Your_Event , not_your_event)
 app.add_exception_handler(Paid_Refund , paid_refund)
 app.add_exception_handler(InvalidWebhookSignature , invalid_webhook_signature_handler)
 app.add_exception_handler(InvalidWebhookPayload , invalid_webhook_payload_handler)
+app.add_exception_handler(Role_Already_Set , role_already_set)
+app.add_exception_handler(Invalid_Role_Selection , invalid_role_selection)
 
 logger = logging.getLogger(__name__)
 # Health checking and home page:
@@ -103,6 +106,22 @@ def login(user : OAuth2PasswordRequestForm = Depends() , session : Session = Dep
 @ app.post('/auth/login')
 def login(user : UserLogin , session : Session = Depends(get_session)):
     return logging_in(user , session)
+
+# Returns the logged-in user's profile, including whether they have
+# already picked a role. The frontend calls this right after login/signup
+# to decide: role-selection page (first time) vs. straight to dashboard.
+@app.get('/users/me', response_model=UserRead)
+def read_current_user(user: User = Depends(get_current_user)):
+    return get_me(user)
+
+# One-time role selection (customer or organizer). Locked after first use.
+@app.post('/auth/select-role')
+def choose_role(
+    role_data: RoleSelect,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return select_role(role_data, user, session)
 
 @app.post("/publish-event")
 def publish_event_route(
