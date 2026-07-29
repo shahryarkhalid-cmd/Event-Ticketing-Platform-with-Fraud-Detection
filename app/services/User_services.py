@@ -5,9 +5,9 @@ import os
 from fastapi import HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError , jwt
-from models.Users import User , UserCreate , UserLogin , RoleSelect , UserRole
+from models.Users import User , UserCreate , UserLogin
 from dependencies.hashing import hash_password , verify_password
-from dependencies.exception import User_Exist , Email_exist , Email_registration , password_mismatch , Role_Already_Set , Invalid_Role_Selection
+from dependencies.exception import User_Exist , Email_exist , Email_registration , password_mismatch
 from dependencies.token import create_token
 import logging
 oauth_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login')
@@ -69,34 +69,3 @@ def logging_in(user : OAuth2PasswordRequestForm, session : Session):
     token = create_token({'sub' : str(user_email.id)})
     logging.info("Token is created and logged in sucessful!")
     return {"access_token": token, "token_type": "bearer"}
-
-
-# Returning the logged-in user's own profile (used by the frontend right
-# after login/signup to decide whether to show the role-selection page
-# or send the user straight to their dashboard):
-def get_me(user: User):
-    return {
-        "id": user.id,
-        "email": user.email,
-        "full_name": user.full_name,
-        "role": user.role,
-        "role_selected": user.role_selected,
-    }
-
-
-# One-time role selection. Can only be called once per account - after
-# that the role is locked and this will always raise Role_Already_Set.
-def select_role(role_data: RoleSelect, user: User, session: Session):
-    if user.role_selected:
-        logging.error('Role already selected for this user')
-        raise Role_Already_Set()
-
-    if role_data.role not in (UserRole.customer, UserRole.organizer):
-        logging.error('Invalid role selection attempted')
-        raise Invalid_Role_Selection()
-
-    user.role = role_data.role
-    user.role_selected = True
-    session.add(user)
-    logging.info(f"Role '{role_data.role}' set for user {user.id}")
-    return {"message": "Role set successfully", "role": user.role}

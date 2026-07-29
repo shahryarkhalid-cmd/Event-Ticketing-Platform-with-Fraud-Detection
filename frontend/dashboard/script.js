@@ -74,7 +74,7 @@
     // Fallback organizer record — only used if GET /auth/me fails (offline,
     // backend down, etc). Real data always comes from the API when available.
     currentUser: {
-      full_name: "Sana Malik",
+      name: "Sana Malik",
       email: "sana.malik@tixora.com",
       phone: "+92 300 7654321",
       company: "Tixora Events"
@@ -86,6 +86,7 @@
   /* ------------------------------------------------------------------ */
   const API_BASE = "http://localhost:8000";
 
+<<<<<<< HEAD
   function authHeaders() {
     const token = localStorage.getItem("access_token");
     const headers = { "Content-Type": "application/json" };
@@ -256,8 +257,7 @@
       async list() { return []; } // not built on backend yet
     },
     fraud: {
-      // GET /organizer/fraud-orders
-      async list() { return fetchJSON(`${API_BASE}/organizer/fraud-orders`, { headers: authHeaders() }); }
+      async list() { return []; } // waiting on teammate's model
     },
     analytics: {
       // GET /organizer/analytics/summary
@@ -274,10 +274,12 @@
       async trend() { return fetchJSON(`${API_BASE}/organizer/revenue/trend`, { headers: authHeaders() }); }
     },
     auth: {
-      // GET /users/me — resolves the authenticated user from the JWT.
+      // GET /auth/me — resolves the authenticated organizer from the
+      // session/JWT. TODO: confirm this exact path with the backend team
+      // (only place that needs to change if it differs).
       async me() {
         try {
-          return await fetchJSON(`${API_BASE}/users/me`, { headers: authHeaders() });
+          return await fetchJSON(`${API_BASE}/auth/me`, { headers: authHeaders() });
         } catch (err) {
           console.warn("Falling back to local organizer record:", err.message);
           try {
@@ -289,6 +291,187 @@
       }
     }
   };
+=======
+function authHeaders() {
+  const token = localStorage.getItem("access_token");
+  return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+}
+
+// backend event + tiers -> shape the frontend rendering code expects
+function mapEventFromBackend(evt, tiers) {
+  const [startDate, startTime] = (evt.start_datetime || "").split("T");
+  const [endDate, endTime] = (evt.end_datetime || "").split("T");
+  return {
+    id: String(evt.id),
+    name: evt.name,
+    category: evt.category,
+    description: evt.description,
+    venue: evt.venue,
+    address: evt.address,
+    city: evt.city,
+    country: evt.country,
+    startDate, endDate,
+    startTime: (startTime || "").slice(0, 5),
+    endTime: (endTime || "").slice(0, 5),
+    capacity: evt.max_capacity,
+    dresscode: evt.dress_code,
+    age: evt.age_restriction,
+    parking: evt.parking_available,
+    food: evt.food_available,
+    refund: evt.refund_policy,
+    status: "published",
+    tickets: (tiers || []).map(mapTierFromBackend)
+  };
+}
+  };
+}
+
+function mapTierFromBackend(t) {
+  return {
+    id: String(t.id),
+    name: t.category_name,
+    price: t.price,
+    currency: t.currency,
+    totalSeats: t.total_seats,
+    sold: t.sold_quantity,
+    availableSeats: t.total_seats - t.sold_quantity,
+    description: t.description || "",
+    benefits: t.benefits_included || "",
+    color: "#0B5ED7"
+  };
+}
+
+// frontend form data -> backend /publish-event payload
+function buildPublishPayload(data) {
+  return {
+    name: data.name,
+    category: data.category,
+    description: data.description,
+    venue: data.venue,
+    address: data.address,
+    city: data.city,
+    country: data.country,
+    start_datetime: `${data.startDate}T${data.startTime}:00`,
+    end_datetime: `${data.endDate}T${data.endTime}:00`,
+    max_capacity: data.capacity,
+    dress_code: data.dresscode,
+    age_restriction: data.age ? Number(data.age) : null,
+    parking_available: data.parking,
+    food_available: data.food,
+    refund_policy: data.refund,
+    terms_accepted: true,
+    ticket_tiers: data.tickets.map(t => ({
+      category_name: t.name,
+      price: t.price,
+      currency: t.currency,
+      total_seats: t.totalSeats,
+      benefits_included: t.benefits,
+      description: t.description
+    }))
+  };
+}
+
+function mapBookingFromBackend(b) {
+  return {
+    customer: b.customer,
+    email: b.email,
+    eventName: b.event,
+    category: b.category,
+    qty: b.qty,
+    amount: b.amount,
+    date: b.date,
+    status: b.status,
+    qr: b.qr_generated
+  };
+}
+
+const api = {
+  events: {
+    async list() {
+      const res = await fetch(`${API_BASE}/get_all_events`, { headers: authHeaders() });
+      const rawEvents = await res.json();
+      const full = await Promise.all(rawEvents.map(async (evt) => {
+        const tRes = await fetch(`${API_BASE}/events/${evt.id}/ticket-tiers`, { headers: authHeaders() });
+        const tiers = await tRes.json();
+        return mapEventFromBackend(evt, tiers);
+      }));
+      return full;
+    },
+    async get(id) {
+      const res = await fetch(`${API_BASE}/get_event/${id}`, { headers: authHeaders() });
+      const evt = await res.json();
+      const tRes = await fetch(`${API_BASE}/events/${id}/ticket-tiers`, { headers: authHeaders() });
+      const tiers = await tRes.json();
+      return mapEventFromBackend(evt, tiers);
+    },
+    async create(payload) {
+      const res = await fetch(`${API_BASE}/publish-event`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(buildPublishPayload(payload))
+      });
+      const data = await res.json();
+      return mapEventFromBackend(data.event, data.ticket_tiers);
+    },
+    async update(id, payload) {
+      const res = await fetch(`${API_BASE}/update_event/${id}`, {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify(buildPublishPayload(payload))
+  });
+  const data = await res.json();
+  return mapEventFromBackend(data.event, data.ticket_tiers);
+},
+    async remove(id) {
+      const res = await fetch(`${API_BASE}/delete_event/${id}`, {
+        method: "DELETE",
+        headers: authHeaders()
+      });
+      return res.json();
+    }
+  },
+  bookings: {
+    async list() {
+      const res = await fetch(`${API_BASE}/organizer/bookings`, { headers: authHeaders() });
+      const raw = await res.json();
+      return raw.map(mapBookingFromBackend);
+    }
+  },
+  notifications: {
+    async list() { return []; } // not built on backend yet
+  },
+  fraud: {
+    async list() {
+      const res = await fetch(`${API_BASE}/organizer/fraud-orders`, { headers: authHeaders() });
+      return res.json();
+    }
+  },
+  analytics: {
+    async summary() {
+      const res = await fetch(`${API_BASE}/organizer/analytics/summary`, { headers: authHeaders() });
+      return res.json();
+    },
+    async ticketSales() {
+      const res = await fetch(`${API_BASE}/organizer/analytics/ticket-sales`, { headers: authHeaders() });
+      return res.json();
+    },
+    async popularCategories() {
+      const res = await fetch(`${API_BASE}/organizer/analytics/popular-categories`, { headers: authHeaders() });
+      return res.json();
+    }
+  },
+  revenue: {
+    async overview() {
+      const res = await fetch(`${API_BASE}/organizer/revenue/overview`, { headers: authHeaders() });
+      return res.json();
+    },
+    async trend() {
+      const res = await fetch(`${API_BASE}/organizer/revenue/trend`, { headers: authHeaders() });
+      return res.json();
+    }
+  }
+};
+>>>>>>> cf3028a02e517d085a3fffcd25c495fb173c2694
 
   /* ------------------------------------------------------------------ */
   /* App state                                                            */
@@ -1320,8 +1503,7 @@
       btn.addEventListener("click", (e) => {
         e.preventDefault();
         toast("Logging out…");
-        localStorage.removeItem("access_token");
-        setTimeout(() => { window.location.href = "../login_sign_in/login.html"; }, 700);
+        setTimeout(() => { window.location.href = "index.html"; }, 700);
       });
     });
 
@@ -1424,7 +1606,7 @@
   /* Logged-in organizer identity                                         */
   /* ------------------------------------------------------------------ */
   function applyOrganizerIdentity(user) {
-    const name = (user && user.full_name) || "Organizer";
+    const name = (user && user.name) || "Organizer";
     const firstName = name.split(" ")[0];
     const initials = getInitials(name);
 
@@ -1452,24 +1634,11 @@
   /* Init                                                                 */
   /* ------------------------------------------------------------------ */
   async function init() {
-    if (!localStorage.getItem("access_token")) {
-      window.location.href = "../login_sign_in/login.html";
-      return;
-    }
-
     renderWelcome();
     bindGlobalUI();
 
     try {
       currentUser = await api.auth.me();
-      if (!currentUser.role_selected) {
-        window.location.href = "../role-selection/index.html";
-        return;
-      }
-      if (currentUser.role !== "organizer") {
-        window.location.href = "../customer-window/index.html";
-        return;
-      }
     } catch (err) {
       console.error(err);
       currentUser = structuredClone(store.currentUser);

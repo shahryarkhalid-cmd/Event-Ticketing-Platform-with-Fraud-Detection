@@ -134,8 +134,8 @@
   try {
     const response = await fetch('http://localhost:8000/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ username: email, password: password })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
     });
 
     if (!response.ok) {
@@ -144,20 +144,7 @@
 
     const data = await response.json();
     localStorage.setItem('access_token', data.access_token);
-
-    // Find out whether this account already picked a role. First-time
-    // users (role_selected === false) go to the role-selection page
-    // exactly once; everyone else goes straight to their dashboard.
-    const meResponse = await fetch('http://localhost:8000/users/me', {
-      headers: { Authorization: `Bearer ${data.access_token}` }
-    });
-
-    if (!meResponse.ok) {
-      return { ok: false };
-    }
-
-    const me = await meResponse.json();
-    return { ok: true, roleSelected: me.role_selected, role: me.role };
+    return { ok: true };
   } catch (err) {
     console.error('Login request failed:', err);
     return { ok: false };
@@ -181,19 +168,9 @@
     handleLogin(emailInput.value.trim(), passwordInput.value)
       .then((result) => {
         if (result && result.ok) {
-          if (!result.roleSelected) {
-            showStatus('Login successful — let\'s set up your account…', false);
-            window.location.href = '../role-selection/index.html';
-            return;
-          }
-
-          if (result.role === 'organizer') {
-            showStatus('Login successful — redirecting to your dashboard…', false);
-            window.location.href = '../dashboard/dashboard.html';
-          } else {
-            showStatus('Login successful — redirecting to events…', false);
-            window.location.href = '../customer-window/index.html';
-          }
+          showStatus('Login successful — redirecting to your tickets…', false);
+          console.log("REDIRECT ABOUT TO FIRE:", '../dashboard/dashboard.html');
+          window.location.href = '../dashboard/dashboard.html';
         } else {
           showStatus('Incorrect email or password. Please try again.', true);
         }

@@ -104,9 +104,9 @@ def get_specific_event(id , user , session):
 
 
 def List_Tickets(event_id : int , user : User , session : Session):
-    # Ticket tiers (prices, remaining seats, etc.) are needed by customers
-    # to browse and book — this is not an organizer-only action, so any
-    # authenticated user (customer or organizer) may view them.
+    if user.role != "organizer":
+        logging.error("User is not the organizer")
+        raise Forbidden()
     event = session.get(Event, event_id)
     if not event:
         logging.error("Event not found")

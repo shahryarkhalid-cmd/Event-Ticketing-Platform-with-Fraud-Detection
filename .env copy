@@ -1,6 +1,0 @@
-DATABASE_URL=postgresql://postgres.ramfkjkktirrhunuouvg:N&cJJb+2A*kr7Gv@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres
-SECRET_KEY="Z1NoIl**2/hY"
-ALGORITHM="HS256"
-REDIS_URL=redis://localhost:6379
-STRIPE_SECRET_KEY=sk_test_51TwNRPCTjIrbHflYb5PNPpYOo1fRlvifA5KNrnlWckeG9ULxZkmdyTPABzsChgvcE4bA8IGCKJRc0fXyAb0mTmjW002RdLnx6E
-STRIPE_PUBLISHABLE_KEY=pk_test_51TwNRPCTjIrbHflY4nQSpLM5fmvGKGo898mbJQHsNmzMJTipcxgVQqKacWnhHOHZuccY2A4Y9i6IGXfGwYV03xdK00YXKxgnGz
