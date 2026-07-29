@@ -96,13 +96,13 @@ def register(user : UserCreate , session : Session = Depends(get_session)):
     return register_user(user , session)
 from fastapi.security import OAuth2PasswordRequestForm
 
-@ app.post('/auth/login')
-def login(user : OAuth2PasswordRequestForm = Depends() , session : Session = Depends(get_session)):
-    return logging_in(user , session)
-
 '''@ app.post('/auth/login')
-def login(user : UserLogin , session : Session = Depends(get_session)):
+def login(user : OAuth2PasswordRequestForm = Depends() , session : Session = Depends(get_session)):
     return logging_in(user , session)'''
+
+@ app.post('/auth/login')
+def login(user : UserLogin , session : Session = Depends(get_session)):
+    return logging_in(user , session)
 
 @app.post("/publish-event")
 def publish_event_route(
