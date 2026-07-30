@@ -27,6 +27,7 @@ from app.models.Users import User
 from app.models.Event import Event
 from app.models.Ticket import TicketTier
 from app.models.Orders import OrderItem , Order
+from app.models.Ticket_entity import Ticket
 load_dotenv()
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

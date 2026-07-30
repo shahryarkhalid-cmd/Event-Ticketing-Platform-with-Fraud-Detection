@@ -28,9 +28,31 @@ from services.Order_services import get_my_orders , book_ticket
 from services.Customer_services import search_events_customer
 from services.Payment_services import create_checkout_session
 from services.Customer_services import get_public_event_detail
-def lifespan(app : FastAPI):
+
+
+# Adding API Scheduling:
+from apscheduler.schedulers.background import BackgroundScheduler
+from database import engine  # your existing SQLAlchemy engine
+from sqlmodel import Session
+from services.order_expiry import expire_stale_orders
+
+def run_expiry_job():
+    with Session(engine) as session:
+        count = expire_stale_orders(session)
+        if count:
+            logging.info(f"Expired {count} stale pending orders")
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(run_expiry_job, "interval", minutes=10)
+
+
+# ===========================================================================================
+
+def lifespan(app: FastAPI):
     create_table()
+    scheduler.start()
     yield
+    scheduler.shutdown()
     
 
 app = FastAPI(lifespan=lifespan)
