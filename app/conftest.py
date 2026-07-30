@@ -15,6 +15,16 @@ from fastapi.testclient import TestClient
 from main import app
 from database import get_session
 
+@pytest.fixture(autouse=True, scope="session")
+def _fake_redis():
+    import fakeredis
+    import core.redis_client as _rc
+    import services.Order_services as _os
+
+    fake = fakeredis.FakeRedis(decode_responses=True)
+    _rc.redis_client = fake
+    _os.redis_client = fake
+
 @pytest.fixture
 def client(test_session):
     def override_test_session():

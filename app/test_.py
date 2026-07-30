@@ -245,3 +245,103 @@ def test_book_ticket(client, test_session):
 
     order_response = client.post("/orders", json={"ticket_tier_id": tier_id, "quantity": 2}, headers=cust_headers)
     assert order_response.status_code == 200
+
+
+def test_fraud_detection_pipeline_integration(client, test_session, caplog):
+    import logging
+    caplog.set_level(logging.INFO)
+
+    from sqlmodel import select
+    from models.Users import User, UserRole
+    from models.Orders import Order
+
+    # ── 1. Organizer registration & event creation ──
+    client.post('/auth/register', json={
+        'email': 'org_fraud_test@test.com', 'full_name': 'Org Fraud', 'password': 'pass123'
+    })
+    org_login = client.post('/auth/login', json={
+        'email': 'org_fraud_test@test.com', 'password': 'pass123'
+    })
+    org_headers = {"Authorization": f"Bearer {org_login.json()['access_token']}"}
+
+    event_resp = client.post("/publish-event", json=EVENT, headers=org_headers)
+    assert event_resp.status_code == 200
+    tier_id = event_resp.json()['ticket_tiers'][0]['id']
+    event_id = event_resp.json()['event']['id']
+
+    # ── 2. Customer registration & role assignment ──
+    client.post('/auth/register', json={
+        'email': 'cust_fraud_test@test.com', 'full_name': 'Cust Fraud', 'password': 'pass123'
+    })
+    customer = test_session.exec(select(User).where(User.email == 'cust_fraud_test@test.com')).first()
+    customer.role = UserRole.customer
+    test_session.add(customer)
+    test_session.commit()
+
+    cust_login = client.post('/auth/login', json={
+        'email': 'cust_fraud_test@test.com', 'password': 'pass123'
+    })
+    cust_headers = {"Authorization": f"Bearer {cust_login.json()['access_token']}"}
+
+    # ── 3. Place order — fraud detection pipeline executes ──
+    order_resp = client.post(
+        "/orders",
+        json={"ticket_tier_id": tier_id, "quantity": 2},
+        headers=cust_headers,
+    )
+    assert order_resp.status_code == 200
+    order = order_resp.json()
+
+    # ── 4. Verify order response schema ──
+    expected_order_fields = {"id", "user_id", "ticket_tier_id", "quantity", "total_price", "status", "created_at"}
+    assert expected_order_fields.issubset(order.keys()), f"Missing order fields: {expected_order_fields - order.keys()}"
+    assert order["status"] in ("pending", "fraud_review"), f"Unexpected order status: {order['status']}"
+    assert order["total_price"] > 0
+
+    # ── 5. Verify fraud detection code actually executed ──
+    assert any("Fraud prediction" in r.message for r in caplog.records), \
+        "Fraud prediction log not found — pipeline did not execute"
+    assert any("Fraud model loaded" in r.message for r in caplog.records), \
+        "Model loading log not found"
+    assert any("Prediction complete" in r.message for r in caplog.records), \
+        "Prediction completion log not found"
+
+    # ── 6. Verify database state matches API ──
+    db_order = test_session.get(Order, order["id"])
+    assert db_order is not None
+    assert db_order.status == order["status"]
+    assert db_order.quantity == order["quantity"]
+    assert db_order.total_price == order["total_price"]
+    assert db_order.event_id == event_id
+
+    # ── 7. Verify organizer fraud endpoint ──
+    fraud_resp = client.get("/organizer/fraud-orders", headers=org_headers)
+    assert fraud_resp.status_code == 200
+    fraud_orders = fraud_resp.json()
+    assert isinstance(fraud_orders, list)
+
+    expected_fraud_fields = {"id", "userName", "email", "eventName", "bookingDate", "reason", "riskScore", "status"}
+    for entry in fraud_orders:
+        missing = expected_fraud_fields - entry.keys()
+        assert not missing, f"Fraud entry missing fields: {missing}"
+        assert isinstance(entry["riskScore"], (int, float))
+        assert isinstance(entry["reason"], str)
+        assert isinstance(entry["bookingDate"], str)
+        assert entry["eventName"] == EVENT["name"]
+
+    if order["status"] == "fraud_review":
+        assert any(e["id"] == order["id"] for e in fraud_orders), \
+            "Flagged order should appear in fraud endpoint"
+
+    # ── 8. Verify data isolation (separate organizer) ──
+    client.post('/auth/register', json={
+        'email': 'org2_fraud_test@test.com', 'full_name': 'Org2 Fraud', 'password': 'pass123'
+    })
+    org2_login = client.post('/auth/login', json={
+        'email': 'org2_fraud_test@test.com', 'password': 'pass123'
+    })
+    org2_headers = {"Authorization": f"Bearer {org2_login.json()['access_token']}"}
+
+    fraud_org2 = client.get("/organizer/fraud-orders", headers=org2_headers)
+    assert fraud_org2.status_code == 200
+    assert fraud_org2.json() == [], "Organizer should only see their own fraud orders"
