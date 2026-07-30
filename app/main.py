@@ -18,7 +18,8 @@ from dependencies.exception import (Email_exist , User_Exist ,password_mismatch 
             Order_Mismatch , not_pending_order ,
             Not_Pending_Order , not_your_event , Not_Your_Event 
             , invalid_webhook_payload_handler , invalid_webhook_signature_handler ,InvalidWebhookPayload ,InvalidWebhookSignature
-            , Role_Already_Set , Invalid_Role_Selection , role_already_set , invalid_role_selection)
+            , Role_Already_Set , Invalid_Role_Selection , role_already_set , invalid_role_selection , Not_Your_Ticket , Ticket_Not_Found
+            , not_your_ticket , ticket_not_found)
 from models.Ticket import TicketTierRead
 from typing import Optional 
 from fastapi import Query
@@ -86,7 +87,7 @@ app.add_exception_handler(Ticket_Tier_not_found , no_ticket_tier)
 app.add_exception_handler(Order_Quantity_Error , less_order_quantity)
 app.add_exception_handler(Not_Enough_Tickets , not_enough_tickets)
 app.add_exception_handler(BookingContention , booking_contention)
-app .add_exception_handler(Not_Order , not_order)
+app.add_exception_handler(Not_Order , not_order)
 app.add_exception_handler(Order_Mismatch , order_mismatch )
 app.add_exception_handler(Not_Pending_Order , not_pending_order)
 app.add_exception_handler(Not_Your_Event , not_your_event)
@@ -95,6 +96,8 @@ app.add_exception_handler(InvalidWebhookSignature , invalid_webhook_signature_ha
 app.add_exception_handler(InvalidWebhookPayload , invalid_webhook_payload_handler)
 app.add_exception_handler(Role_Already_Set , role_already_set)
 app.add_exception_handler(Invalid_Role_Selection , invalid_role_selection)
+app.add_exception_handler(Not_Your_Ticket , not_your_ticket)
+app.add_exception_handler(Ticket_Not_Found , ticket_not_found)
 
 logger = logging.getLogger(__name__)
 # Health checking and home page:
@@ -307,3 +310,14 @@ def fraud_orders(
     session: Session = Depends(get_session)
 ):
     return get_fraud_orders(user, session)
+
+from services.qr_service import get_ticket_qr , check_in_ticket
+
+
+@app.get("/tickets/{ticket_uid}/qr")
+def Get_Ticket_qr(ticket_uid: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return get_ticket_qr(ticket_uid , user , session)
+
+@app.post("/checkin/{ticket_uid}")
+def checkin(ticket_uid: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return check_in_ticket(ticket_uid, session)

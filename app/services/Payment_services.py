@@ -47,12 +47,13 @@ def create_checkout_session(order_id: int, user: User, session: Session):
 
 # app/services/Payment_services.py
 import os
-import stripe
 import logging
-from sqlmodel import Session
-from models.Orders import Order
-from dependencies.exception import InvalidWebhookPayload, InvalidWebhookSignature
+import stripe
+from sqlmodel import Session, select
 
+from models.Orders import Order, OrderItem
+from models.Ticket_entity import Ticket as TicketInstance
+from dependencies.exception import InvalidWebhookPayload, InvalidWebhookSignature
 def handle_stripe_webhook(payload: bytes, sig_header: str, session: Session):
     webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
@@ -70,14 +71,32 @@ def handle_stripe_webhook(payload: bytes, sig_header: str, session: Session):
         order_id = int(session_data["metadata"]["order_id"])
 
         order = session.get(Order, order_id)
+
         if order and order.status == "pending":
             order.status = "paid"
             session.add(order)
-            session.commit()
-            logging.info(f"Order {order_id} marked as paid via Stripe webhook")
+
+            items = session.exec(
+                select(OrderItem).where(OrderItem.order_id == order.id)
+            ).all()
+
+            ticket_count = 0
+            for item in items:
+                for _ in range(item.quantity):
+                    new_ticket = TicketInstance(order_item_id=item.id)
+                    session.add(new_ticket)
+                    ticket_count += 1
+
+            session.flush()
+            logging.info(f"Order {order.id} paid — {ticket_count} tickets generated")
+
         elif not order:
             logging.warning(f"Stripe webhook: order {order_id} not found")
+
         else:
-            logging.info(f"Stripe webhook: order {order_id} already in status '{order.status}', ignoring")
+            logging.info(
+                f"Stripe webhook: order {order_id} already in status "
+                f"'{order.status}', ignoring"
+            )
 
     return {"status": "success"}

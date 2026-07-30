@@ -1,32 +1,41 @@
 class Email_exist(Exception):
+   
     pass
 
 class User_Exist(Exception):
+    
     pass
 
 class password_mismatch(Exception):
+    
     pass
 
 class Email_registration(Exception):
+    
     pass
 
 class Forbidden(Exception):
     pass
 
 class Event_Not_Found(Exception):
+   
     pass
 
 class Not_customer(Exception):
+    
     pass
 
 class Ticket_Tier_not_found(Exception):
+    
     pass
 
 
 class Order_Quantity_Error(Exception):
+    
     pass
 
 class Not_Enough_Tickets(Exception):
+    
     pass
 
 class BookingContention(Exception):
@@ -57,19 +66,41 @@ class Paid_Refund(Exception):
     
     
 class InvalidWebhookPayload(Exception):
+    
     pass
 
 class InvalidWebhookSignature(Exception):
+    
     pass
 
 class Role_Already_Set(Exception):
+    
     pass
 
 class Invalid_Role_Selection(Exception):
+    
     pass
 
-
+class Not_Your_Ticket(Exception):
     
+    pass
+    
+class Ticket_Not_Found(Exception):
+    
+    pass
+
+class Invalid_Ticket(Exception):
+    
+    pass
+
+class Ticket_Already_Used(Exception):
+    
+    pass
+
+class Ticket_Cancelled(Exception):
+    
+    pass
+
 from fastapi.responses import JSONResponse
 
 from fastapi import Request
@@ -88,7 +119,7 @@ def email_reg(req : Request , exec : Email_registration):
     return JSONResponse(status_code = 404 , content = {"detail" :  "Email or password is incorrect."})
 
 def forbidden(req : Request , exec : Forbidden):
-    return JSONResponse(status_code=403 , content={"detail" : "Forbidden"})
+    return JSONResponse(status_code=403 , content={"detail" : "Forbidden Access"})
 
 def event_not_found(req : Request , exec : Event_Not_Found):
     return JSONResponse(status_code=404 , content = {"detail" : "Event not found"})
@@ -134,3 +165,18 @@ def role_already_set(req : Request , exec : Role_Already_Set):
 
 def invalid_role_selection(req : Request , exec : Invalid_Role_Selection):
     return JSONResponse(status_code=400 , content={"detail" : "Role must be either 'customer' or 'organizer'."})
+
+def not_your_ticket(req : Request , exec : Not_Your_Ticket):
+    return JSONResponse(status_code=403 , content={"detail" : "Not Your Ticket"})
+
+def ticket_not_found(req : Request , exec : Ticket_Not_Found):
+    return JSONResponse(status_code=404 , content={"detail" : "Ticket Not Found"})
+
+def invalid_ticket(req : Request , exec : Invalid_Ticket):
+    return JSONResponse(status_code = 404 , content={"detail" : "Invalid Ticket"})
+
+def ticket_already_used(req : Request , exec : Ticket_Already_Used):
+    return JSONResponse(status_code=409 , content = {'detail' : 'Ticket Already Used'})
+
+def ticket_cancelled(req : Request , exec : Ticket_Cancelled):
+    return JSONResponse(status_code =409 , content = {'detail' : 'Ticked Already Cancelled'})
