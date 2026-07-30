@@ -57,7 +57,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 def logging_in(user : OAuth2PasswordRequestForm, session : Session):
     
     # verfiying:
-    user_email = session.exec(select(User).where(User.email == user.username)).first()
+    user_email = session.exec(select(User).where(User.email == user.email)).first()
     if user_email is None:
         logging.error('Email is not registered!')
         raise Email_registration()
