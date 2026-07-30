@@ -10,7 +10,7 @@ def generate_qr_image_response(data: str) -> StreamingResponse:
     buffer.seek(0)
     return StreamingResponse(buffer, media_type="image/png")
 
-from dependencies.exception import Ticket_not_found , Not_Your_Ticket , Invalid_Ticket , Ticket_Already_Used , Ticket_Cancelled , Forbidden
+from dependencies.exception import Ticket_Not_Found , Not_Your_Ticket , Invalid_Ticket , Ticket_Already_Used , Ticket_Cancelled , Forbidden
 from models.Users import User
 from sqlmodel import Session , select
 from models.Ticket_entity import Ticket as TicketInstance
@@ -20,7 +20,7 @@ from models.Orders import OrderItem , Order
 def get_ticket_qr(ticket_uid: str, user: User, session: Session):
     ticket = session.exec(select(TicketInstance).where(TicketInstance.ticket_uid == ticket_uid)).first()
     if not ticket:
-        raise Ticket_not_found()
+        raise Ticket_Not_Found()
     
     # Ownership check: verify this ticket belongs to the requesting user
     order_item = session.get(OrderItem, ticket.order_item_id)
