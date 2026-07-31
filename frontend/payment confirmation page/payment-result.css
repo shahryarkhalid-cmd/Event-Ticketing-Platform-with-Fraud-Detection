@@ -1,0 +1,703 @@
+/* =========================================================
+   Tixora Payment Result Page — Stylesheet
+   Handles BOTH the success and cancellation outcomes of a
+   Stripe checkout in a single page. Reuses the exact design
+   tokens/structure established in login_sign_in/style.css so
+   this page belongs to the same visual system.
+   ========================================================= */
+
+:root {
+  /* Brand palette — matches login_sign_in/style.css */
+  --color-primary: #001F54;
+  --color-secondary: #00B4D8;
+  --color-accent: #48CAE4;
+  --color-success: #2ECC71;
+  --color-background: #F0F4F8;
+  --color-border: #D1D9E6;
+  --color-text: #1A1A2E;
+
+  --color-primary-soft: #0A2E6E;
+  --color-error: #E63946;
+  --color-white: #FFFFFF;
+  --color-muted: #6B7385;
+
+  /* Payment-specific tints (derived from the palette above) */
+  --color-success-soft: rgba(46, 204, 113, 0.12);
+  --color-success-glow: rgba(46, 204, 113, 0.35);
+  --color-danger-soft: rgba(230, 57, 70, 0.12);
+  --color-danger-glow: rgba(230, 57, 70, 0.3);
+
+  --font-heading: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --card-radius: clamp(18px, 3vw, 28px);
+  --control-radius: 12px;
+  --card-max-width: 520px;
+  --transition-fast: 200ms ease;
+  --transition-med: 250ms ease;
+
+  --shadow-card: 0 10px 30px rgba(0, 31, 84, 0.08);
+  --shadow-card-lg: 0 20px 45px rgba(0, 31, 84, 0.12);
+}
+
+/* =========================================================
+   Reset & base (same as the rest of the app)
+   ========================================================= */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-heading);
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =========================================================
+   Page shell
+   ========================================================= */
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 4vw, 24px) clamp(32px, 6vw, 56px);
+}
+
+/* =========================================================
+   Branded header panel (identical to login/signup/role)
+   ========================================================= */
+.brand-panel {
+  position: relative;
+  background: linear-gradient(115deg, var(--color-primary) 0%, var(--color-primary-soft) 45%, var(--color-secondary) 100%);
+  padding: clamp(28px, 6vw, 56px) clamp(16px, 4vw, 24px) clamp(56px, 9vw, 88px);
+  text-align: center;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.brand-panel__glow {
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 160%;
+  background: radial-gradient(closest-side, rgba(72, 202, 228, 0.35), transparent 70%);
+  animation: glow-drift 10s ease-in-out infinite alternate;
+  z-index: -1;
+}
+
+@keyframes glow-drift {
+  from { transform: translate(-6%, -4%) scale(1); }
+  to   { transform: translate(6%, 4%) scale(1.08); }
+}
+
+.brand-panel__inner {
+  max-width: 480px;
+  margin: 0 auto;
+  animation: fade-drop 700ms ease both;
+}
+
+@keyframes fade-drop {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.brand-panel__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(76px, 10vw, 100px);
+  height: clamp(76px, 10vw, 100px);
+  margin: 0 auto 16px;
+  padding: clamp(10px, 1.6vw, 14px);
+  background: var(--color-white);
+  border-radius: clamp(20px, 3vw, 26px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.12);
+  animation: fade-drop 700ms ease both, logo-pop 700ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+}
+
+.brand-panel__logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+@keyframes logo-pop {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.brand-panel__name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 4vw, 1.9rem);
+  color: var(--color-white);
+  letter-spacing: 0.02em;
+}
+
+.brand-panel__tagline {
+  margin-top: 6px;
+  font-size: clamp(0.85rem, 2vw, 0.95rem);
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 500;
+}
+
+/* =========================================================
+   Card
+   ========================================================= */
+.card {
+  position: relative;
+  width: 100%;
+  max-width: var(--card-max-width);
+  margin-top: clamp(-48px, -8vw, -32px);
+  background: var(--color-white);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-card);
+  padding: clamp(28px, 6vw, 40px) clamp(20px, 5vw, 36px) clamp(28px, 5vw, 32px);
+  animation: card-rise 650ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
+  transition: box-shadow var(--transition-med);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-card-lg);
+}
+
+@keyframes card-rise {
+  from { opacity: 0; transform: translateY(22px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.card__head {
+  text-align: center;
+  margin-bottom: clamp(20px, 4vw, 28px);
+}
+
+.card__title {
+  font-size: clamp(1.4rem, 4vw, 1.75rem);
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.card__subtitle {
+  margin-top: 8px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+/* =========================================================
+   Status icon — shared shell, two visual variants:
+   .status-icon--success (green circle + self-drawing check)
+   .status-icon--cancel  (red circle + self-drawing cross)
+   ========================================================= */
+.status-icon {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 20px;
+}
+
+.status-icon__glow {
+  position: absolute;
+  inset: -18px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--color-success-glow), transparent 72%);
+  opacity: 0;
+}
+
+.status-icon--cancel .status-icon__glow {
+  background: radial-gradient(closest-side, var(--color-danger-glow), transparent 72%);
+}
+
+/* Success glow: a single celebratory pulse */
+.status-icon--success.is-animating .status-icon__glow {
+  animation: glow-pulse 1.1s ease-out 520ms 1 both;
+}
+
+@keyframes glow-pulse {
+  0%   { opacity: 0; transform: scale(0.7); }
+  35%  { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 0; transform: scale(1.25); }
+}
+
+/* Cancel glow: a soft, gentle ambient pulse (not celebratory) */
+.status-icon--cancel.is-animating .status-icon__glow {
+  animation: glow-pulse-soft 2.2s ease-in-out 500ms infinite;
+}
+
+@keyframes glow-pulse-soft {
+  0%, 100% { opacity: 0.35; transform: scale(0.95); }
+  50%      { opacity: 0.9;  transform: scale(1.1); }
+}
+
+.status-icon__circle {
+  stroke-dasharray: 226;
+  stroke-dashoffset: 226;
+  transform-origin: center;
+  opacity: 0;
+}
+
+.status-icon.is-animating .status-icon__circle {
+  animation: circle-scale-in 480ms cubic-bezier(0.22, 1, 0.36, 1) both,
+             circle-draw 480ms ease both;
+}
+
+@keyframes circle-scale-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes circle-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.status-icon__check {
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+}
+
+.status-icon--success.is-animating .status-icon__check {
+  animation: mark-draw 360ms ease 420ms both;
+}
+
+.status-icon__cross-line {
+  stroke-dasharray: 26;
+  stroke-dashoffset: 26;
+}
+
+.status-icon--cancel.is-animating .status-icon__cross-line--1 {
+  animation: mark-draw 300ms ease 420ms both;
+}
+
+.status-icon--cancel.is-animating .status-icon__cross-line--2 {
+  animation: mark-draw 300ms ease 520ms both;
+}
+
+@keyframes mark-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Static (non-animated / reduced-motion) fallback state */
+.status-icon:not(.is-animating) .status-icon__circle,
+.status-icon:not(.is-animating) .status-icon__check,
+.status-icon:not(.is-animating) .status-icon__cross-line {
+  opacity: 1;
+  stroke-dashoffset: 0;
+}
+
+/* =========================================================
+   Verifying state
+   ========================================================= */
+.verify-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 0 8px;
+  text-align: center;
+}
+
+.verify-spinner {
+  width: 44px;
+  height: 44px;
+  border: 3.5px solid var(--color-border);
+  border-top-color: var(--color-secondary);
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.verify-state__title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--color-primary);
+}
+
+.verify-state__subtitle {
+  font-size: 0.88rem;
+  color: var(--color-muted);
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   Detail list
+   ========================================================= */
+.detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  padding: 6px 16px;
+  margin: clamp(20px, 4vw, 26px) 0;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-row__label {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.detail-row__value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: right;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.badge--success {
+  background: var(--color-success-soft);
+  color: #1E8E4F;
+}
+
+.badge--pending {
+  background: rgba(0, 180, 216, 0.12);
+  color: #0A7C9A;
+}
+
+.badge--danger {
+  background: rgba(230, 57, 70, 0.1);
+  color: var(--color-error);
+}
+
+/* =========================================================
+   Buttons (matches .btn / .btn--primary from the shared system)
+   ========================================================= */
+.btn {
+  min-height: 48px;
+  border: none;
+  border-radius: var(--control-radius);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.98rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  transition: background var(--transition-med), transform var(--transition-fast), box-shadow var(--transition-med);
+}
+
+.btn--primary {
+  background: var(--color-primary);
+  color: var(--color-white);
+  box-shadow: 0 8px 18px rgba(0, 31, 84, 0.22);
+}
+
+.btn--primary:hover {
+  background: var(--color-secondary);
+  box-shadow: 0 10px 22px rgba(0, 180, 216, 0.32);
+  transform: translateY(-1px);
+}
+
+.btn--primary:active {
+  transform: translateY(1px);
+}
+
+.btn--primary:disabled {
+  opacity: 0.75;
+  cursor: progress;
+  transform: none;
+}
+
+.btn--secondary {
+  background: var(--color-white);
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-border);
+}
+
+.btn--secondary:hover {
+  border-color: var(--color-secondary);
+  box-shadow: 0 6px 16px rgba(0, 31, 84, 0.08);
+  transform: translateY(-1px);
+}
+
+.btn--secondary:active {
+  transform: translateY(0);
+}
+
+.btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.text-link {
+  display: block;
+  margin-top: 18px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-secondary);
+  position: relative;
+}
+
+.text-link[aria-disabled="true"] {
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+
+.text-link:not([aria-disabled="true"])::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  width: 0;
+  height: 1.5px;
+  background: currentColor;
+  transition: width var(--transition-med), left var(--transition-med);
+}
+
+.text-link:not([aria-disabled="true"]):hover::after,
+.text-link:not([aria-disabled="true"]):focus-visible::after {
+  left: 0;
+  width: 100%;
+}
+
+/* =========================================================
+   Error / timeout state
+   ========================================================= */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  padding: 8px 0 4px;
+}
+
+.error-state__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(230, 57, 70, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-error);
+  flex-shrink: 0;
+}
+
+.error-state__title {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--color-primary);
+}
+
+.error-state__subtitle {
+  font-size: 0.88rem;
+  color: var(--color-muted);
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+/* =========================================================
+   Visibility helpers
+   ========================================================= */
+.hidden {
+  display: none !important;
+}
+
+/* =========================================================
+   Footer (identical to the rest of the app)
+   ========================================================= */
+.site-footer {
+  flex-shrink: 0;
+  background: var(--color-primary);
+  color: rgba(255, 255, 255, 0.85);
+  padding: clamp(24px, 5vw, 36px) clamp(16px, 5vw, 48px) 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.site-footer__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  width: 100%;
+  max-width: 360px;
+  justify-content: center;
+}
+
+.site-footer__brand img {
+  flex-shrink: 0;
+}
+
+.site-footer__name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--color-white);
+  font-size: 1.05rem;
+  text-align: left;
+}
+
+.site-footer__tagline {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 2px;
+  text-align: left;
+}
+
+.site-footer__bottom {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* =========================================================
+   Responsive breakpoints (matches the shared system)
+   ========================================================= */
+@media (max-width: 480px) {
+  .brand-panel {
+    padding: 22px 16px 46px;
+  }
+  .brand-panel__logo {
+    width: 60px;
+    height: 60px;
+  }
+  .card {
+    border-radius: 20px;
+    padding: 24px 18px 26px;
+  }
+  .detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .detail-row__value {
+    text-align: left;
+  }
+}
+
+@media (min-width: 769px) {
+  .main {
+    padding-top: 8px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .brand-panel {
+    padding: clamp(40px, 5vw, 64px) 24px clamp(96px, 8vw, 128px);
+  }
+  .brand-panel__inner {
+    max-width: 560px;
+  }
+  .main {
+    padding-top: 0;
+  }
+  .card {
+    margin-top: clamp(-72px, -6vw, -56px);
+  }
+}
+
+@media (min-width: 1441px) {
+  .main {
+    max-width: 1320px;
+  }
+  .card {
+    max-width: 560px;
+  }
+}
+
+@supports (padding: max(0px)) {
+  .brand-panel {
+    padding-top: max(clamp(28px, 6vw, 56px), env(safe-area-inset-top));
+  }
+  .site-footer {
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+}

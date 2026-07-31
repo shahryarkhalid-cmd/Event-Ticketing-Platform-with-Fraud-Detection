@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Tixora — Payment Result</title>
+  <meta name="description" content="Your Tixora payment result — booking confirmation or cancellation." />
+  <meta name="theme-color" content="#001F54" />
+
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="assets/favicon-256.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="payment-result.css" />
+</head>
+<body>
+
+  <div class="page">
+
+    <!-- ===== Branded Header Panel (same as login/signup/role) ===== -->
+    <header class="brand-panel">
+      <div class="brand-panel__glow" aria-hidden="true"></div>
+      <div class="brand-panel__inner">
+        <!-- Logo placeholder — swap the src when the final logo is ready -->
+        <div class="brand-panel__logo">
+          <img src="assets/logo.png" alt="Tixora logo" width="96" height="96" />
+        </div>
+        <p class="brand-panel__name">Tixora</p>
+        <p class="brand-panel__tagline">Secure Event Ticketing Platform</p>
+      </div>
+    </header>
+
+    <!-- ===== Main Content ===== -->
+    <main class="main">
+      <div class="card" role="region" aria-labelledby="result-heading">
+
+        <!-- ============ Verifying state (success path, shown while polling) ============ -->
+        <div class="verify-state" id="verify-state">
+          <div class="verify-spinner" role="status" aria-label="Verifying your payment"></div>
+          <p class="verify-state__title">Verifying your payment&hellip;</p>
+          <p class="verify-state__subtitle" id="verify-subtitle">
+            Hang tight while we confirm this with Stripe. This usually takes just a few seconds.
+          </p>
+        </div>
+
+        <!-- ============ Success state ============ -->
+        <div class="hidden" id="success-state">
+
+          <div class="status-icon status-icon--success" id="success-icon" aria-hidden="true">
+            <div class="status-icon__glow"></div>
+            <svg viewBox="0 0 96 96" width="96" height="96">
+              <circle class="status-icon__circle" cx="48" cy="48" r="36" fill="none" stroke="#2ECC71" stroke-width="4" stroke-linecap="round"/>
+              <path class="status-icon__check" d="M32 49L43 60L66 36" fill="none" stroke="#2ECC71" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+
+          <div class="card__head">
+            <h1 id="result-heading" class="card__title">Payment Successful</h1>
+            <p class="card__subtitle">
+              Your payment has been received successfully.<br />
+              Thank you for booking with Tixora.
+            </p>
+          </div>
+
+          <div class="detail-list">
+            <div class="detail-row">
+              <span class="detail-row__label">Order ID</span>
+              <span class="detail-row__value" id="detail-order-id">&mdash;</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-row__label">Payment Status</span>
+              <span class="detail-row__value"><span class="badge badge--success">Paid</span></span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-row__label">Transaction Status</span>
+              <span class="detail-row__value"><span class="badge badge--success">Verified</span></span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-row__label">Booking Status</span>
+              <span class="detail-row__value"><span class="badge badge--success">Confirmed</span></span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-row__label">Payment Method</span>
+              <span class="detail-row__value">Stripe</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-row__label">Amount Paid</span>
+              <span class="detail-row__value" id="detail-amount">&mdash;</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-row__label">Event</span>
+              <span class="detail-row__value" id="detail-event">&mdash;</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-row__label">Ticket Quantity</span>
+              <span class="detail-row__value" id="detail-quantity">&mdash;</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-row__label">Purchase Date</span>
+              <span class="detail-row__value" id="detail-date">&mdash;</span>
+            </div>
+          </div>
+
+          <div class="btn-group">
+            <a class="btn btn--primary" href="../customer-window/index.html">Go to My Orders</a>
+            <a class="btn btn--secondary" href="../customer-window/index.html">Go to Dashboard</a>
+          </div>
+
+          <a href="#" class="text-link" id="download-ticket-link" aria-disabled="true">Download Ticket</a>
+        </div>
+
+        <!-- ============ Cancel state ============ -->
+        <div class="hidden" id="cancel-state">
+
+          <div class="status-icon status-icon--cancel is-animating" aria-hidden="true">
+            <div class="status-icon__glow"></div>
+            <svg viewBox="0 0 96 96" width="96" height="96">
+              <circle class="status-icon__circle" cx="48" cy="48" r="36" fill="none" stroke="#EF4444" stroke-width="4" stroke-linecap="round"/>
+              <line class="status-icon__cross-line status-icon__cross-line--1" x1="37" y1="37" x2="59" y2="59" stroke="#EF4444" stroke-width="4.5" stroke-linecap="round"/>
+              <line class="status-icon__cross-line status-icon__cross-line--2" x1="59" y1="37" x2="37" y2="59" stroke="#EF4444" stroke-width="4.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+
+          <div class="card__head">
+            <h1 id="cancel-heading" class="card__title">Payment Cancelled</h1>
+            <p class="card__subtitle">
+              Your payment was cancelled.<br />
+              No charges were made.
+            </p>
+          </div>
+
+          <!-- Only shown when ?order_id= is present in the URL -->
+          <div class="detail-list hidden" id="cancel-order-detail-list">
+            <div class="detail-row">
+              <span class="detail-row__label">Order #</span>
+              <span class="detail-row__value" id="cancel-detail-order-id">&mdash;</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-row__label">Current Status</span>
+              <span class="detail-row__value"><span class="badge badge--pending">Pending</span></span>
+            </div>
+          </div>
+
+          <div class="btn-group">
+            <button type="button" class="btn btn--primary" id="try-again-btn">Try Again</button>
+            <a class="btn btn--secondary" href="../customer-window/index.html">Go Back to Checkout</a>
+          </div>
+
+          <a href="../customer-window/index.html" class="text-link">Return to Dashboard</a>
+        </div>
+
+        <!-- ============ Timeout state (success path, still pending after polling window) ============ -->
+        <div class="hidden" id="timeout-state">
+          <div class="error-state">
+            <div class="error-state__icon" aria-hidden="true">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M12 7.5V12.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="12" cy="16" r="1.1" fill="currentColor"/>
+              </svg>
+            </div>
+            <h1 class="error-state__title">Still verifying your payment</h1>
+            <p class="error-state__subtitle">
+              This is taking longer than usual. Please refresh this page in a moment, or check My Orders — your booking will update automatically once Stripe confirms it.
+            </p>
+          </div>
+          <div class="btn-group">
+            <button type="button" class="btn btn--primary" id="refresh-btn">Refresh</button>
+            <a class="btn btn--secondary" href="../customer-window/index.html">Go to My Orders</a>
+          </div>
+        </div>
+
+        <!-- ============ Error state (order couldn't be loaded) ============ -->
+        <div class="hidden" id="error-state">
+          <div class="error-state">
+            <div class="error-state__icon" aria-hidden="true">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <path d="M12 3L21.5 19.5H2.5L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M12 9.5V14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <circle cx="12" cy="17" r="1.1" fill="currentColor"/>
+              </svg>
+            </div>
+            <h1 class="error-state__title">Unable to load your payment details</h1>
+            <p class="error-state__subtitle" id="error-message">Please visit My Orders.</p>
+          </div>
+          <div class="btn-group">
+            <a class="btn btn--primary" href="../customer-window/index.html">Go to My Orders</a>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- ===== Footer (identical to the rest of the app) ===== -->
+    <footer class="site-footer">
+      <div class="site-footer__brand">
+        <img src="assets/logo-white.png" alt="Tixora" width="40" height="40" />
+        <div>
+          <p class="site-footer__name">Tixora</p>
+          <p class="site-footer__tagline">Secure Event Ticketing Platform</p>
+        </div>
+      </div>
+      <div class="site-footer__bottom">
+        <p>&copy; 2026 Tixora. All rights reserved.</p>
+      </div>
+    </footer>
+
+  </div>
+
+  <script src="payment-result.js"></script>
+</body>
+</html>
