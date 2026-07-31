@@ -128,7 +128,8 @@ def _build_app_schema_features(ctx: OrderContext) -> Dict[str, Any]:
 
 # ── Public API ────────────────────────────────────────────────────
 
-
+from .schema_contract import align_to_schema
+from .schemas import OrderContext
 def build_features(
     ctx: OrderContext,
     preprocessing: Any = None,
@@ -152,6 +153,7 @@ def build_features(
 
     raw = _build_app_schema_features(ctx)
     df = pd.DataFrame([raw])
+    df = align_to_schema(df) # change done here
     logger.debug(
         "Core feature matrix built: columns=%s",
         list(df.columns),

@@ -9,7 +9,7 @@ def expire_stale_orders(session: Session):
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=20)
     stale_orders = session.exec(
         select(Order).where(
-            Order.status == "pending",
+            Order.payment_status == "pending",
             Order.created_at < cutoff
         )
     ).all()
@@ -21,7 +21,7 @@ def expire_stale_orders(session: Session):
             if tier:
                 tier.sold_quantity = max(0, tier.sold_quantity - item.quantity)
                 session.add(tier)
-        order.status = "expired"
+        order.payment_status = "expired"
         session.add(order)
         logging.info(f"Order {order.id} expired — seats released")
 

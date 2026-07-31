@@ -16,7 +16,7 @@ def create_checkout_session(order_id: int, user: User, session: Session):
         raise Not_Order()
     if order.user_id != user.id:
         raise Order_Mismatch()
-    if order.status != "pending":
+    if order.payment_status != "pending":
         raise Not_Pending_Order()
 
     order_items = session.exec(select(OrderItem).where(OrderItem.order_id == order.id)).all()
@@ -72,8 +72,8 @@ def handle_stripe_webhook(payload: bytes, sig_header: str, session: Session):
 
         order = session.get(Order, order_id)
 
-        if order and order.status == "pending":
-            order.status = "paid"
+        if order and order.payment_status == "pending":
+            order.payment_status = "paid"
             session.add(order)
 
             items = session.exec(
@@ -96,7 +96,7 @@ def handle_stripe_webhook(payload: bytes, sig_header: str, session: Session):
         else:
             logging.info(
                 f"Stripe webhook: order {order_id} already in status "
-                f"'{order.status}', ignoring"
+                f"'{order.payment_status}', ignoring"
             )
 
     return {"status": "success"}

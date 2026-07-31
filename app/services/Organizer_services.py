@@ -132,7 +132,7 @@ def get_analytics_summary(user: User, session: Session):
     ])
 
     paid_orders = session.exec(
-        select(Order).where(Order.event_id.in_(event_ids), Order.status == "paid")
+        select(Order).where(Order.event_id.in_(event_ids), Order.payment_status == "paid")
     ).all() if event_ids else []
 
     order_ids = [o.id for o in paid_orders]
@@ -163,7 +163,7 @@ def get_ticket_sales_last_7_days(user: User, session: Session):
     orders = session.exec(
         select(Order).where(
             Order.event_id.in_(event_ids),
-            Order.status == "paid",
+            Order.payment_status == "paid",
             Order.created_at >= seven_days_ago
         )
     ).all() if event_ids else []
@@ -189,7 +189,7 @@ def get_popular_ticket_categories(user: User, session: Session):
     event_ids = [e.id for e in events]
 
     orders = session.exec(
-        select(Order).where(Order.event_id.in_(event_ids), Order.status == "paid")
+        select(Order).where(Order.event_id.in_(event_ids), Order.payment_status == "paid")
     ).all() if event_ids else []
     order_ids = [o.id for o in orders]
     items = session.exec(select(OrderItem).where(OrderItem.order_id.in_(order_ids))).all() if order_ids else []
@@ -228,7 +228,7 @@ def get_organizer_all_bookings(user: User, session: Session):
             "qty": item.quantity,
             "amount": item.subtotal,
             "date": order.created_at,
-            "status": order.status,
+            "status": order.payment_status,
             "qr_generated": False  # Order no longer has qr_code — deferred feature per your earlier decision
         })
     return result
@@ -242,8 +242,8 @@ def get_revenue_overview(user: User, session: Session):
 
     all_orders = session.exec(select(Order).where(Order.event_id.in_(event_ids))).all() if event_ids else []
 
-    paid_orders = [o for o in all_orders if o.status == "paid"]
-    refunded_orders = [o for o in all_orders if o.status == "refunded"]
+    paid_orders = [o for o in all_orders if o.payment_status == "paid"]
+    refunded_orders = [o for o in all_orders if o.payment_status == "refunded"]
 
     total_revenue = sum(o.total_price for o in paid_orders)
     refunded_amount = sum(o.total_price for o in refunded_orders)
@@ -265,7 +265,7 @@ def get_monthly_revenue_trend(user: User, session: Session):
     event_ids = [e.id for e in events]
 
     paid_orders = session.exec(
-        select(Order).where(Order.event_id.in_(event_ids), Order.status == "paid")
+        select(Order).where(Order.event_id.in_(event_ids), Order.payment_status == "paid")
     ).all() if event_ids else []
 
     monthly = {}
@@ -286,10 +286,10 @@ def refund_order(order_id: int, user: User, session: Session):
     event = session.get(Event, order.event_id)
     if event.organizer_id != user.id:
         raise Not_Your_Event()
-    if order.status != "paid":
+    if order.payment_status != "paid":
         raise Paid_Refund()
 
-    order.status = "refunded"
+    order.payment_status = "refunded"
 
     # Give back seats for every tier in this order, not just one
     items = session.exec(select(OrderItem).where(OrderItem.order_id == order.id)).all()
@@ -366,23 +366,41 @@ def get_fraud_orders(user: User, session: Session):
     events = session.exec(select(Event).where(Event.organizer_id == user.id)).all()
     event_ids = [e.id for e in events]
 
+    flaggable_statuses = ["fraud_review", "under_review", "confirmed_fraud", "dismissed"]
     flagged = session.exec(
-        select(Order).where(Order.event_id.in_(event_ids), Order.status == "fraud_review")
+        select(Order).where(Order.event_id.in_(event_ids), Order.fraud_status.in_(flaggable_statuses))
     ).all() if event_ids else []
 
     result = []
     for order in flagged:
         customer = session.get(User, order.user_id)
         event = session.get(Event, order.event_id)
-        tier = session.get(TicketTier, order.ticket_tier_id)
+
         result.append({
             "id": order.id,
             "userName": customer.full_name if customer else "Unknown",
             "email": customer.email if customer else "",
             "eventName": event.name if event else "Unknown",
             "bookingDate": order.created_at.isoformat() if order.created_at else "",
-            "reason": "Flagged by fraud detection model",
-            "riskScore": 75,
-            "status": "flagged",
+            "reason": order.fraud_reason or "No reason recorded",
+            "riskScore": round((order.fraud_score or 0.0) * 100),
+            "status": order.fraud_status,
         })
     return result
+
+
+# For Updating the status:
+def update_fraud_status(order_id: int, new_status: str, user: User, session: Session):
+    if user.role != "organizer":
+        raise Forbidden()
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    event = session.get(Event, order.event_id)
+    if event.organizer_id != user.id:
+        raise HTTPException(status_code=403, detail="Not your event")
+
+    order.fraud_status = new_status
+    session.add(order)
+    session.flush()
+    return {"message": f"Order marked as {new_status}"}

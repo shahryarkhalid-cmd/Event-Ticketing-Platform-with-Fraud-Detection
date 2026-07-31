@@ -321,3 +321,18 @@ def Get_Ticket_qr(ticket_uid: str, user: User = Depends(get_current_user), sessi
 @app.post("/checkin/{ticket_uid}")
 def checkin(ticket_uid: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     return check_in_ticket(ticket_uid, session)
+
+
+# For Fraud Detection Dashboard:
+from services.Organizer_services import update_fraud_status
+@app.post("/organizer/fraud-orders/{order_id}/review")
+def mark_under_review(order_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return update_fraud_status(order_id, "under_review", user, session)
+
+@app.post("/organizer/fraud-orders/{order_id}/confirm")
+def confirm_fraud(order_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return update_fraud_status(order_id, "confirmed_fraud", user, session)
+
+@app.post("/organizer/fraud-orders/{order_id}/dismiss")
+def dismiss_fraud(order_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return update_fraud_status(order_id, "dismissed", user, session)

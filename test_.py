@@ -23,7 +23,7 @@ EVENT = {
                 "ticket_tiers": [
                     {
                         "category_name": "VIP",
-                        "price": 3000,
+                        "price": 10,
                         "currency": "USD",
                         "total_seats": 50,
                         "benefits_included": "Front row, meet & greet",
@@ -250,7 +250,7 @@ def test_get_analytics_summary(client , test_session):
     assert order_response.status_code == 200
     order_id = order_response.json()['id']
     order = test_session.get(Order, int(order_id))
-    order.status = "paid"
+    order.payment_status = "paid"
     test_session.add(order)
     test_session.commit()
     
@@ -283,7 +283,7 @@ def test_get_ticket_sales(client , test_session):
             assert order_response.status_code == 200
             order_id = order_response.json()['id']
             order = test_session.get(Order, int(order_id))
-            order.status = "paid"
+            order.payment_status = "paid"
             test_session.add(order)
             test_session.commit()
             response = client.get('/organizer/analytics/ticket-sales' , headers = header)
@@ -320,14 +320,14 @@ def test_get_ticket_popularity(client , test_session):
         assert order_response.status_code == 200
         order_id = order_response.json()['id']
         order = test_session.get(Order, int(order_id))
-        order.status = "paid"
+        order.paymen_status = "paid"
         test_session.add(order)
         test_session.commit()
         
         assert order_response.status_code == 200
         order_id = order_response.json()['id']
         order = test_session.get(Order, int(order_id))
-        order.status = "paid"
+        order.payment_status = "paid"
         test_session.add(order)
         test_session.commit()
         response = client.get("/organizer/analytics/popular-categories" , headers=header)
@@ -364,7 +364,7 @@ def test_booking_status(client , test_session):
         assert order_response.status_code == 200
         order_id = order_response.json()['id']
         order = test_session.get(Order, int(order_id))
-        order.status = "paid"
+        order.payment_status = "paid"
         test_session.add(order)
         test_session.commit()
         response = client.get('/organizer/bookings' , headers = header)
@@ -411,7 +411,7 @@ def test_revenue(client , test_session):
         assert order_response.status_code == 200
         order_id = order_response.json()['id']
         order = test_session.get(Order, int(order_id))
-        order.status = "paid"
+        order.payment_status = "paid"
         test_session.add(order)
         test_session.commit()
         response = client.get('/organizer/revenue/overview' , headers = header) 
@@ -451,7 +451,7 @@ def test_monthly_revenue_trend(client , test_session):
             assert order_response.status_code == 200
             order_id = order_response.json()['id']
             order = test_session.get(Order, int(order_id))
-            order.status = "paid"
+            order.payment_status = "paid"
             test_session.add(order)
             test_session.commit()
             response = client.get('/organizer/revenue/trend' , headers = header)
@@ -487,7 +487,7 @@ def test_refund(client , test_session):
             assert order_response.status_code == 200
             order_id = order_response.json()['id']
             order = test_session.get(Order, int(order_id))
-            order.status = "paid"
+            order.payment_status = "paid"
             test_session.add(order)
             test_session.commit()
             response = client.post(f'/organizer/orders/{int(order_id)}/refund' , headers = header)
@@ -650,7 +650,7 @@ def test_get_order_status(client):
     response = client.get(f'/orders/{order_id}', headers=cust_header)
     assert response.status_code == 200
     assert response.json()['id'] == order_id
-    assert response.json()['status'] == 'pending'
+    assert response.json()['payment_status'] == 'pending'
 
 
 def test_get_order_status_wrong_user_forbidden(client):
@@ -730,7 +730,7 @@ def test_checkout_non_pending_order_rejected(client, test_session):
     order_id = order_response.json()['id']
 
     order = test_session.get(Order, order_id)
-    order.status = "paid"
+    order.payment_status = "paid"
     test_session.add(order)
     test_session.commit()
 
@@ -770,7 +770,7 @@ def test_stripe_webhook_marks_order_as_paid(client, test_session):
     order_id = order_response.json()['id']
 
     order = test_session.get(Order, order_id)
-    assert order.status == "pending"
+    assert order.payment_status == "pending"
 
     fake_event = make_fake_stripe_event(order_id)
     with patch("stripe.Webhook.construct_event", return_value=fake_event):
@@ -782,11 +782,11 @@ def test_stripe_webhook_marks_order_as_paid(client, test_session):
 
     assert response.status_code == 200
     test_session.refresh(order)
-    assert order.status == "paid"
+    assert order.payment_status == "paid"
             
 
 
-
+# ============= TESTING FRAUD DETECTION SERVICES AND ROUTES ====================
 
 def test_fraud_detection_pipeline_integration(client, test_session, caplog):
     import logging
@@ -834,9 +834,10 @@ def test_fraud_detection_pipeline_integration(client, test_session, caplog):
     order = order_resp.json()
 
     # ── 4. Verify order response schema ──
-    expected_order_fields = {"id", "user_id", "event_id", "total_price", "status", "created_at"}
+    expected_order_fields = {"id", "user_id", "event_id", "total_price", "payment_status", "fraud_status", "created_at"}
     assert expected_order_fields.issubset(order.keys()), f"Missing order fields: {expected_order_fields - order.keys()}"
-    assert order["status"] in ("pending", "fraud_review"), f"Unexpected order status: {order['status']}"
+    assert order["payment_status"] == "pending", f"Unexpected payment status: {order['payment_status']}"
+    assert order["fraud_status"] in (None, "fraud_review"), f"Unexpected fraud status: {order['fraud_status']}"
     assert order["total_price"] > 0
 
     # ── 5. Verify fraud detection code actually executed ──
@@ -850,7 +851,8 @@ def test_fraud_detection_pipeline_integration(client, test_session, caplog):
     # ── 6. Verify database state matches API ──
     db_order = test_session.get(Order, order["id"])
     assert db_order is not None
-    assert db_order.status == order["status"]
+    assert db_order.payment_status == order["payment_status"]
+    assert db_order.fraud_status == order["fraud_status"]
     assert db_order.total_price == order["total_price"]
     assert db_order.event_id == event_id
 
@@ -873,7 +875,7 @@ def test_fraud_detection_pipeline_integration(client, test_session, caplog):
         assert isinstance(entry["bookingDate"], str)
         assert entry["eventName"] == EVENT["name"]
 
-    if order["status"] == "fraud_review":
+    if order["fraud_status"] == "fraud_review":
         assert any(e["id"] == order["id"] for e in fraud_orders), \
             "Flagged order should appear in fraud endpoint"
 
@@ -889,3 +891,118 @@ def test_fraud_detection_pipeline_integration(client, test_session, caplog):
     fraud_org2 = client.get("/organizer/fraud-orders", headers=org2_headers)
     assert fraud_org2.status_code == 200
     assert fraud_org2.json() == [], "Organizer should only see their own fraud orders"
+    
+    
+def test_get_fraud_orders_returns_real_data(client, test_session):
+    org_header = register_and_login(client, 'orgfraud1@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'custfraud1@test.com', 'Cust', 'pass123', 'customer')
+
+    order_response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 2}]
+    }, headers=cust_header)
+    assert order_response.status_code == 200
+    order_id = order_response.json()['id']
+
+    # Force this order into a flagged state, as if the model had flagged it
+    order = test_session.get(Order, order_id)
+    order.fraud_status = "fraud_review"
+    order.fraud_reason = "Fraud probability 80.00% exceeds threshold"
+    order.fraud_score = 0.80
+    test_session.add(order)
+    test_session.commit()
+
+    response = client.get('/organizer/fraud-orders', headers=org_header)
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data) >= 1
+    entry = next(e for e in data if e["id"] == order_id)
+    assert entry["reason"] == "Fraud probability 80.00% exceeds threshold"
+    assert entry["riskScore"] == 80
+    assert entry["status"] == "fraud_review"
+
+
+def test_get_fraud_orders_only_shows_own_events(client, test_session):
+    org1_header = register_and_login(client, 'orgfraud2@test.com', 'Org1', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org1_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'custfraud2@test.com', 'Cust', 'pass123', 'customer')
+    order_response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 1}]
+    }, headers=cust_header)
+    order_id = order_response.json()['id']
+
+    order = test_session.get(Order, order_id)
+    order.fraud_status = "fraud_review"
+    order.fraud_reason = "Test reason"
+    order.fraud_score = 0.9
+    test_session.add(order)
+    test_session.commit()
+
+    org2_header = register_and_login(client, 'orgfraud3@test.com', 'Org2', 'pass123', 'organizer')
+    response = client.get('/organizer/fraud-orders', headers=org2_header)
+    assert response.status_code == 200
+    assert response.json() == []
+    
+# Action Routes:
+def test_fraud_order_status_actions(client, test_session):
+    org_header = register_and_login(client, 'orgfraud4@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'custfraud4@test.com', 'Cust', 'pass123', 'customer')
+    order_response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 1}]
+    }, headers=cust_header)
+    order_id = order_response.json()['id']
+
+    order = test_session.get(Order, order_id)
+    order.fraud_status = "fraud_review"
+    test_session.add(order)
+    test_session.commit()
+
+    # Mark under review
+    response = client.post(f'/organizer/fraud-orders/{order_id}/review', headers=org_header)
+    assert response.status_code == 200
+    test_session.refresh(order)
+    assert order.fraud_status == "under_review"
+
+    # Confirm fraud
+    response = client.post(f'/organizer/fraud-orders/{order_id}/confirm', headers=org_header)
+    assert response.status_code == 200
+    test_session.refresh(order)
+    assert order.fraud_status == "confirmed_fraud"
+
+    # Dismiss
+    response = client.post(f'/organizer/fraud-orders/{order_id}/dismiss', headers=org_header)
+    assert response.status_code == 200
+    test_session.refresh(order)
+    assert order.fraud_status == "dismissed"
+
+
+def test_fraud_order_action_forbidden_for_wrong_organizer(client, test_session):
+    org1_header = register_and_login(client, 'orgfraud5@test.com', 'Org1', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org1_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'custfraud5@test.com', 'Cust', 'pass123', 'customer')
+    order_response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 1}]
+    }, headers=cust_header)
+    order_id = order_response.json()['id']
+
+    org2_header = register_and_login(client, 'orgfraud6@test.com', 'Org2', 'pass123', 'organizer')
+    response = client.post(f'/organizer/fraud-orders/{order_id}/confirm', headers=org2_header)
+    assert response.status_code == 403

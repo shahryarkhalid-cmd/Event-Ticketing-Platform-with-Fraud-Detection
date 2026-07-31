@@ -48,7 +48,7 @@ def book_ticket(order_data: OrderCreate, user: User, session: Session):
             user_id=user.id,
             event_id=order_data.event_id,
             total_price=total_price,
-            status="pending"
+            payment_status="pending"
         )
         session.add(new_order)
         session.flush()
@@ -69,7 +69,10 @@ def book_ticket(order_data: OrderCreate, user: User, session: Session):
             fraud_prediction.reason,
         )
         if fraud_prediction.is_fraud:
-            new_order.status = fraud_config.flag_status
+            new_order.fraud_status = "fraud_review"
+            new_order.fraud_reason = fraud_prediction.reason
+            new_order.fraud_score = fraud_prediction.fraud_probability
+# payment_status stays "pending" by default — fraud flag no longer blocks payment status
 
         session.flush()
         session.refresh(new_order)

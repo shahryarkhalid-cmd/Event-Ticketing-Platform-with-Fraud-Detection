@@ -186,7 +186,7 @@ def _build_reason(
         parts.append("Near-sold-out event (possible scalping)")
     return "; ".join(parts)
 
-
+from typing import Optional
 def _get_model_version(model) -> Optional[str]:
     """Try to extract a version string from the model object."""
     return getattr(model, "version", None) or getattr(

@@ -54,7 +54,7 @@ def register_user(user : UserCreate , session : Session):
 
 # Logging in the User:
 from fastapi.security import OAuth2PasswordRequestForm
-def logging_in(user : UserCreate, session : Session):
+def logging_in(user : UserLogin, session : Session):
     
     # verfiying:
     user_email = session.exec(select(User).where(User.email == user.email)).first()

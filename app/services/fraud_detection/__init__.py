@@ -59,7 +59,7 @@ def _compute_user_stats(user_id: int, session: "Session") -> dict:
 
     stmt = select(OrderModel).where(
         OrderModel.user_id == user_id,
-        OrderModel.status.in_(["pending", "paid"]),
+        OrderModel.payment_status.in_(["pending", "paid"]),
     )
     all_orders = list(session.exec(stmt).all())
 
@@ -71,8 +71,8 @@ def _compute_user_stats(user_id: int, session: "Session") -> dict:
     # ── Refund / paid rates (all orders, not just pending/paid) ──
     all_stmt = select(OrderModel).where(OrderModel.user_id == user_id)
     all_user_orders = list(session.exec(all_stmt).all())
-    refund_count = sum(1 for o in all_user_orders if o.status == "refunded")
-    paid_count = sum(1 for o in all_user_orders if o.status == "paid")
+    refund_count = sum(1 for o in all_user_orders if o.payment_status == "refunded")
+    paid_count = sum(1 for o in all_user_orders if o.payment_status == "paid")
     refund_rate = refund_count / len(all_user_orders) if all_user_orders else 0.0
     paid_rate = paid_count / len(all_user_orders) if all_user_orders else 1.0
 
@@ -164,7 +164,7 @@ def _compute_organizer_refund_rate(organizer_id: int, session: "Session") -> flo
     if not orders:
         return 0.0
 
-    refund_count = sum(1 for o in orders if o.status == "refunded")
+    refund_count = sum(1 for o in orders if o.payment_status == "refunded")
     return refund_count / len(orders)
 
 
