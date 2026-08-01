@@ -25,6 +25,23 @@
   const MIN_PASSWORD_LENGTH = 8;
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+  // FastAPI's error "detail" for a 422 is usually an array of
+  // {loc, msg, type} validation objects, not a plain string — this turns
+  // that into readable text instead of it printing as [object Object].
+  function formatErrorDetail(detail) {
+    if (!detail) return '';
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      return detail.map((d) => {
+        if (typeof d === 'string') return d;
+        const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : '';
+        return field ? `${field}: ${d.msg}` : (d.msg || JSON.stringify(d));
+      }).join('; ');
+    }
+    if (typeof detail === 'object') return detail.msg || JSON.stringify(detail);
+    return String(detail);
+  }
+
   /* ---------------------------------------------------
      Password show / hide toggles (works for both fields)
      --------------------------------------------------- */
@@ -191,7 +208,10 @@
     });
 
     if (!response.ok) {
-      return { ok: false };
+      let detail = '';
+      try { const errBody = await response.json(); detail = formatErrorDetail(errBody.detail); } catch (e) { /* ignore */ }
+      console.error(`POST /auth/register → ${response.status}${detail ? `: ${detail}` : ''}`);
+      return { ok: false, message: detail };
     }
 
     // Immediately log the freshly-created account in so we have a token
@@ -199,13 +219,16 @@
     // never sees a separate login step right after signing up.
     const loginResponse = await fetch('http://localhost:8000/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ username: email, password: password })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
     });
 
     if (!loginResponse.ok) {
       // Account was created but auto-login failed for some reason -
       // fall back to sending them to the login page.
+      let detail = '';
+      try { const errBody = await loginResponse.json(); detail = formatErrorDetail(errBody.detail); } catch (e) { /* ignore */ }
+      console.error(`Auto-login after signup failed (${loginResponse.status})${detail ? `: ${detail}` : ''}`);
       return { ok: true, autoLoggedIn: false };
     }
 
@@ -239,12 +262,12 @@
       .then((result) => {
         if (result && result.ok && result.autoLoggedIn) {
           showStatus('Account created — let\'s set up your account…', false);
-          window.location.href = '../role-selection/index.html';
+          window.location.href = '../role/index.html';
         } else if (result && result.ok) {
           showStatus('Account created — redirecting you to log in…', false);
           window.location.href = 'login.html';
         } else {
-          showStatus('Something went wrong. Please try again.', true);
+          showStatus((result && result.message) || 'Something went wrong. Please try again.', true);
         }
       })
       .catch(() => {
@@ -263,7 +286,7 @@
     // Hook up real OAuth redirect here, e.g. window.location.href = '/auth/google';
   }
 
-  googleBtn.addEventListener('click', () => handleSocialSignup('Google'));
-  appleBtn.addEventListener('click', () => handleSocialSignup('Apple'));
+  googleBtn?.addEventListener('click', () => handleSocialSignup('Google'));
+  appleBtn?.addEventListener('click', () => handleSocialSignup('Apple'));
 
 })();

@@ -56,6 +56,9 @@
     { name: "Las Vegas", count: 129, img: "https://images.unsplash.com/photo-1605833556294-ea5c7a74f57d?q=80&w=800&auto=format&fit=crop" },
   ];
 
+  // No longer used anywhere — bookings are now fetched live from
+  // GET /orders/me (see api.getBookings / mapBookingFromBackend below).
+  // Left in place rather than deleted, in case it's useful as a reference.
   const MOCK_BOOKINGS = [
     { id: "BK-88213", event: MOCK_EVENTS[0], tier: "Premium", qty: 2, total: 190, status: "confirmed", when: "upcoming" },
     { id: "BK-88117", event: MOCK_EVENTS[5], tier: "General", qty: 1, total: 199, status: "pending", when: "upcoming" },
@@ -123,9 +126,55 @@ function mapEventFromBackend(evt, tiers) {
   };
 }
 
+// backend Order -> shape bookingCardHTML()/renderBookings() expect.
+// The exact OrderRead schema isn't visible from the frontend alone, so this
+// reads a handful of plausible field names defensively (mirrors the same
+// approach used in payment-result.js's readOrderFields).
+function mapBookingFromBackend(order, eventsById) {
+  const items = Array.isArray(order.items) ? order.items : (order.item ? [order.item] : []);
+  const firstItem = items[0] || {};
+  const eventId = order.event_id ?? order.event?.id ?? firstItem.event_id;
+  const matchedEvent = eventsById && eventId != null ? eventsById[String(eventId)] : null;
+
+  const tierName = firstItem.tier_name || firstItem.category_name || firstItem.name || order.tier_name || "General";
+  const qty = items.length
+    ? items.reduce((s, i) => s + Number(i.quantity ?? i.qty ?? 0), 0)
+    : Number(order.quantity ?? order.ticket_quantity ?? 1);
+
+  const total = order.total_amount ?? order.amount ?? order.total_price ?? order.total ?? 0;
+  const rawStatus = String(order.status || order.payment_status || "pending").toLowerCase();
+  const status = rawStatus === "paid" || rawStatus === "confirmed" ? "confirmed"
+    : (rawStatus === "cancelled" || rawStatus === "canceled" || rawStatus === "failed") ? "cancelled"
+    : "pending";
+
+  const eventTitle = matchedEvent?.title || order.event?.name || order.event?.title || order.event_name || "Event";
+  const eventBanner = matchedEvent?.banner || order.event?.image_url
+    || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop";
+  const eventDate = matchedEvent?.date || (order.event?.start_datetime || "").split("T")[0];
+
+  const when = eventDate && new Date(eventDate) < new Date(new Date().toDateString()) ? "previous" : "upcoming";
+
+  return {
+    id: `ORD-${order.id ?? order.order_id ?? ""}`,
+    orderId: order.id ?? order.order_id,
+    event: { title: eventTitle, banner: eventBanner },
+    tier: tierName,
+    qty,
+    total: Number(total) || 0,
+    status,
+    when
+  };
+}
+
 const api = {
   getEvents: async () => {
     const res = await fetch(`${API_BASE}/events/customer`);
+    if (!res.ok) {
+      let bodyText = "";
+      try { bodyText = await res.text(); } catch (e) { /* ignore */ }
+      console.error(`GET /events/customer → ${res.status}${bodyText ? `: ${bodyText}` : ""}`);
+      throw new Error(`Events request failed (${res.status})`);
+    }
     const rawEvents = await res.json();
     // Use allSettled so one event with a broken/forbidden tiers request
     // doesn't take down the entire list — it just shows with no tiers.
@@ -135,13 +184,19 @@ const api = {
       return mapEventFromBackend(evt, tiers);
     }));
     return settled
-      .filter(r => r.status === "fulfilled")
+      .filter((r) => {
+        if (r.status === "rejected") console.warn("Skipped one event — couldn't map it:", r.reason);
+        return r.status === "fulfilled";
+      })
       .map(r => r.value);
   },
-  getBookings: async () => {
+  getBookings: async (events) => {
     const res = await fetch(`${API_BASE}/orders/me`, { headers: authHeaders() });
+    if (!res.ok) throw new Error("Couldn't load bookings");
     const orders = await res.json();
-    return orders; // shape differs from MOCK_BOOKINGS — see note below
+    const eventsById = {};
+    (events || []).forEach((e) => { eventsById[String(e.id)] = e; });
+    return Array.isArray(orders) ? orders.map((o) => mapBookingFromBackend(o, eventsById)) : [];
   },
   createOrder: async (payload) => {
     const res = await fetch(`${API_BASE}/orders`, {
@@ -169,6 +224,7 @@ const api = {
   const state = {
     currentUser: null,
     events: [],
+    bookings: [],
     filters: { q: "", category: "all", country: "all", city: "", dateFrom: "", dateTo: "", price: "all", time: "all", sort: "popular" },
     page: 1,
     perPage: 6,
@@ -847,6 +903,12 @@ const api = {
         toast("Order created", `${order.orderId} — proceed to payment.`, "ok");
         closeTicketModal();
         goToPaymentSummary(ev, entries, $("#sumTotal").textContent, order.orderId);
+
+        // Refresh bookings in the background so this order shows up in
+        // My Bookings right away, without waiting for a full page reload.
+        api.getBookings(state.events)
+          .then((bookings) => { state.bookings = bookings; renderBookings(); })
+          .catch((e) => console.error("Couldn't refresh bookings:", e));
       } catch (err) {
         toast("Order failed", "Something went wrong. Please try again.", "err");
       } finally {
@@ -902,7 +964,7 @@ const api = {
         }
 
         // Redirect the whole page to Stripe's hosted checkout
-        window.location.href = data.checkout_url;
+        window.location.href = data.url || data.checkout_url;
 
       } catch (err) {
         $("#payLoading").classList.add("hidden");
@@ -911,6 +973,29 @@ const api = {
       }
     });
     $("#retryPaymentBtn")?.addEventListener("click", resetPaymentState);
+  }
+
+  async function payNowFromBookings(btn) {
+    const orderId = btn.dataset.paynow;
+    if (!orderId) return;
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Redirecting…";
+    try {
+      const res = await fetch(`${API_BASE}/orders/${orderId}/checkout`, {
+        method: "POST",
+        headers: authHeaders()
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Could not start checkout");
+      // Redirect to Stripe; Stripe sends the user back to the payment
+      // confirmation page (payment-result.html) once they're done.
+      window.location.href = data.url || data.checkout_url;
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+      toast("Payment failed", err.message, "err");
+    }
   }
 
   /* -------------------------------- Bookings -------------------------------- */
@@ -932,6 +1017,7 @@ const api = {
       </div>
       <div class="booking-actions">
         <div class="qr-box" title="QR placeholder">▦▦▦</div>
+        ${b.status === "pending" ? `<button class="btn btn-success btn-sm" data-paynow="${b.orderId}">Pay Now</button>` : ""}
         <button class="btn btn-outline btn-sm" data-download="${b.id}">Download ticket</button>
         ${b.status !== "cancelled" && b.when === "upcoming" ? `<button class="btn btn-danger-outline btn-sm" data-cancel="${b.id}">Cancel booking</button>` : ""}
       </div>
@@ -942,15 +1028,16 @@ const api = {
     const upcomingEl = $("#upcomingBookings");
     const previousEl = $("#previousBookings");
     if (!upcomingEl || !previousEl) return;
-    const upcoming = MOCK_BOOKINGS.filter((b) => b.when === "upcoming");
-    const previous = MOCK_BOOKINGS.filter((b) => b.when === "previous");
+    const upcoming = state.bookings.filter((b) => b.when === "upcoming");
+    const previous = state.bookings.filter((b) => b.when === "previous");
     upcomingEl.innerHTML = upcoming.length ? upcoming.map(bookingCardHTML).join("") : `<div class="empty-state"><div class="icon-wrap">📭</div><h3>No upcoming bookings</h3><p>Browse events to book your next experience.</p><a class="btn btn-primary" href="#" data-goto="browse">Browse events</a></div>`;
     previousEl.innerHTML = previous.length ? previous.map(bookingCardHTML).join("") : `<div class="empty-state"><div class="icon-wrap">🗂️</div><h3>No past bookings yet</h3><p>Your booking history will show up here.</p></div>`;
 
     $$("[data-cancel]").forEach((btn) => btn.addEventListener("click", () => {
-      const b = MOCK_BOOKINGS.find((x) => x.id === btn.dataset.cancel);
+      const b = state.bookings.find((x) => x.id === btn.dataset.cancel);
       if (b) { b.status = "cancelled"; toast("Booking cancelled", `${b.id} has been cancelled.`, "warn"); renderBookings(); }
     }));
+    $$("[data-paynow]").forEach((btn) => btn.addEventListener("click", () => payNowFromBookings(btn)));
     $$("[data-download]").forEach((btn) => btn.addEventListener("click", () => {
       toast("Preparing ticket", "Your PDF ticket download will start shortly.", "ok");
     }));
@@ -1078,7 +1165,7 @@ const api = {
     try {
       const me = await (await fetch(`${API_BASE}/users/me`, { headers: authHeaders() })).json();
       if (!me.role_selected) {
-        window.location.href = "../role-selection/index.html";
+        window.location.href = "../role/index.html";
         return;
       }
       if (me.role !== "customer") {
@@ -1112,6 +1199,13 @@ const api = {
       console.error("Couldn't load events:", err);
       state.events = [];
       toast("Couldn't reach the server", "Some content may be missing.", "warn");
+    }
+
+    try {
+      state.bookings = await api.getBookings(state.events);
+    } catch (err) {
+      console.error("Couldn't load bookings:", err);
+      state.bookings = [];
     }
 
     renderFeatured();

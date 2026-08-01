@@ -1463,7 +1463,7 @@
     try {
       currentUser = await api.auth.me();
       if (!currentUser.role_selected) {
-        window.location.href = "../role-selection/index.html";
+        window.location.href = "../role/index.html";
         return;
       }
       if (currentUser.role !== "organizer") {

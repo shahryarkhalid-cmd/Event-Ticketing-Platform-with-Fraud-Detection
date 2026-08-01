@@ -207,7 +207,7 @@
 
       // Redirect the whole page to Stripe's hosted checkout, same as the
       // original checkout flow in customer-window/script.js.
-      window.location.href = data.checkout_url;
+      window.location.href = data.url || data.checkout_url;
     } catch (err) {
       setTryAgainLoading(false);
       window.location.href = DASHBOARD_URL;

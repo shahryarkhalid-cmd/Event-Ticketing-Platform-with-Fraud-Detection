@@ -202,6 +202,17 @@ p {
   box-shadow: var(--shadow-md);
 }
 
+.btn-success {
+  background: var(--success);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-success:hover {
+  background: #0ea472;
+  box-shadow: var(--shadow-md);
+}
+
 .btn-outline {
   background: transparent;
   color: var(--primary);

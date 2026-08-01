@@ -16,6 +16,22 @@
   const appleBtn = document.getElementById('apple-btn');
 
   const MIN_PASSWORD_LENGTH = 8;
+
+  // Same formatting as signup.js — FastAPI's 422 "detail" is often an
+  // array of {loc, msg, type} objects, not a plain string.
+  function formatErrorDetail(detail) {
+    if (!detail) return '';
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      return detail.map((d) => {
+        if (typeof d === 'string') return d;
+        const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : '';
+        return field ? `${field}: ${d.msg}` : (d.msg || JSON.stringify(d));
+      }).join('; ');
+    }
+    if (typeof detail === 'object') return detail.msg || JSON.stringify(detail);
+    return String(detail);
+  }
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   /* ---------------------------------------------------
@@ -139,6 +155,9 @@
     });
 
     if (!response.ok) {
+      let detail = '';
+      try { const errBody = await response.json(); detail = formatErrorDetail(errBody.detail); } catch (e) { /* ignore */ }
+      console.error(`POST /auth/login → ${response.status}${detail ? `: ${detail}` : ''}`);
       return { ok: false };
     }
 
@@ -153,6 +172,7 @@
     });
 
     if (!meResponse.ok) {
+      console.error(`GET /users/me → ${meResponse.status}`);
       return { ok: false };
     }
 
@@ -183,7 +203,7 @@
         if (result && result.ok) {
           if (!result.roleSelected) {
             showStatus('Login successful — let\'s set up your account…', false);
-            window.location.href = '../role-selection/index.html';
+            window.location.href = '../role/index.html';
             return;
           }
 
@@ -214,7 +234,7 @@
     // Hook up real OAuth redirect here, e.g. window.location.href = '/auth/google';
   }
 
-  googleBtn.addEventListener('click', () => handleSocialLogin('Google'));
-  appleBtn.addEventListener('click', () => handleSocialLogin('Apple'));
+  googleBtn?.addEventListener('click', () => handleSocialLogin('Google'));
+  appleBtn?.addEventListener('click', () => handleSocialLogin('Apple'));
 
 })();
