@@ -23,7 +23,12 @@ class User(SQLModel, table=True):
     is_verified: bool = Field(default=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
+    profile_picture_url: Optional[str] = None
+    profile_picture_storage_path: Optional[str] = None
     
+    phone: Optional[str] = None
+    company: Optional[str] = None   # organizer-specific
+    city: Optional[str] = None      # customer-specific
 class UserCreate(BaseModel):
     email : str 
     full_name : str
@@ -39,6 +44,14 @@ class UserRead(BaseModel):
     full_name: str
     role: Optional[UserRole]
     role_selected: bool
+    profile_picture_url: Optional[str] = None
 
 class RoleSelect(BaseModel):
     role: UserRole
+    
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    city: Optional[str] = None

@@ -103,3 +103,62 @@ def select_role(role_data: RoleSelect, user: User, session: Session):
     session.add(user)
     logging.info(f"Role '{role_data.role}' set for user {user.id}")
     return {"message": "Role set successfully", "role": user.role}
+
+
+# services/user_service.py
+import uuid
+from fastapi import HTTPException
+from core.supabase_client import supabase
+
+PROFILE_BUCKET = "profile-pictures"
+ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_SIZE_MB = 3  # profile pics can be smaller than event banners
+
+async def upload_profile_picture_service(file, current_user, session):
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(400, "Only JPEG, PNG, or WEBP images are allowed")
+
+    contents = await file.read()
+    if len(contents) > MAX_SIZE_MB * 1024 * 1024:
+        raise HTTPException(400, f"File too large. Max {MAX_SIZE_MB}MB")
+
+    ext = file.filename.split(".")[-1].lower()
+    storage_path = f"{current_user.id}/{uuid.uuid4().hex}.{ext}"
+
+    if current_user.profile_picture_storage_path:
+        try:
+            supabase.storage.from_(PROFILE_BUCKET).remove([current_user.profile_picture_storage_path])
+        except Exception:
+            pass
+
+    supabase.storage.from_(PROFILE_BUCKET).upload(
+        path=storage_path,
+        file=contents,
+        file_options={"content-type": file.content_type, "upsert": "true"},
+    )
+    picture_url = supabase.storage.from_(PROFILE_BUCKET).get_public_url(storage_path)
+
+    current_user.profile_picture_url = picture_url
+    current_user.profile_picture_storage_path = storage_path
+    session.add(current_user)
+    session.flush()
+    session.refresh(current_user)
+
+    return {"profile_picture_url": picture_url}
+
+
+# services/user_service.py
+from datetime import datetime , timezone
+from models.Users import UserUpdate
+def update_user_profile_service(update_data: UserUpdate, current_user: User, session: Session):
+    update_fields = update_data.model_dump(exclude_unset=True)  # only fields actually sent
+
+    for field, value in update_fields.items():
+        setattr(current_user, field, value)
+
+    current_user.updated_at = datetime.now(timezone.utc)
+    session.add(current_user)
+    session.flush()
+    session.refresh(current_user)
+
+    return current_user
