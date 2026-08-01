@@ -319,7 +319,11 @@ def update_event_with_tiers(id: int, event_data: EventUpdateWithTiers, user: Use
     for field, value in update_dict.items():
         setattr(event, field, value)
     session.add(event)
-
+    if not event_data.terms_accepted:
+        raise HTTPException(400, "You must accept the organizer terms and conditions")
+       
+    if event_data.start_datetime >= event_data.end_datetime:
+        raise HTTPException(400, "Event end time must be after start time")
     new_tiers = []
     if event_data.ticket_tiers is not None:
         existing_tiers = session.exec(select(TicketTier).where(TicketTier.event_id == id)).all()

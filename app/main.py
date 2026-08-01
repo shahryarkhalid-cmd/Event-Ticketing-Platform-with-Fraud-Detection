@@ -348,3 +348,16 @@ def order_tickets(
     session: Session = Depends(get_session)
 ):
     return get_order_tickets(order_id, user, session)
+
+from fastapi import  UploadFile, File, Depends
+from services.Banner_services import upload_event_banner_service
+# Adding Banner Services:
+# routes/event_routes.py
+@app.post("/events/{event_id}/banner")
+async def upload_event_banner(
+    event_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    return await upload_event_banner_service(event_id, file, current_user, session)

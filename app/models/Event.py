@@ -33,6 +33,9 @@ class Event(SQLModel, table=True):
     organizer_id: int = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
+    banner_url: Optional[str] = None
+    banner_storage_path: Optional[str] = None
+    
     
 class EventCreateWithTiers(BaseModel):
     # Basic info
@@ -82,6 +85,8 @@ class EventRead(BaseModel):
 
     organizer_id: int
     created_at: datetime
+    
+    banner_url: Optional[str] = None
     
     
 
