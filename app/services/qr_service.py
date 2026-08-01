@@ -26,13 +26,13 @@ def get_ticket_qr(ticket_uid: str, user: User, session: Session):
     order_item = session.get(OrderItem, ticket.order_item_id)
     order = session.get(Order, order_item.order_id)
     if order.user_id != user.id:
-        raise Not_Your_Ticket
+        raise Not_Your_Ticket()
     
     return generate_qr_image_response(ticket.ticket_uid)
 
 from models.Users import UserRole
 from datetime import datetime , timezone
-def check_in_ticket(ticket_uid: str, session: Session):
+def check_in_ticket(ticket_uid: str, user , session: Session):
     
     if user.role != UserRole.organizer:
         raise Forbidden()

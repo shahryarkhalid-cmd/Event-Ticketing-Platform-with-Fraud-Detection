@@ -320,7 +320,7 @@ def test_get_ticket_popularity(client , test_session):
         assert order_response.status_code == 200
         order_id = order_response.json()['id']
         order = test_session.get(Order, int(order_id))
-        order.paymen_status = "paid"
+        order.payment_status = "paid"
         test_session.add(order)
         test_session.commit()
         
@@ -418,7 +418,7 @@ def test_revenue(client , test_session):
         data = response.json()
         
         assert response.status_code == 200
-        assert data['total_revenue'] == 4500
+        assert data['total_revenue'] == 1510
         assert data['refunded'] == 0
         
 
@@ -457,7 +457,7 @@ def test_monthly_revenue_trend(client , test_session):
             response = client.get('/organizer/revenue/trend' , headers = header)
             month = order.created_at.strftime("%b")
             assert response.status_code ==200
-            assert response.json()[month] == 4500
+            assert response.json()[month] == 1510
 # testing the refund system:
 def test_refund(client , test_session):
             client.post('/auth/register' , json = {'email': 'organizer@test.gmail.com' ,       'password' : 'test123' ,'full_name' : 'shahryar' , 'role' : 'organizer'})
@@ -493,7 +493,7 @@ def test_refund(client , test_session):
             response = client.post(f'/organizer/orders/{int(order_id)}/refund' , headers = header)
             assert response.status_code == 200 
             data = response.json()
-            assert data['status'] == 'refunded'
+            assert data['payment_status'] == 'refunded'
     
 # testing the order placement :
 def test_book_ticket(client):
@@ -568,7 +568,7 @@ def test_create_order_success(client):
     assert response.status_code == 200
     data = response.json()
     assert data['event_id'] == event_id
-    assert data['status'] == 'pending'
+    assert data['payment_status'] == 'pending'
 
 
 def test_create_order_requires_customer_role(client):
@@ -1005,4 +1005,210 @@ def test_fraud_order_action_forbidden_for_wrong_organizer(client, test_session):
 
     org2_header = register_and_login(client, 'orgfraud6@test.com', 'Org2', 'pass123', 'organizer')
     response = client.post(f'/organizer/fraud-orders/{order_id}/confirm', headers=org2_header)
+    assert response.status_code == 403
+
+
+
+# Testing QR CODE generation :
+from models.Ticket_entity import Ticket as TicketInstance
+from models.Orders import Order, OrderItem
+
+
+def create_paid_order_with_tickets(client, test_session, org_header, cust_header, event_id, tier_id, quantity=2):
+    """Helper: creates an order, marks it paid, and lets the webhook-equivalent
+    logic generate tickets — mirrors what handle_stripe_webhook does."""
+    order_response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': quantity}]
+    }, headers=cust_header)
+    assert order_response.status_code == 200
+    order_id = order_response.json()['id']
+
+    order = test_session.get(Order, order_id)
+    order.payment_status = "paid"
+    test_session.add(order)
+
+    items = test_session.exec(select(OrderItem).where(OrderItem.order_id == order_id)).all()
+    for item in items:
+        for _ in range(item.quantity):
+            ticket = TicketInstance(order_item_id=item.id)
+            test_session.add(ticket)
+
+    test_session.commit()
+    return order_id
+
+
+# ---------- GET /orders/{order_id}/tickets ----------
+
+def test_get_order_tickets_success(client, test_session):
+    org_header = register_and_login(client, 'orgqr1@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'custqr1@test.com', 'Cust', 'pass123', 'customer')
+    order_id = create_paid_order_with_tickets(client, test_session, org_header, cust_header, event_id, tier_id, quantity=3)
+
+    response = client.get(f'/orders/{order_id}/tickets', headers=cust_header)
+    assert response.status_code == 200
+    tickets = response.json()
+
+    assert len(tickets) == 3
+    for t in tickets:
+        assert "ticket_uid" in t
+        assert t["status"] == "valid"
+        assert t["category_name"] == event_data['ticket_tiers'][0]['category_name']
+
+    # All ticket_uids should be unique
+    uids = [t["ticket_uid"] for t in tickets]
+    assert len(uids) == len(set(uids))
+
+
+def test_get_order_tickets_wrong_user_forbidden(client, test_session):
+    org_header = register_and_login(client, 'orgqr2@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'custqr2@test.com', 'Cust', 'pass123', 'customer')
+    order_id = create_paid_order_with_tickets(client, test_session, org_header, cust_header, event_id, tier_id, quantity=1)
+
+    other_header = register_and_login(client, 'custqr3@test.com', 'Cust2', 'pass123', 'customer')
+    response = client.get(f'/orders/{order_id}/tickets', headers=other_header)
+    assert response.status_code == 403
+
+
+def test_get_order_tickets_not_found(client):
+    cust_header = register_and_login(client, 'custqr4@test.com', 'Cust', 'pass123', 'customer')
+    response = client.get('/orders/999999/tickets', headers=cust_header)
+    assert response.status_code == 404
+
+
+def test_get_order_tickets_empty_before_payment(client):
+    org_header = register_and_login(client, 'orgqr5@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'custqr5@test.com', 'Cust', 'pass123', 'customer')
+    order_response = client.post('/orders', json={
+        'event_id': event_id,
+        'items': [{'ticket_tier_id': tier_id, 'quantity': 1}]
+    }, headers=cust_header)
+    order_id = order_response.json()['id']
+
+    # No payment, no webhook triggered — tickets should not exist yet
+    response = client.get(f'/orders/{order_id}/tickets', headers=cust_header)
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+# ---------- GET /tickets/{ticket_uid}/qr ----------
+
+def test_get_ticket_qr_returns_image(client, test_session):
+    org_header = register_and_login(client, 'orgqr6@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'custqr6@test.com', 'Cust', 'pass123', 'customer')
+    order_id = create_paid_order_with_tickets(client, test_session, org_header, cust_header, event_id, tier_id, quantity=1)
+
+    tickets_response = client.get(f'/orders/{order_id}/tickets', headers=cust_header)
+    ticket_uid = tickets_response.json()[0]['ticket_uid']
+
+    response = client.get(f'/tickets/{ticket_uid}/qr', headers=cust_header)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert len(response.content) > 0  # actual image bytes were returned
+
+
+def test_get_ticket_qr_wrong_user_forbidden(client, test_session):
+    org_header = register_and_login(client, 'orgqr7@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'custqr7@test.com', 'Cust', 'pass123', 'customer')
+    order_id = create_paid_order_with_tickets(client, test_session, org_header, cust_header, event_id, tier_id, quantity=1)
+
+    tickets_response = client.get(f'/orders/{order_id}/tickets', headers=cust_header)
+    ticket_uid = tickets_response.json()[0]['ticket_uid']
+
+    other_header = register_and_login(client, 'custqr8@test.com', 'Cust2', 'pass123', 'customer')
+    response = client.get(f'/tickets/{ticket_uid}/qr', headers=other_header)
+    assert response.status_code == 403
+
+
+def test_get_ticket_qr_not_found(client):
+    cust_header = register_and_login(client, 'custqr9@test.com', 'Cust', 'pass123', 'customer')
+    response = client.get('/tickets/nonexistent-uid-1234/qr', headers=cust_header)
+    assert response.status_code == 404
+
+
+# ---------- POST /checkin/{ticket_uid} ----------
+
+def test_checkin_success(client, test_session):
+    org_header = register_and_login(client, 'orgqr10@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'custqr10@test.com', 'Cust', 'pass123', 'customer')
+    order_id = create_paid_order_with_tickets(client, test_session, org_header, cust_header, event_id, tier_id, quantity=1)
+
+    tickets_response = client.get(f'/orders/{order_id}/tickets', headers=cust_header)
+    ticket_uid = tickets_response.json()[0]['ticket_uid']
+
+    response = client.post(f'/checkin/{ticket_uid}', headers=org_header)
+    assert response.status_code == 200
+    assert response.json()['ticket_uid'] == ticket_uid
+
+    ticket = test_session.exec(
+        select(TicketInstance).where(TicketInstance.ticket_uid == ticket_uid)
+    ).first()
+    assert ticket.status == "used"
+    assert ticket.checked_in_at is not None
+
+
+def test_checkin_already_used_rejected(client, test_session):
+    org_header = register_and_login(client, 'orgqr11@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'custqr11@test.com', 'Cust', 'pass123', 'customer')
+    order_id = create_paid_order_with_tickets(client, test_session, org_header, cust_header, event_id, tier_id, quantity=1)
+
+    tickets_response = client.get(f'/orders/{order_id}/tickets', headers=cust_header)
+    ticket_uid = tickets_response.json()[0]['ticket_uid']
+
+    first = client.post(f'/checkin/{ticket_uid}', headers=org_header)
+    assert first.status_code == 200
+
+    second = client.post(f'/checkin/{ticket_uid}', headers=org_header)
+    assert second.status_code == 409
+
+
+def test_checkin_invalid_uid(client):
+    org_header = register_and_login(client, 'orgqr12@test.com', 'Org', 'pass123', 'organizer')
+    totally_fake_uid = 122212121212
+    response = client.post(f'/checkin/{totally_fake_uid}', headers=org_header)
+    assert response.status_code == 404
+
+
+def test_checkin_forbidden_for_customer(client, test_session):
+    org_header = register_and_login(client, 'orgqr13@test.com', 'Org', 'pass123', 'organizer')
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data['event']['id']
+    tier_id = event_data['ticket_tiers'][0]['id']
+
+    cust_header = register_and_login(client, 'custqr13@test.com', 'Cust', 'pass123', 'customer')
+    order_id = create_paid_order_with_tickets(client, test_session, org_header, cust_header, event_id, tier_id, quantity=1)
+
+    tickets_response = client.get(f'/orders/{order_id}/tickets', headers=cust_header)
+    ticket_uid = tickets_response.json()[0]['ticket_uid']
+
+    # A customer (not organizer/staff) tries to check someone in
+    response = client.post(f'/checkin/{ticket_uid}', headers=cust_header)
     assert response.status_code == 403

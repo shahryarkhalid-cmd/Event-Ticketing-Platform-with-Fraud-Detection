@@ -33,7 +33,7 @@ def get_current_user(token: str = Depends(oauth_scheme), session: Session = Depe
 
 def register_user(user : UserCreate , session : Session):
     hashed_pass = hash_password(user.password)
-    final_user = User(full_name = user.full_name , hashed_password = hashed_pass , email=user.email , role = user.role)
+    final_user = User(full_name = user.full_name , hashed_password = hashed_pass , email=user.email)
     
     existing_email_user = session.exec(select(User).where(User.email == user.email)).first()
     
@@ -74,7 +74,10 @@ def logging_in(user : UserLogin, session : Session):
 # Returning the logged-in user's own profile (used by the frontend right
 # after login/signup to decide whether to show the role-selection page
 # or send the user straight to their dashboard):
-def get_me(user: User):
+def get_me(user1: User, session: Session):
+    user = session.exec(select(User).where(User.id == user1.id)).first()
+    if not user:
+        raise HTTPException(404, "User not found")
     return {
         "id": user.id,
         "email": user.email,

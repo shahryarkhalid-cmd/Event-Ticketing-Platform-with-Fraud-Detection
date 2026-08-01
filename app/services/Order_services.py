@@ -89,7 +89,7 @@ def get_my_orders(user: User, session: Session):
 from fastapi import HTTPException
 # get_order_status:
 
-
+from models.Ticket_entity import Ticket as TicketInstance
 def get_order_status(order_id: int, user: User, session: Session):
     order = session.get(Order, order_id)
     if not order:
@@ -97,3 +97,29 @@ def get_order_status(order_id: int, user: User, session: Session):
     if order.user_id != user.id:
         raise HTTPException(status_code=403, detail="Not your order")
     return order
+
+
+def get_order_tickets(order_id: int, user: User, session: Session):
+    order = session.get(Order, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not your order")
+
+    items = session.exec(select(OrderItem).where(OrderItem.order_id == order_id)).all()
+    item_ids = [i.id for i in items]
+
+    tickets = session.exec(
+        select(TicketInstance).where(TicketInstance.order_item_id.in_(item_ids))
+    ).all() if item_ids else []
+
+    result = []
+    for ticket in tickets:
+        item = session.get(OrderItem, ticket.order_item_id)
+        tier = session.get(TicketTier, item.ticket_tier_id) if item else None
+        result.append({
+            "ticket_uid": ticket.ticket_uid,
+            "status": ticket.status,
+            "category_name": tier.category_name if tier else "Unknown",
+        })
+    return result

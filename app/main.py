@@ -19,7 +19,7 @@ from dependencies.exception import (Email_exist , User_Exist ,password_mismatch 
             Not_Pending_Order , not_your_event , Not_Your_Event 
             , invalid_webhook_payload_handler , invalid_webhook_signature_handler ,InvalidWebhookPayload ,InvalidWebhookSignature
             , Role_Already_Set , Invalid_Role_Selection , role_already_set , invalid_role_selection , Not_Your_Ticket , Ticket_Not_Found
-            , not_your_ticket , ticket_not_found)
+            , not_your_ticket , ticket_not_found , invalid_ticket , Invalid_Ticket , ticket_already_used , Ticket_Already_Used)
 from models.Ticket import TicketTierRead
 from typing import Optional 
 from fastapi import Query
@@ -98,6 +98,8 @@ app.add_exception_handler(Role_Already_Set , role_already_set)
 app.add_exception_handler(Invalid_Role_Selection , invalid_role_selection)
 app.add_exception_handler(Not_Your_Ticket , not_your_ticket)
 app.add_exception_handler(Ticket_Not_Found , ticket_not_found)
+app.add_exception_handler(Invalid_Ticket , invalid_ticket)
+app.add_exception_handler(Ticket_Already_Used , ticket_already_used)
 
 logger = logging.getLogger(__name__)
 # Health checking and home page:
@@ -136,8 +138,8 @@ def login(user : UserLogin , session : Session = Depends(get_session)):
 # already picked a role. The frontend calls this right after login/signup
 # to decide: role-selection page (first time) vs. straight to dashboard.
 @app.get('/users/me', response_model=UserRead)
-def read_current_user(user: User = Depends(get_current_user)):
-    return get_me(user)
+def read_current_user(user: User = Depends(get_current_user) ,session : Session = Depends(get_session)):
+    return get_me(user , session)
 
 # One-time role selection (customer or organizer). Locked after first use.
 @app.post('/auth/select-role')
@@ -320,7 +322,7 @@ def Get_Ticket_qr(ticket_uid: str, user: User = Depends(get_current_user), sessi
 
 @app.post("/checkin/{ticket_uid}")
 def checkin(ticket_uid: str, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    return check_in_ticket(ticket_uid, session)
+    return check_in_ticket(ticket_uid, user ,  session)
 
 
 # For Fraud Detection Dashboard:
@@ -336,3 +338,13 @@ def confirm_fraud(order_id: int, user: User = Depends(get_current_user), session
 @app.post("/organizer/fraud-orders/{order_id}/dismiss")
 def dismiss_fraud(order_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     return update_fraud_status(order_id, "dismissed", user, session)
+
+from services.Order_services import get_order_tickets
+# Getting order Tickets :
+@app.get("/orders/{order_id}/tickets")
+def order_tickets(
+    order_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return get_order_tickets(order_id, user, session)
