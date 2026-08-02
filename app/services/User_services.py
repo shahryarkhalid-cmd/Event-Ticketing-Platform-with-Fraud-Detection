@@ -33,7 +33,7 @@ def get_current_user(token: str = Depends(oauth_scheme), session: Session = Depe
 from services.Verification_service import generate_and_send_otp
 def register_user(user : UserCreate , session : Session):
     hashed_pass = hash_password(user.password)
-    final_user = User(full_name = user.full_name , hashed_password = hashed_pass , email=user.email , role = user.role)
+    final_user = User(full_name = user.full_name , hashed_password = hashed_pass , email=user.email)
     
     existing_email_user = session.exec(select(User).where(User.email == user.email)).first()
     

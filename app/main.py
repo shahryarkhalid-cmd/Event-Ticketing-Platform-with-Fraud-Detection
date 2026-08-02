@@ -1,4 +1,4 @@
-from fastapi import FastAPI , Depends
+from fastapi import FastAPI , Depends , Request
 import logging
 from database import create_table
 from sqlmodel import Session ,select
@@ -46,7 +46,13 @@ def run_expiry_job():
 scheduler = BackgroundScheduler()
 scheduler.add_job(run_expiry_job, "interval", minutes=10)
 
+# Adding Rate Limiting:
+# main.py
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
+limiter = Limiter(key_func=get_remote_address)
 # ===========================================================================================
 
 def lifespan(app: FastAPI):
@@ -74,7 +80,7 @@ logging.basicConfig(
     format= "%(asctime)s - %(levelname)s - %(message)s"
     )
 
-
+app.state.limiter = limiter
 # Adding Exceptions :
 app.add_exception_handler(Email_exist , email_existing)
 app.add_exception_handler(User_Exist , user_existence)
@@ -100,6 +106,7 @@ app.add_exception_handler(Not_Your_Ticket , not_your_ticket)
 app.add_exception_handler(Ticket_Not_Found , ticket_not_found)
 app.add_exception_handler(Invalid_Ticket , invalid_ticket)
 app.add_exception_handler(Ticket_Already_Used , ticket_already_used)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 logger = logging.getLogger(__name__)
 # Health checking and home page:
@@ -131,7 +138,8 @@ def login(user : OAuth2PasswordRequestForm = Depends() , session : Session = Dep
     return logging_in(user , session)'''
 
 @ app.post('/auth/login')
-def login(user : UserLogin , session : Session = Depends(get_session)):
+@limiter.limit("5/minute")
+def login(request : Request ,user : UserLogin , session : Session = Depends(get_session)):
     return logging_in(user , session)
 
 # Returns the logged-in user's profile, including whether they have
@@ -151,7 +159,9 @@ def choose_role(
     return select_role(role_data, user, session)
 
 @app.post("/publish-event")
+@limiter.limit("5/month")
 def publish_event_route(
+    request : Request ,
     event_data: EventCreateWithTiers,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
@@ -160,19 +170,23 @@ def publish_event_route(
 
 
 @ app.get('/get_all_events')
-def get_all_event(user : User = Depends(get_current_user) , session : Session = Depends(get_session)):
+@limiter.limit("5/minute")
+def get_all_event( request : Request ,user : User = Depends(get_current_user) , session : Session = Depends(get_session)):
     return get_organizer_events(user , session)
 
 @ app.get('/get_event/{id}')
-def get_event(id : int , user : User = Depends(get_current_user) , session : Session = Depends(get_session)):
+@limiter.limit("5/minute")
+def get_event(request : Request , id : int , user : User = Depends(get_current_user) , session : Session = Depends(get_session)):
     return get_specific_event(id , user , session)
 
 @ app.delete('/delete_event/{id}')
-def delete_event(id : int , user : User = Depends(get_current_user), session : Session = Depends(get_session)):
+@limiter.limit("5/minute")
+def delete_event( request : Request ,id : int , user : User = Depends(get_current_user), session : Session = Depends(get_session)):
     return delete_organizer_event(id , user , session)
 
 @ app.delete('/delete_all_event')
-def delete_all_event(user : User = Depends(get_current_user) , session : Session = Depends(get_session)):
+@limiter.limit("5/minute")
+def delete_all_event(request : Request ,user : User = Depends(get_current_user) , session : Session = Depends(get_session)):
     return delete_all_organizer_event(user , session)
 
 
