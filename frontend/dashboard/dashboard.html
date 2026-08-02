@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="../shared/terms-modal.css" />
 </head>
 <body>
 
@@ -310,6 +311,17 @@
                 <span>Description</span>
                 <textarea id="f_description" rows="3" placeholder="Tell attendees what to expect…"></textarea>
               </label>
+              <label class="field field-full">
+                <span>Upload Event Banner</span>
+                <input type="file" id="f_banner" accept="image/png, image/jpeg, image/webp" />
+              </label>
+              <div class="field field-full" id="bannerPreviewWrap" style="display:none;">
+                <span>Preview</span>
+                <div class="banner-preview">
+                  <img id="bannerPreviewImg" alt="Event banner preview" />
+                  <button type="button" class="btn btn-outline btn-sm" id="removeBannerBtn">Remove Image</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -345,7 +357,7 @@
               </label>
               <label class="field field-full"><span>Refund Policy</span><textarea id="f_refund" rows="2" placeholder="e.g. Full refund up to 7 days before event"></textarea></label>
               <label class="field field-full checkbox-field">
-                <input type="checkbox" id="f_terms" /><span>I agree to Tixora's organizer Terms & Conditions *</span>
+                <input type="checkbox" id="f_terms" /><span>I agree to Tixora's <a href="#" class="js-terms-link" data-terms-checkbox="f_terms">organizer Terms &amp; Conditions</a> *</span>
               </label>
             </div>
           </div>
@@ -576,6 +588,7 @@
 <!-- Toast container -->
 <div class="toast-stack" id="toastStack"></div>
 
+<script src="../shared/terms-modal.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

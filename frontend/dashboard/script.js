@@ -127,6 +127,9 @@
       parking: evt.parking_available,
       food: evt.food_available,
       refund: evt.refund_policy,
+      // Event Image Upload feature — the real backend stores this as
+      // `banner_url` on the Event model (set via POST /events/:id/banner).
+      banner: evt.banner_url || null,
       // TODO: the backend doesn't distinguish draft/published yet, so
       // "Save as Draft" in the UI doesn't actually persist as a draft —
       // it will come back as whatever `evt.status` is (or "published" if
@@ -243,6 +246,25 @@
       // DELETE /delete_event/:id
       async remove(id) {
         return fetchJSON(`${API_BASE}/delete_event/${id}`, { method: "DELETE", headers: authHeaders() });
+      },
+      // POST /events/:id/banner — multipart file upload (separate from event
+      // create/update; the event must already exist since this needs its id).
+      async uploadBanner(id, file) {
+        const token = localStorage.getItem("access_token");
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch(`${API_BASE}/events/${id}/banner`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` }, // no Content-Type — browser sets the multipart boundary
+          body: formData
+        });
+        if (!res.ok) {
+          let detail = "";
+          try { const errBody = await res.json(); detail = errBody.detail; } catch (e) { /* ignore */ }
+          console.error(`POST /events/${id}/banner → ${res.status}${detail ? `: ${detail}` : ""}`);
+          throw new Error(detail || `Banner upload failed (${res.status})`);
+        }
+        return res.json(); // { banner_url }
       }
     },
     bookings: {
@@ -300,6 +322,8 @@
   let fraudRecords = [];
   let currentTicketDraft = []; // ticket categories being edited in the Create/Edit form
   let editingEventId = null;
+  let currentBannerFile = null; // the File object to upload via POST /events/:id/banner
+  let currentBannerPreviewUrl = null; // data URL used only for the local <img> preview
   let pendingDeleteId = null;
 
   /* ------------------------------------------------------------------ */
@@ -419,7 +443,7 @@
     const revenue = evt.tickets.reduce((s, t) => s + (t.sold || 0) * t.price, 0);
     return `
     <article class="event-card" data-id="${evt.id}">
-      <div class="event-poster" role="img" aria-label="${evt.name} banner"></div>
+      <div class="event-poster" role="img" aria-label="${evt.name} banner">${evt.banner ? `<img src="${evt.banner}" alt="" loading="lazy" />` : ""}</div>
       <div class="event-body">
         <div class="event-top-row">
           <h4 class="event-name">${evt.name}</h4>
@@ -700,10 +724,71 @@
   function resetEventForm() {
     editingEventId = null;
     currentTicketDraft = [];
+    currentBannerFile = null;
     $("#eventForm").reset();
     $("#eventFormTitle").textContent = "Create Event";
     $("#publishBtn").textContent = "Publish Event";
+    setBannerPreview(null);
     renderTicketDraft();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Event Image Upload — banner file select, preview, and removal       */
+  /* The actual upload happens separately via POST /events/:id/banner    */
+  /* (see api.events.uploadBanner) once the event has a real id.         */
+  /* ------------------------------------------------------------------ */
+  function setBannerPreview(url) {
+    currentBannerPreviewUrl = url || null;
+    const wrap = $("#bannerPreviewWrap");
+    const img = $("#bannerPreviewImg");
+    if (currentBannerPreviewUrl) {
+      img.src = currentBannerPreviewUrl;
+      wrap.style.display = "";
+    } else {
+      img.src = "";
+      wrap.style.display = "none";
+    }
+  }
+
+  function bindBannerUpload() {
+    const input = $("#f_banner");
+    const removeBtn = $("#removeBannerBtn");
+    if (!input) return;
+
+    input.addEventListener("change", () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      // Mirrors the backend's own validation (Banner_services.py) so the
+      // organizer gets instant feedback instead of waiting on a round-trip.
+      const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast("Please choose a JPEG, PNG, or WEBP image.", "danger");
+        input.value = "";
+        return;
+      }
+      const MAX_BYTES = 5 * 1024 * 1024; // backend's MAX_SIZE_MB = 5
+      if (file.size > MAX_BYTES) {
+        toast("Image is too large — please choose one under 5MB.", "danger");
+        input.value = "";
+        return;
+      }
+
+      currentBannerFile = file;
+      const reader = new FileReader();
+      reader.onload = () => setBannerPreview(reader.result);
+      reader.onerror = () => toast("Couldn't read that image — please try another file.", "danger");
+      reader.readAsDataURL(file); // local preview only — the actual upload sends `file` itself
+    });
+
+    removeBtn?.addEventListener("click", () => {
+      input.value = "";
+      currentBannerFile = null;
+      setBannerPreview(null);
+      // NOTE: this only clears the pending selection client-side. There is
+      // no backend endpoint to delete an already-uploaded banner_url, so if
+      // the event already has one, it will remain until replaced with a new upload.
+    });
   }
 
   /* ------------------------------------------------------------------ */
@@ -834,6 +919,7 @@
     $("#f_food").checked = !!evt.food;
     $("#f_refund").value = evt.refund || "";
     $("#f_terms").checked = true;
+    setBannerPreview(evt.banner || null);
 
     renderTicketDraft();
   }
@@ -891,13 +977,26 @@
     if (status === "published" && !validateEventForm(data)) return;
 
     try {
+      let savedEvent;
       if (editingEventId) {
-        await api.events.update(editingEventId, data);
+        savedEvent = await api.events.update(editingEventId, data);
         toast("Event updated successfully", "success");
       } else {
-        await api.events.create(data);
+        savedEvent = await api.events.create(data);
         toast(status === "draft" ? "Event saved as draft" : "Event published successfully", "success");
       }
+
+      // Event Image Upload feature — only re-upload if the organizer picked a
+      // NEW file in this session; leave an existing banner untouched otherwise.
+      if (currentBannerFile && savedEvent?.id) {
+        try {
+          await api.events.uploadBanner(savedEvent.id, currentBannerFile);
+        } catch (bannerErr) {
+          console.error("Banner upload failed:", bannerErr);
+          toast("Event saved, but the banner image failed to upload — you can try re-uploading it from Edit.", "danger");
+        }
+      }
+
       events = await api.events.list();
       refreshAllEventViews();
       resetEventForm();
@@ -1413,6 +1512,7 @@
       renderTicketDraft();
     });
     bindTicketDraftEvents();
+    bindBannerUpload();
 
     // Form submit / draft / preview
     $("#eventForm").addEventListener("submit", (e) => handleEventSubmit(e, "published"));

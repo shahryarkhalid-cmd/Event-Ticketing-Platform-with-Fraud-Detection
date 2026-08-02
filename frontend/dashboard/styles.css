@@ -356,6 +356,14 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
 .checkbox-field { flex-direction: row; align-items: center; gap: 10px; font-weight: 500; }
 .checkbox-field input { width: 17px; height: 17px; accent-color: var(--secondary); }
 
+.banner-preview { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.banner-preview img {
+  width: 220px; max-width: 100%; height: 120px; object-fit: cover;
+  border-radius: 10px; border: 1px solid var(--border); background: var(--bg);
+}
+.event-poster { position: relative; overflow: hidden; }
+.event-poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
 .capacity-meter { margin: 6px 0 18px; }
 .capacity-meter-top { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
 .progress-track { height: 10px; border-radius: 20px; background: var(--bg); border: 1px solid var(--border); overflow: hidden; }

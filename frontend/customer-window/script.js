@@ -92,6 +92,23 @@ function authHeaders() {
   return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
 }
 
+// FastAPI's 422 "detail" is often an array of {loc, msg, type} objects, not a
+// plain string — without this, `new Error(detail)` renders as "[object Object]"
+// and hides the real reason. Mirrors the same helper in login.js/signup.js.
+function formatErrorDetail(detail) {
+  if (!detail) return "";
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((d) => {
+      if (typeof d === "string") return d;
+      const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : "";
+      return field ? `${field}: ${d.msg}` : (d.msg || JSON.stringify(d));
+    }).join("; ");
+  }
+  if (typeof detail === "object") return detail.msg || JSON.stringify(detail);
+  return String(detail);
+}
+
 const TIER_COLORS = { VIP: "#F59E0B", Premium: "#0B5ED7", General: "#10B981", VVIP: "#8B5CF6" };
 
 // backend Event + TicketTier[] -> shape this file's rendering code expects
@@ -112,7 +129,7 @@ function mapEventFromBackend(evt, tiers) {
     time,
     venue: evt.venue,
     organizer: "", // no organizer name on Event yet — see note below
-    banner: evt.image_url || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop",
+    banner: evt.banner_url || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop",
     price: lowestPrice,
     seatsLeft: totalRemaining,
     trending: false, // not implemented on backend
@@ -148,7 +165,7 @@ function mapBookingFromBackend(order, eventsById) {
     : "pending";
 
   const eventTitle = matchedEvent?.title || order.event?.name || order.event?.title || order.event_name || "Event";
-  const eventBanner = matchedEvent?.banner || order.event?.image_url
+  const eventBanner = matchedEvent?.banner || order.event?.banner_url
     || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop";
   const eventDate = matchedEvent?.date || (order.event?.start_datetime || "").split("T")[0];
 
@@ -211,8 +228,10 @@ const api = {
       })
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "Order failed");
+      let detail = "";
+      try { const errBody = await res.json(); detail = formatErrorDetail(errBody.detail); } catch (e) { /* body wasn't JSON */ }
+      console.error(`POST /orders → ${res.status}${detail ? `: ${detail}` : ""}`);
+      throw new Error(detail || `Order request failed (${res.status})`);
     }
     const order = await res.json();
     return { orderId: order.id, ...payload };
@@ -644,7 +663,12 @@ const api = {
   function renderFeatured() {
     const el = $("#featuredGrid");
     if (!el) return;
-    el.innerHTML = state.events.slice(0, 3).map(eventCardHTML).join("");
+    // "Newest events first" — the backend doesn't yet return a created_at
+    // timestamp for events, so this uses the numeric id as a stand-in
+    // (higher id = created more recently, since ids are auto-incrementing).
+    // Swap this for a real `evt.createdAt` sort the moment the backend adds one.
+    const newestFirst = state.events.slice().sort((a, b) => Number(b.id) - Number(a.id));
+    el.innerHTML = newestFirst.slice(0, 3).map(eventCardHTML).join("");
     bindCardEvents(el);
   }
 
@@ -910,7 +934,8 @@ const api = {
           .then((bookings) => { state.bookings = bookings; renderBookings(); })
           .catch((e) => console.error("Couldn't refresh bookings:", e));
       } catch (err) {
-        toast("Order failed", "Something went wrong. Please try again.", "err");
+        console.error("Order creation failed:", err);
+        toast("Order failed", err.message || "Something went wrong. Please try again.", "err");
       } finally {
         btn.disabled = false;
         btn.innerHTML = originalHTML;
@@ -957,16 +982,19 @@ const api = {
           method: "POST",
           headers: authHeaders()
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
         if (!res.ok) {
-          throw new Error(data.detail || "Could not start checkout");
+          const detail = formatErrorDetail(data.detail);
+          console.error(`POST /orders/${orderId}/checkout → ${res.status}${detail ? `: ${detail}` : ""}`);
+          throw new Error(detail || `Could not start checkout (${res.status})`);
         }
 
         // Redirect the whole page to Stripe's hosted checkout
         window.location.href = data.url || data.checkout_url;
 
       } catch (err) {
+        console.error("Checkout failed:", err);
         $("#payLoading").classList.add("hidden");
         $("#payFailed").classList.remove("hidden");
         toast("Payment failed", err.message, "err");
@@ -986,12 +1014,17 @@ const api = {
         method: "POST",
         headers: authHeaders()
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Could not start checkout");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = formatErrorDetail(data.detail);
+        console.error(`POST /orders/${orderId}/checkout → ${res.status}${detail ? `: ${detail}` : ""}`);
+        throw new Error(detail || `Could not start checkout (${res.status})`);
+      }
       // Redirect to Stripe; Stripe sends the user back to the payment
       // confirmation page (payment-result.html) once they're done.
       window.location.href = data.url || data.checkout_url;
     } catch (err) {
+      console.error("Pay Now failed:", err);
       btn.disabled = false;
       btn.textContent = originalLabel;
       toast("Payment failed", err.message, "err");

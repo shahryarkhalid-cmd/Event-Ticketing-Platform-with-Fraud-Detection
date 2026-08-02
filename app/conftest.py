@@ -77,8 +77,19 @@ def _fake_redis():
     import core.redis_client as _rc
     import services.Order_services as _os
     import services.Verification_service as _vs   # <-- add this
+    import services.Password_reset_service as _prs
 
     fake = fakeredis.FakeRedis(decode_responses=True)
     _rc.redis_client = fake
     _os.redis_client = fake
-    _vs.redis_client = fake                        # <-- add this
+    _vs.redis_client = fake 
+    _prs.redis_client = fake 
+    
+@pytest.fixture(autouse=True)
+def mock_email_sending():
+    with patch("services.verification_service.send_verification_email") as mock_verify_send, \
+         patch("services.Password_reset_service.send_password_reset_email") as mock_reset_send:
+        mock_verify_send.return_value = None
+        mock_reset_send.return_value = None
+        yield {"verify": mock_verify_send, "reset": mock_reset_send}
+    

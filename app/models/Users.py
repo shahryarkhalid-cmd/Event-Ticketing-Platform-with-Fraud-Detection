@@ -77,3 +77,15 @@ class OTPVerify(BaseModel):
 
 class ResendVerification(BaseModel):
     email: str
+    
+    
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class VerifyResetCode(BaseModel):
+    email: str
+    code: str
+
+class ResetPasswordConfirm(BaseModel):
+    reset_token: str
+    new_password: str

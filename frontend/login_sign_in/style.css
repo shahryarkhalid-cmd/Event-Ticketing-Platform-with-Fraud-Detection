@@ -716,3 +716,135 @@ img {
     padding-bottom: max(20px, env(safe-area-inset-bottom));
   }
 }
+
+/* =========================================================
+   Email Verification — OTP code input
+   Added for: email-verification.html
+   ========================================================= */
+.otp-row {
+  display: flex;
+  gap: clamp(8px, 2vw, 14px);
+  justify-content: center;
+  margin: 4px 0 2px;
+}
+
+.otp-digit {
+  width: clamp(40px, 11vw, 52px);
+  height: clamp(48px, 13vw, 60px);
+  text-align: center;
+  font-family: var(--font-heading);
+  font-size: clamp(1.1rem, 4vw, 1.4rem);
+  font-weight: 700;
+  color: var(--color-text);
+  background: var(--color-background);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--control-radius);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.otp-digit:focus {
+  outline: none;
+  border-color: var(--color-secondary);
+  background: var(--color-white);
+  box-shadow: 0 0 0 4px rgba(0, 180, 216, 0.15);
+}
+
+.otp-digit.is-invalid {
+  border-color: var(--color-error);
+}
+
+.otp-digit.is-filled {
+  border-color: var(--color-primary-soft);
+}
+
+.verify-email-note {
+  text-align: center;
+  font-size: 0.92rem;
+  color: var(--color-muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.verify-email-note strong {
+  color: var(--color-text);
+}
+
+.resend-row {
+  text-align: center;
+  font-size: 0.88rem;
+  color: var(--color-muted);
+}
+
+.resend-row .link {
+  font-weight: 600;
+}
+
+.resend-row .link[disabled],
+.resend-row .link.is-disabled {
+  pointer-events: none;
+  color: var(--color-muted);
+  opacity: 0.6;
+  text-decoration: none;
+}
+
+/* =========================================================
+   Forgot Password — single-page animated step flow
+   Added for: forgot-password.html
+   ========================================================= */
+.fp-steps {
+  position: relative;
+  overflow: hidden;
+}
+
+.fp-step {
+  display: none;
+  flex-direction: column;
+  gap: 18px;
+  animation: fp-step-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.fp-step.is-active {
+  display: flex;
+}
+
+@keyframes fp-step-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.fp-progress {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.fp-progress i {
+  width: 26px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+  transition: background var(--transition-med);
+}
+
+.fp-progress i.is-done,
+.fp-progress i.is-active {
+  background: var(--color-secondary);
+}
+
+.fp-success-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 4px;
+  border-radius: 50%;
+  background: rgba(46, 204, 113, 0.12);
+  color: var(--color-success);
+  display: grid;
+  place-items: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-step {
+    animation: none;
+  }
+}

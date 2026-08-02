@@ -1763,3 +1763,186 @@ def test_resend_verification_already_verified_rejected(client, mock_email_sendin
 
     response = client.post("/auth/resend-verification", json={"email": "verify8@test.com"})
     assert response.status_code == 400
+    
+    
+# tests/test_password_reset.py
+import services.Password_reset_service as password_reset_module
+
+
+def get_last_reset_code(mock_email_dict, email_expected=None):
+    """Pulls the reset code from the mocked send_password_reset_email call."""
+    mock_send = mock_email_dict["reset"]
+    args, kwargs = mock_send.call_args
+    return args[1] if len(args) > 1 else kwargs["code"]
+
+
+# ---------- POST /auth/forgot-password ----------
+
+def test_forgot_password_existing_email_sends_code(client, mock_email_sending):
+    register_and_login(client, "resetuser1@test.com", "ResetUser", "oldpass123", "customer")
+    mock_email_sending["reset"].reset_mock()  # clear any prior calls
+
+    response = client.post("/auth/forgot-password", json={"email": "resetuser1@test.com"})
+
+    assert response.status_code == 200
+    mock_email_sending["reset"].assert_called_once()
+
+    code = password_reset_module.redis_client.get("password_reset_code:resetuser1@test.com")
+    assert code is not None
+
+
+def test_forgot_password_nonexistent_email_returns_generic_response(client, mock_email_sending):
+    """Should return the SAME response as a real email — no account-existence leak."""
+    response = client.post("/auth/forgot-password", json={"email": "doesnotexist@test.com"})
+
+    assert response.status_code == 200
+    assert "if an account exists" in response.json()["detail"].lower()
+    mock_email_sending["reset"].assert_not_called()
+
+
+def test_forgot_password_response_identical_for_existing_and_nonexistent(client, mock_email_sending):
+    """Confirms both code paths return the exact same message — this IS the security property."""
+    register_and_login(client, "resetuser2@test.com", "ResetUser", "oldpass123", "customer")
+
+    real_response = client.post("/auth/forgot-password", json={"email": "resetuser2@test.com"})
+    fake_response = client.post("/auth/forgot-password", json={"email": "nosuchuser@test.com"})
+
+    assert real_response.json() == fake_response.json()
+    assert real_response.status_code == fake_response.status_code == 200
+
+
+# ---------- POST /auth/verify-reset-code ----------
+
+def test_verify_reset_code_success_returns_token(client, mock_email_sending):
+    register_and_login(client, "resetuser3@test.com", "ResetUser", "oldpass123", "customer")
+    client.post("/auth/forgot-password", json={"email": "resetuser3@test.com"})
+
+    code = get_last_reset_code(mock_email_sending)
+
+    response = client.post("/auth/verify-reset-code", json={
+        "email": "resetuser3@test.com", "code": code
+    })
+
+    assert response.status_code == 200
+    assert "reset_token" in response.json()
+
+
+def test_verify_reset_code_wrong_code_rejected(client, mock_email_sending):
+    register_and_login(client, "resetuser4@test.com", "ResetUser", "oldpass123", "customer")
+    client.post("/auth/forgot-password", json={"email": "resetuser4@test.com"})
+
+    response = client.post("/auth/verify-reset-code", json={
+        "email": "resetuser4@test.com", "code": "000000"
+    })
+
+    assert response.status_code == 400
+
+
+def test_verify_reset_code_expired_or_missing_rejected(client):
+    """No forgot-password call was made, so no code exists in Redis."""
+    register_and_login(client, "resetuser5@test.com", "ResetUser", "oldpass123", "customer")
+
+    response = client.post("/auth/verify-reset-code", json={
+        "email": "resetuser5@test.com", "code": "123456"
+    })
+
+    assert response.status_code == 400
+
+
+def test_verify_reset_code_cannot_be_reused(client, mock_email_sending):
+    register_and_login(client, "resetuser6@test.com", "ResetUser", "oldpass123", "customer")
+    client.post("/auth/forgot-password", json={"email": "resetuser6@test.com"})
+    code = get_last_reset_code(mock_email_sending)
+
+    first = client.post("/auth/verify-reset-code", json={"email": "resetuser6@test.com", "code": code})
+    assert first.status_code == 200
+
+    second = client.post("/auth/verify-reset-code", json={"email": "resetuser6@test.com", "code": code})
+    assert second.status_code == 400  # code was deleted from redis after first successful use
+
+
+# ---------- POST /auth/reset-password ----------
+
+def test_reset_password_success_and_login_works(client, mock_email_sending):
+    register_and_login(client, "resetuser7@test.com", "ResetUser", "oldpass123", "customer")
+    client.post("/auth/forgot-password", json={"email": "resetuser7@test.com"})
+    code = get_last_reset_code(mock_email_sending)
+
+    verify_response = client.post("/auth/verify-reset-code", json={
+        "email": "resetuser7@test.com", "code": code
+    })
+    reset_token = verify_response.json()["reset_token"]
+
+    reset_response = client.post("/auth/reset-password", json={
+        "reset_token": reset_token, "new_password": "newpass456"
+    })
+    assert reset_response.status_code == 200
+
+    # Confirm new password actually works for login
+    login_response = client.post("/auth/login", json={
+        "email": "resetuser7@test.com", "password": "newpass456"
+    })
+    assert login_response.status_code == 200
+    assert "access_token" in login_response.json()
+
+    # Confirm OLD password no longer works
+    old_login_response = client.post("/auth/login", json={
+        "email": "resetuser7@test.com", "password": "oldpass123"
+    })
+    assert old_login_response.status_code == 401
+
+
+def test_reset_password_invalid_token_rejected(client):
+    response = client.post("/auth/reset-password", json={
+        "reset_token": "totally-fake-token", "new_password": "newpass456"
+    })
+
+    assert response.status_code == 400
+
+
+def test_reset_password_token_cannot_be_reused(client, mock_email_sending):
+    register_and_login(client, "resetuser8@test.com", "ResetUser", "oldpass123", "customer")
+    client.post("/auth/forgot-password", json={"email": "resetuser8@test.com"})
+    code = get_last_reset_code(mock_email_sending)
+
+    verify_response = client.post("/auth/verify-reset-code", json={
+        "email": "resetuser8@test.com", "code": code
+    })
+    reset_token = verify_response.json()["reset_token"]
+
+    first_reset = client.post("/auth/reset-password", json={
+        "reset_token": reset_token, "new_password": "firstnewpass"
+    })
+    assert first_reset.status_code == 200
+
+    second_reset = client.post("/auth/reset-password", json={
+        "reset_token": reset_token, "new_password": "secondnewpass"
+    })
+    assert second_reset.status_code == 400  # token deleted after first use
+
+
+# ---------- Full end-to-end flow ----------
+
+def test_full_forgot_password_flow(client, mock_email_sending):
+    register_and_login(client, "resetuser9@test.com", "ResetUser", "originalpass", "customer")
+
+    forgot_response = client.post("/auth/forgot-password", json={"email": "resetuser9@test.com"})
+    assert forgot_response.status_code == 200
+
+    code = get_last_reset_code(mock_email_sending)
+
+    verify_response = client.post("/auth/verify-reset-code", json={
+        "email": "resetuser9@test.com", "code": code
+    })
+    assert verify_response.status_code == 200
+    reset_token = verify_response.json()["reset_token"]
+
+    reset_response = client.post("/auth/reset-password", json={
+        "reset_token": reset_token, "new_password": "brandnewpass"
+    })
+    assert reset_response.status_code == 200
+
+    login_response = client.post("/auth/login", json={
+        "email": "resetuser9@test.com", "password": "brandnewpass"
+    })
+    assert login_response.status_code == 200

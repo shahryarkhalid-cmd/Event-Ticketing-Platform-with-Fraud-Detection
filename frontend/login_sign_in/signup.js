@@ -186,14 +186,20 @@
   }
 
   /**
-   * Placeholder signup handler.
-   * Replace the inside of this function with a real API call, e.g.:
+   * BACKEND CONTRACT (confirmed against the actual FastAPI source):
    *
-   *   const response = await fetch('/api/auth/signup', {
-   *     method: 'POST',
-   *     headers: { 'Content-Type': 'application/json' },
-   *     body: JSON.stringify({ fullname, email, password })
-   *   });
+   *   POST /auth/register   { full_name, email, password }   — no `role` field exists on
+   *     this endpoint's schema (UserCreate has none), so nothing needs to be sent for it.
+   *     Returns only { message } — NOT an access token. The backend automatically
+   *     generates and emails a 6-digit OTP as part of registration
+   *     (see services/Verification_service.py's generate_and_send_otp), so there's
+   *     nothing to trigger separately here.
+   *
+   *   POST /auth/login      { email, password }
+   *     Returns 403 "Please verify your email before logging in" for any account
+   *     where is_verified is still false — i.e. a brand-new account CANNOT log in
+   *     yet. So there is no "auto-login right after signup" possible; the user
+   *     must verify their email first, then log in for real afterwards.
    */
   async function handleSignup(fullname, email, password) {
   try {
@@ -214,27 +220,7 @@
       return { ok: false, message: detail };
     }
 
-    // Immediately log the freshly-created account in so we have a token
-    // to call /auth/select-role with on the role-selection page. The user
-    // never sees a separate login step right after signing up.
-    const loginResponse = await fetch('http://localhost:8000/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-
-    if (!loginResponse.ok) {
-      // Account was created but auto-login failed for some reason -
-      // fall back to sending them to the login page.
-      let detail = '';
-      try { const errBody = await loginResponse.json(); detail = formatErrorDetail(errBody.detail); } catch (e) { /* ignore */ }
-      console.error(`Auto-login after signup failed (${loginResponse.status})${detail ? `: ${detail}` : ''}`);
-      return { ok: true, autoLoggedIn: false };
-    }
-
-    const loginData = await loginResponse.json();
-    localStorage.setItem('access_token', loginData.access_token);
-    return { ok: true, autoLoggedIn: true };
+    return { ok: true };
   } catch (err) {
     console.error('Signup request failed:', err);
     return { ok: false };
@@ -260,12 +246,13 @@
 
     handleSignup(fullnameInput.value.trim(), emailInput.value.trim(), passwordInput.value)
       .then((result) => {
-        if (result && result.ok && result.autoLoggedIn) {
-          showStatus('Account created — let\'s set up your account…', false);
-          window.location.href = '../role/index.html';
-        } else if (result && result.ok) {
-          showStatus('Account created — redirecting you to log in…', false);
-          window.location.href = 'login.html';
+        if (result && result.ok) {
+          showStatus('Account created — let\'s verify your email…', false);
+          // Required flow: Sign Up -> Email Verification -> Log In -> Role Selection.
+          // email-verification.js reads this to show which address the code was sent to,
+          // and to send it back along with the code when calling /auth/verify-email.
+          sessionStorage.setItem('pending_verification_email', emailInput.value.trim());
+          window.location.href = 'email-verification.html';
         } else {
           showStatus((result && result.message) || 'Something went wrong. Please try again.', true);
         }

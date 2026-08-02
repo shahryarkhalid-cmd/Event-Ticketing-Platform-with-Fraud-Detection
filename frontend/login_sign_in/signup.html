@@ -16,6 +16,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="../shared/terms-modal.css" />
 </head>
 <body>
 
@@ -171,7 +172,7 @@
           <div class="checkbox-field">
             <input type="checkbox" id="terms" name="terms" class="checkbox-field__input" required aria-describedby="terms-error" />
             <label for="terms" class="checkbox-field__label">
-              I agree to the <a href="#" class="link">Terms of Service</a> and <a href="#" class="link">Privacy Policy</a>
+              I agree to the <a href="#" class="link js-terms-link" data-terms-checkbox="terms">Terms of Service</a> and <a href="#" class="link js-terms-link" data-terms-checkbox="terms">Privacy Policy</a>
             </label>
           </div>
           <p id="terms-error" class="field__error" role="alert" aria-live="polite"></p>
@@ -233,6 +234,7 @@
 
   </div>
 
+  <script src="../shared/terms-modal.js"></script>
   <script src="signup.js"></script>
 </body>
 </html>

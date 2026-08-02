@@ -34,6 +34,18 @@
   }
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+  // If we just came from a successful Email Verification, greet the user
+  // and pre-fill their email so they only have to type their password.
+  (function showJustVerifiedMessage() {
+    const justVerifiedEmail = sessionStorage.getItem('just_verified_email');
+    if (!justVerifiedEmail) return;
+    sessionStorage.removeItem('just_verified_email');
+    emailInput.value = justVerifiedEmail;
+    formStatus.textContent = 'Email verified! Please log in to continue.';
+    formStatus.classList.remove('is-error');
+  })();
+
+
   /* ---------------------------------------------------
      Password show / hide toggle
      --------------------------------------------------- */

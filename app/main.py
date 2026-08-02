@@ -456,3 +456,20 @@ def resend_verification(data: ResendVerification, session: Session = Depends(get
         raise HTTPException(400, "This account is already verified")
 
     return generate_and_send_otp(user.email)
+
+
+# FORGOT PASSWORD:
+from services.Password_reset_service import request_password_reset, verify_reset_code, reset_password
+from models.Users import ForgotPasswordRequest, VerifyResetCode, ResetPasswordConfirm
+
+@app.post("/auth/forgot-password")
+def forgot_password(data: ForgotPasswordRequest, session: Session = Depends(get_session)):
+    return request_password_reset(data.email, session)
+
+@app.post("/auth/verify-reset-code")
+def verify_reset_code_route(data: VerifyResetCode, session: Session = Depends(get_session)):
+    return verify_reset_code(data.email, data.code, session)
+
+@app.post("/auth/reset-password")
+def reset_password_route(data: ResetPasswordConfirm, session: Session = Depends(get_session)):
+    return reset_password(data.reset_token, data.new_password, session)

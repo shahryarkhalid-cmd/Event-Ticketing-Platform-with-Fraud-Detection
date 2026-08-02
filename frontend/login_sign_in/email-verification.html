@@ -1,0 +1,107 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Tixora — Verify Your Email</title>
+  <meta name="description" content="Verify your email address to finish setting up your Tixora account." />
+  <meta name="theme-color" content="#001F54" />
+
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="assets/favicon-256.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="page">
+
+    <!-- ===== Branded Header Panel ===== -->
+    <header class="brand-panel">
+      <div class="brand-panel__glow" aria-hidden="true"></div>
+      <div class="brand-panel__inner">
+        <div class="brand-panel__logo">
+          <img src="assets/logo.png" alt="Tixora logo" width="96" height="96" />
+        </div>
+        <p class="brand-panel__name">Tixora</p>
+        <p class="brand-panel__tagline">Secure Event Ticketing Platform</p>
+      </div>
+    </header>
+
+    <!-- ===== Main Content ===== -->
+    <main class="main">
+      <div class="card" role="region" aria-labelledby="verify-heading">
+
+        <div class="card__head">
+          <h1 id="verify-heading" class="card__title">Verify your email</h1>
+          <p class="card__subtitle" id="verify-subtitle">
+            We've sent a 6-digit verification code to
+            <strong id="verify-email-target">your email</strong>.
+          </p>
+        </div>
+
+        <form id="verify-form" class="form" novalidate>
+
+          <label class="field__label" for="otp-0" style="text-align:center;">Enter Verification Code</label>
+
+          <div class="otp-row" id="otp-row" role="group" aria-label="6-digit verification code">
+            <input class="otp-digit" id="otp-0" type="text" inputmode="numeric" maxlength="1" autocomplete="one-time-code" aria-label="Digit 1" />
+            <input class="otp-digit" id="otp-1" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 2" />
+            <input class="otp-digit" id="otp-2" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 3" />
+            <input class="otp-digit" id="otp-3" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 4" />
+            <input class="otp-digit" id="otp-4" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 5" />
+            <input class="otp-digit" id="otp-5" type="text" inputmode="numeric" maxlength="1" aria-label="Digit 6" />
+          </div>
+
+          <p id="otp-error" class="field__error" role="alert" aria-live="polite" style="text-align:center;"></p>
+
+          <button type="submit" class="btn btn--primary" id="submit-btn">
+            <span class="btn__label">Verify</span>
+            <span class="btn__spinner" aria-hidden="true"></span>
+          </button>
+
+          <p class="form__status" id="form-status" role="status" aria-live="polite"></p>
+
+          <p class="resend-row">
+            Didn't get a code?
+            <a href="#" class="link" id="resend-link">Resend Code</a>
+            <span id="resend-timer"></span>
+          </p>
+
+        </form>
+      </div>
+
+      <p class="signup-note">
+        <a href="#" class="link js-terms-link" data-terms-checkbox="">Terms &amp; Conditions</a>
+        &nbsp;·&nbsp;
+        <a href="#" class="link js-terms-link" data-terms-checkbox="">Privacy Policy</a>
+      </p>
+    </main>
+
+    <!-- ===== Footer ===== -->
+    <footer class="site-footer">
+      <div class="site-footer__brand">
+        <img src="assets/logo-white.png" alt="Tixora" width="40" height="40" />
+        <div>
+          <p class="site-footer__name">Tixora</p>
+          <p class="site-footer__tagline">Secure Event Ticketing Platform</p>
+        </div>
+      </div>
+
+      <div class="site-footer__bottom">
+        <p>&copy; 2026 Tixora. All rights reserved.</p>
+      </div>
+    </footer>
+
+  </div>
+
+  <script src="../shared/terms-modal.js"></script>
+  <script src="email-verification.js"></script>
+</body>
+</html>
