@@ -11,33 +11,45 @@
      the fields implied by Orders.py + Event/Ticket models so wiring later
      is a drop-in swap. */
   const MOCK_EVENTS = [
-    { id: "EVT-1001", title: "Skyline Music Festival", category: "Music", city: "Austin", date: "2026-09-12", time: "18:00", venue: "Zilker Park Amphitheater", organizer: "Skyline Live", banner: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop", price: 45, seatsLeft: 8, trending: true, tiers: [
+    {
+      id: "EVT-1001", title: "Skyline Music Festival", category: "Music", city: "Austin", date: "2026-09-12", time: "18:00", venue: "Zilker Park Amphitheater", organizer: "Skyline Live", banner: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop", price: 45, seatsLeft: 8, trending: true, tiers: [
         { name: "VIP", price: 180, remaining: 6, color: "#F59E0B" },
         { name: "Premium", price: 95, remaining: 24, color: "#0B5ED7" },
         { name: "General", price: 45, remaining: 8, color: "#10B981" },
-      ] },
-    { id: "EVT-1002", title: "Startup Founders Summit", category: "Business", city: "San Francisco", date: "2026-08-02", time: "09:30", venue: "Moscone Center", organizer: "FoundersHub", banner: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=1200&auto=format&fit=crop", price: 120, seatsLeft: 42, trending: false, tiers: [
+      ]
+    },
+    {
+      id: "EVT-1002", title: "Startup Founders Summit", category: "Business", city: "San Francisco", date: "2026-08-02", time: "09:30", venue: "Moscone Center", organizer: "FoundersHub", banner: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=1200&auto=format&fit=crop", price: 120, seatsLeft: 42, trending: false, tiers: [
         { name: "VIP", price: 350, remaining: 12, color: "#F59E0B" },
         { name: "General", price: 120, remaining: 42, color: "#10B981" },
-      ] },
-    { id: "EVT-1003", title: "Contemporary Art Expo", category: "Art", city: "New York", date: "2026-08-20", time: "11:00", venue: "The Highline Gallery", organizer: "ArtWorks NYC", banner: "https://images.unsplash.com/photo-1531058020387-3be344556be6?q=80&w=1200&auto=format&fit=crop", price: 25, seatsLeft: 3, trending: true, tiers: [
+      ]
+    },
+    {
+      id: "EVT-1003", title: "Contemporary Art Expo", category: "Art", city: "New York", date: "2026-08-20", time: "11:00", venue: "The Highline Gallery", organizer: "ArtWorks NYC", banner: "https://images.unsplash.com/photo-1531058020387-3be344556be6?q=80&w=1200&auto=format&fit=crop", price: 25, seatsLeft: 3, trending: true, tiers: [
         { name: "Premium", price: 60, remaining: 10, color: "#0B5ED7" },
         { name: "General", price: 25, remaining: 3, color: "#10B981" },
-      ] },
-    { id: "EVT-1004", title: "Championship Fight Night", category: "Sports", city: "Las Vegas", date: "2026-10-04", time: "20:00", venue: "T-Mobile Arena", organizer: "Vegas Sports Group", banner: "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=1200&auto=format&fit=crop", price: 89, seatsLeft: 56, trending: false, tiers: [
+      ]
+    },
+    {
+      id: "EVT-1004", title: "Championship Fight Night", category: "Sports", city: "Las Vegas", date: "2026-10-04", time: "20:00", venue: "T-Mobile Arena", organizer: "Vegas Sports Group", banner: "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=1200&auto=format&fit=crop", price: 89, seatsLeft: 56, trending: false, tiers: [
         { name: "VIP", price: 450, remaining: 8, color: "#F59E0B" },
         { name: "Premium", price: 210, remaining: 30, color: "#0B5ED7" },
         { name: "General", price: 89, remaining: 56, color: "#10B981" },
-      ] },
-    { id: "EVT-1005", title: "Stand-Up Comedy Night", category: "Comedy", city: "Chicago", date: "2026-08-15", time: "21:00", venue: "The Laugh Cellar", organizer: "Windy City Comedy", banner: "https://images.unsplash.com/photo-1585699324551-f6c309eedeca?q=80&w=1200&auto=format&fit=crop", price: 30, seatsLeft: 19, trending: false, tiers: [
+      ]
+    },
+    {
+      id: "EVT-1005", title: "Stand-Up Comedy Night", category: "Comedy", city: "Chicago", date: "2026-08-15", time: "21:00", venue: "The Laugh Cellar", organizer: "Windy City Comedy", banner: "https://images.unsplash.com/photo-1585699324551-f6c309eedeca?q=80&w=1200&auto=format&fit=crop", price: 30, seatsLeft: 19, trending: false, tiers: [
         { name: "Premium", price: 55, remaining: 15, color: "#0B5ED7" },
         { name: "General", price: 30, remaining: 19, color: "#10B981" },
-      ] },
-    { id: "EVT-1006", title: "Tech & AI Conference", category: "Technology", city: "Austin", date: "2026-09-28", time: "08:00", venue: "Austin Convention Center", organizer: "DevSummit", banner: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=1200&auto=format&fit=crop", price: 199, seatsLeft: 71, trending: true, tiers: [
+      ]
+    },
+    {
+      id: "EVT-1006", title: "Tech & AI Conference", category: "Technology", city: "Austin", date: "2026-09-28", time: "08:00", venue: "Austin Convention Center", organizer: "DevSummit", banner: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=1200&auto=format&fit=crop", price: 199, seatsLeft: 71, trending: true, tiers: [
         { name: "VIP", price: 599, remaining: 20, color: "#F59E0B" },
         { name: "Premium", price: 349, remaining: 40, color: "#0B5ED7" },
         { name: "General", price: 199, remaining: 71, color: "#10B981" },
-      ] },
+      ]
+    },
   ];
 
   const CATEGORIES = [
@@ -87,156 +99,156 @@
   /* ------------------------------ API stubs ------------------------------ */
   const API_BASE = "http://localhost:8000";
 
-function authHeaders() {
-  const token = localStorage.getItem("access_token");
-  return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
-}
-
-// FastAPI's 422 "detail" is often an array of {loc, msg, type} objects, not a
-// plain string — without this, `new Error(detail)` renders as "[object Object]"
-// and hides the real reason. Mirrors the same helper in login.js/signup.js.
-function formatErrorDetail(detail) {
-  if (!detail) return "";
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) {
-    return detail.map((d) => {
-      if (typeof d === "string") return d;
-      const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : "";
-      return field ? `${field}: ${d.msg}` : (d.msg || JSON.stringify(d));
-    }).join("; ");
+  function authHeaders() {
+    const token = localStorage.getItem("access_token");
+    return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
   }
-  if (typeof detail === "object") return detail.msg || JSON.stringify(detail);
-  return String(detail);
-}
 
-const TIER_COLORS = { VIP: "#F59E0B", Premium: "#0B5ED7", General: "#10B981", VVIP: "#8B5CF6" };
-
-// backend Event + TicketTier[] -> shape this file's rendering code expects
-function mapEventFromBackend(evt, tiers) {
-  tiers = Array.isArray(tiers) ? tiers : [];
-  const [date] = (evt.start_datetime || "").split("T");
-  const time = (evt.start_datetime || "").split("T")[1]?.slice(0, 5) || "";
-  const lowestPrice = tiers.length ? Math.min(...tiers.map(t => t.price)) : 0;
-  const totalRemaining = tiers.reduce((s, t) => s + (t.total_seats - t.sold_quantity), 0);
-
-  return {
-    id: String(evt.id),
-    title: evt.name,
-    category: evt.category,
-    city: evt.city,
-    country: evt.country,
-    date,
-    time,
-    venue: evt.venue,
-    organizer: "", // no organizer name on Event yet — see note below
-    banner: evt.banner_url || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop",
-    price: lowestPrice,
-    seatsLeft: totalRemaining,
-    trending: false, // not implemented on backend
-    tiers: tiers.map(t => ({
-      id: t.id,
-      name: t.category_name,
-      price: t.price,
-      remaining: t.total_seats - t.sold_quantity,
-      color: TIER_COLORS[t.category_name] || "#6B7280"
-    }))
-  };
-}
-
-// backend Order -> shape bookingCardHTML()/renderBookings() expect.
-// The exact OrderRead schema isn't visible from the frontend alone, so this
-// reads a handful of plausible field names defensively (mirrors the same
-// approach used in payment-result.js's readOrderFields).
-function mapBookingFromBackend(order, eventsById) {
-  const items = Array.isArray(order.items) ? order.items : (order.item ? [order.item] : []);
-  const firstItem = items[0] || {};
-  const eventId = order.event_id ?? order.event?.id ?? firstItem.event_id;
-  const matchedEvent = eventsById && eventId != null ? eventsById[String(eventId)] : null;
-
-  const tierName = firstItem.tier_name || firstItem.category_name || firstItem.name || order.tier_name || "General";
-  const qty = items.length
-    ? items.reduce((s, i) => s + Number(i.quantity ?? i.qty ?? 0), 0)
-    : Number(order.quantity ?? order.ticket_quantity ?? 1);
-
-  const total = order.total_amount ?? order.amount ?? order.total_price ?? order.total ?? 0;
-  const rawStatus = String(order.status || order.payment_status || "pending").toLowerCase();
-  const status = rawStatus === "paid" || rawStatus === "confirmed" ? "confirmed"
-    : (rawStatus === "cancelled" || rawStatus === "canceled" || rawStatus === "failed") ? "cancelled"
-    : "pending";
-
-  const eventTitle = matchedEvent?.title || order.event?.name || order.event?.title || order.event_name || "Event";
-  const eventBanner = matchedEvent?.banner || order.event?.banner_url
-    || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop";
-  const eventDate = matchedEvent?.date || (order.event?.start_datetime || "").split("T")[0];
-
-  const when = eventDate && new Date(eventDate) < new Date(new Date().toDateString()) ? "previous" : "upcoming";
-
-  return {
-    id: `ORD-${order.id ?? order.order_id ?? ""}`,
-    orderId: order.id ?? order.order_id,
-    event: { title: eventTitle, banner: eventBanner },
-    tier: tierName,
-    qty,
-    total: Number(total) || 0,
-    status,
-    when
-  };
-}
-
-const api = {
-  getEvents: async () => {
-    const res = await fetch(`${API_BASE}/events/customer`);
-    if (!res.ok) {
-      let bodyText = "";
-      try { bodyText = await res.text(); } catch (e) { /* ignore */ }
-      console.error(`GET /events/customer → ${res.status}${bodyText ? `: ${bodyText}` : ""}`);
-      throw new Error(`Events request failed (${res.status})`);
+  // FastAPI's 422 "detail" is often an array of {loc, msg, type} objects, not a
+  // plain string — without this, `new Error(detail)` renders as "[object Object]"
+  // and hides the real reason. Mirrors the same helper in login.js/signup.js.
+  function formatErrorDetail(detail) {
+    if (!detail) return "";
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) {
+      return detail.map((d) => {
+        if (typeof d === "string") return d;
+        const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : "";
+        return field ? `${field}: ${d.msg}` : (d.msg || JSON.stringify(d));
+      }).join("; ");
     }
-    const rawEvents = await res.json();
-    // Use allSettled so one event with a broken/forbidden tiers request
-    // doesn't take down the entire list — it just shows with no tiers.
-    const settled = await Promise.allSettled(rawEvents.map(async (evt) => {
-      const tRes = await fetch(`${API_BASE}/events/${evt.id}/ticket-tiers`, { headers: authHeaders() });
-      const tiers = tRes.ok ? await tRes.json() : [];
-      return mapEventFromBackend(evt, tiers);
-    }));
-    return settled
-      .filter((r) => {
-        if (r.status === "rejected") console.warn("Skipped one event — couldn't map it:", r.reason);
-        return r.status === "fulfilled";
-      })
-      .map(r => r.value);
-  },
-  getBookings: async (events) => {
-    const res = await fetch(`${API_BASE}/orders/me`, { headers: authHeaders() });
-    if (!res.ok) throw new Error("Couldn't load bookings");
-    const orders = await res.json();
-    const eventsById = {};
-    (events || []).forEach((e) => { eventsById[String(e.id)] = e; });
-    return Array.isArray(orders) ? orders.map((o) => mapBookingFromBackend(o, eventsById)) : [];
-  },
-  createOrder: async (payload) => {
-    const res = await fetch(`${API_BASE}/orders`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify({
-        event_id: Number(payload.eventId),
-        items: payload.items.map(i => ({
-          ticket_tier_id: i.tierId,
-          quantity: i.qty
-        }))
-      })
-    });
-    if (!res.ok) {
-      let detail = "";
-      try { const errBody = await res.json(); detail = formatErrorDetail(errBody.detail); } catch (e) { /* body wasn't JSON */ }
-      console.error(`POST /orders → ${res.status}${detail ? `: ${detail}` : ""}`);
-      throw new Error(detail || `Order request failed (${res.status})`);
-    }
-    const order = await res.json();
-    return { orderId: order.id, ...payload };
-  },
-};
+    if (typeof detail === "object") return detail.msg || JSON.stringify(detail);
+    return String(detail);
+  }
+
+  const TIER_COLORS = { VIP: "#F59E0B", Premium: "#0B5ED7", General: "#10B981", VVIP: "#8B5CF6" };
+
+  // backend Event + TicketTier[] -> shape this file's rendering code expects
+  function mapEventFromBackend(evt, tiers) {
+    tiers = Array.isArray(tiers) ? tiers : [];
+    const [date] = (evt.start_datetime || "").split("T");
+    const time = (evt.start_datetime || "").split("T")[1]?.slice(0, 5) || "";
+    const lowestPrice = tiers.length ? Math.min(...tiers.map(t => t.price)) : 0;
+    const totalRemaining = tiers.reduce((s, t) => s + (t.total_seats - t.sold_quantity), 0);
+
+    return {
+      id: String(evt.id),
+      title: evt.name,
+      category: evt.category,
+      city: evt.city,
+      country: evt.country,
+      date,
+      time,
+      venue: evt.venue,
+      organizer: "", // no organizer name on Event yet — see note below
+      banner: evt.banner_url || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop",
+      price: lowestPrice,
+      seatsLeft: totalRemaining,
+      trending: false, // not implemented on backend
+      tiers: tiers.map(t => ({
+        id: t.id,
+        name: t.category_name,
+        price: t.price,
+        remaining: t.total_seats - t.sold_quantity,
+        color: TIER_COLORS[t.category_name] || "#6B7280"
+      }))
+    };
+  }
+
+  // backend Order -> shape bookingCardHTML()/renderBookings() expect.
+  // The exact OrderRead schema isn't visible from the frontend alone, so this
+  // reads a handful of plausible field names defensively (mirrors the same
+  // approach used in payment-result.js's readOrderFields).
+  function mapBookingFromBackend(order, eventsById) {
+    const items = Array.isArray(order.items) ? order.items : (order.item ? [order.item] : []);
+    const firstItem = items[0] || {};
+    const eventId = order.event_id ?? order.event?.id ?? firstItem.event_id;
+    const matchedEvent = eventsById && eventId != null ? eventsById[String(eventId)] : null;
+
+    const tierName = firstItem.tier_name || firstItem.category_name || firstItem.name || order.tier_name || "General";
+    const qty = items.length
+      ? items.reduce((s, i) => s + Number(i.quantity ?? i.qty ?? 0), 0)
+      : Number(order.quantity ?? order.ticket_quantity ?? 1);
+
+    const total = order.total_amount ?? order.amount ?? order.total_price ?? order.total ?? 0;
+    const rawStatus = String(order.status || order.payment_status || "pending").toLowerCase();
+    const status = rawStatus === "paid" || rawStatus === "confirmed" ? "confirmed"
+      : (rawStatus === "cancelled" || rawStatus === "canceled" || rawStatus === "failed") ? "cancelled"
+        : "pending";
+
+    const eventTitle = matchedEvent?.title || order.event?.name || order.event?.title || order.event_name || "Event";
+    const eventBanner = matchedEvent?.banner || order.event?.banner_url
+      || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop";
+    const eventDate = matchedEvent?.date || (order.event?.start_datetime || "").split("T")[0];
+
+    const when = eventDate && new Date(eventDate) < new Date(new Date().toDateString()) ? "previous" : "upcoming";
+
+    return {
+      id: `ORD-${order.id ?? order.order_id ?? ""}`,
+      orderId: order.id ?? order.order_id,
+      event: { title: eventTitle, banner: eventBanner },
+      tier: tierName,
+      qty,
+      total: Number(total) || 0,
+      status,
+      when
+    };
+  }
+
+  const api = {
+    getEvents: async () => {
+      const res = await fetch(`${API_BASE}/events/customer`);
+      if (!res.ok) {
+        let bodyText = "";
+        try { bodyText = await res.text(); } catch (e) { /* ignore */ }
+        console.error(`GET /events/customer → ${res.status}${bodyText ? `: ${bodyText}` : ""}`);
+        throw new Error(`Events request failed (${res.status})`);
+      }
+      const rawEvents = await res.json();
+      // Use allSettled so one event with a broken/forbidden tiers request
+      // doesn't take down the entire list — it just shows with no tiers.
+      const settled = await Promise.allSettled(rawEvents.map(async (evt) => {
+        const tRes = await fetch(`${API_BASE}/events/${evt.id}/ticket-tiers`, { headers: authHeaders() });
+        const tiers = tRes.ok ? await tRes.json() : [];
+        return mapEventFromBackend(evt, tiers);
+      }));
+      return settled
+        .filter((r) => {
+          if (r.status === "rejected") console.warn("Skipped one event — couldn't map it:", r.reason);
+          return r.status === "fulfilled";
+        })
+        .map(r => r.value);
+    },
+    getBookings: async (events) => {
+      const res = await fetch(`${API_BASE}/orders/me`, { headers: authHeaders() });
+      if (!res.ok) throw new Error("Couldn't load bookings");
+      const orders = await res.json();
+      const eventsById = {};
+      (events || []).forEach((e) => { eventsById[String(e.id)] = e; });
+      return Array.isArray(orders) ? orders.map((o) => mapBookingFromBackend(o, eventsById)) : [];
+    },
+    createOrder: async (payload) => {
+      const res = await fetch(`${API_BASE}/orders`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          event_id: Number(payload.eventId),
+          items: payload.items.map(i => ({
+            ticket_tier_id: i.tierId,
+            quantity: i.qty
+          }))
+        })
+      });
+      if (!res.ok) {
+        let detail = "";
+        try { const errBody = await res.json(); detail = formatErrorDetail(errBody.detail); } catch (e) { /* body wasn't JSON */ }
+        console.error(`POST /orders → ${res.status}${detail ? `: ${detail}` : ""}`);
+        throw new Error(detail || `Order request failed (${res.status})`);
+      }
+      const order = await res.json();
+      return { orderId: order.id, ...payload };
+    },
+  };
   const wait = (ms) => new Promise((res) => setTimeout(res, ms));
 
   /* ------------------------------- State ---------------------------------- */
@@ -808,7 +820,7 @@ const api = {
     overlay.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
     setTimeout(() => $("#modalCloseBtn")?.focus(), 50);
-}
+  }
 
   function closeTicketModal() {
     const overlay = $("#ticketModal");
@@ -1096,19 +1108,32 @@ const api = {
   function renderNotifications() {
     const list = $("#notifList");
     if (!list) return;
+    if (!MOCK_NOTIFICATIONS.length) {
+      list.innerHTML = `<div class="empty-state"><div class="icon-wrap">🔔</div><h3>No notifications</h3><p>You're all caught up.</p></div>`;
+      updateNotifBadge();
+      return;
+    }
     list.innerHTML = MOCK_NOTIFICATIONS.map((n, idx) => {
       const [icon, bg, fg] = NOTIF_ICON[n.type] || ["🔔", "#EEF2F7", "#334155"];
       return `
-      <div class="notif-item ${n.unread ? "unread" : ""}" data-idx="${idx}">
-        <div class="notif-icon" style="background:${bg};color:${fg}">${icon}</div>
-        <div class="notif-body"><strong>${escapeHTML(n.title)}</strong><p>${escapeHTML(n.body)}</p></div>
-        <span class="notif-time">${n.time}</span>
-      </div>`;
+    <div class="notif-item ${n.unread ? "unread" : ""}" data-idx="${idx}">
+      <div class="notif-icon" style="background:${bg};color:${fg}">${icon}</div>
+      <div class="notif-body"><strong>${escapeHTML(n.title)}</strong><p>${escapeHTML(n.body)}</p></div>
+      <span class="notif-time">${n.time}</span>
+      <button type="button" class="notif-delete" data-delete="${idx}" aria-label="Delete notification">✕</button>
+    </div>`;
     }).join("");
     updateNotifBadge();
-    $$(".notif-item", list).forEach((item) => item.addEventListener("click", () => {
+    $$(".notif-item", list).forEach((item) => item.addEventListener("click", (e) => {
+      if (e.target.closest("[data-delete]")) return;
       const n = MOCK_NOTIFICATIONS[parseInt(item.dataset.idx, 10)];
       if (n && n.unread) { n.unread = false; renderNotifications(); }
+    }));
+    $$("[data-delete]", list).forEach((btn) => btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.delete, 10);
+      MOCK_NOTIFICATIONS.splice(idx, 1);
+      renderNotifications();
     }));
   }
   function updateNotifBadge() {
@@ -1190,10 +1215,10 @@ const api = {
 
   /* ---------------------------------- Init ------------------------------------- */
   async function init() {
-    if (!localStorage.getItem("access_token")) {
-      window.location.href = "../login_sign_in/login.html";
-      return;
-    }
+    // if (!localStorage.getItem("access_token")) {
+    //   window.location.href = "../login_sign_in/login.html";
+    //   return;
+    // }
 
     try {
       const me = await (await fetch(`${API_BASE}/users/me`, { headers: authHeaders() })).json();
@@ -1209,9 +1234,9 @@ const api = {
       applyCustomerIdentity(me);
     } catch (err) {
       console.error("Couldn't verify session:", err);
-      localStorage.removeItem("access_token");
-      window.location.href = "../login_sign_in/login.html";
-      return;
+        localStorage.removeItem("access_token");
+        window.location.href = "../login_sign_in/login.html";
+        return;
     }
 
     initNavbar();

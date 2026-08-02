@@ -72,6 +72,13 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#mainContent {
+  flex: 1;
 }
 
 img {
@@ -710,6 +717,155 @@ p {
   color: var(--text-muted);
   font-size: 12.5px;
   margin-top: 4px;
+}
+
+/* Combined: phone mockup frame + ticket-to-shield morph on screen */
+.phone-mock {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 220px;
+  background: #0B1220;
+  border-radius: 32px;
+  padding: 14px 12px 20px;
+  box-shadow: var(--shadow-lg);
+  animation: float 5s ease-in-out infinite;
+}
+
+.phone-mock__notch {
+  width: 60px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  margin: 0 auto 12px;
+}
+
+.phone-mock__screen {
+  background: var(--card);
+  border-radius: 20px;
+  padding: 16px 14px;
+  color: var(--text);
+  text-align: center;
+}
+
+.phone-mock__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.phone-mock__brand {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--primary);
+}
+
+.phone-mock__badge--verified {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.12);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.morph-stage--inline {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.morph-icon {
+  position: absolute;
+  width: 60%;
+  height: 60%;
+}
+
+.morph-icon--ticket {
+  animation: morphTicket 4s ease-in-out infinite;
+}
+
+.morph-icon--shield {
+  animation: morphShield 4s ease-in-out infinite;
+}
+
+@keyframes morphTicket {
+
+  0%,
+  35% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+
+  50% {
+    opacity: 0;
+    transform: scale(0.7) rotate(15deg);
+  }
+
+  85%,
+  100% {
+    opacity: 0;
+    transform: scale(0.7) rotate(15deg);
+  }
+}
+
+@keyframes morphShield {
+
+  0%,
+  35% {
+    opacity: 0;
+    transform: scale(0.7) rotate(-15deg);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+
+  85%,
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.7) rotate(-15deg);
+  }
+}
+
+.phone-mock__label {
+  position: relative;
+  height: 18px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.phone-mock__label span {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.morph-label__ticket {
+  animation: morphTicket 4s ease-in-out infinite;
+}
+
+.morph-label__shield {
+  color: var(--success);
+  animation: morphShield 4s ease-in-out infinite;
+}
+
+.phone-mock__venue {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  margin-top: 6px;
 }
 
 /* Search bar */
@@ -2122,6 +2278,27 @@ p {
   white-space: nowrap;
 }
 
+.notif-delete {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity var(--dur-fast), color var(--dur-fast), background var(--dur-fast);
+}
+
+.notif-item:hover .notif-delete {
+  opacity: 1;
+}
+
+.notif-delete:hover {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
 /* ============================ Fraud alert =============================== */
 .fraud-alert {
   border: 1.5px solid #FBD5D5;
@@ -2834,9 +3011,72 @@ p {
   margin-left: 14px;
 }
 
-.app-legal-strip a:hover {
-  color: #fff;
+
+/* Footer copied in from login page */
+.site-footer {
+  flex-shrink: 0;
+  background: var(--primary);
+  color: rgba(255, 255, 255, 0.85);
+  padding: clamp(24px, 5vw, 36px) clamp(16px, 5vw, 48px) 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
 }
+
+.site-footer__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+  justify-content: center;
+}
+
+.site-footer__brand img {
+  flex-shrink: 0;
+}
+
+.site-footer__name {
+  font-weight: 700;
+  color: #FFFFFF;
+  font-size: 1.05rem;
+  text-align: center;
+}
+
+.site-footer__tagline {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 2px;
+  text-align: center;
+}
+
+
+
+.site-footer__bottom {
+  width: 100%;
+  text-align: center;
+  /* ← add these two lines */
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+
+
+@supports (padding: max(0px)) {
+  .site-footer {
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+}
+
+
+/* .app-legal-strip a:hover {
+  color: #fff;
+} */
 
 /* Write-a-review modal (separate flow from viewing reviews) */
 .star-input {
