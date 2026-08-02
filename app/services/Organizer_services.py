@@ -408,3 +408,5 @@ def update_fraud_status(order_id: int, new_status: str, user: User, session: Ses
     session.add(order)
     session.flush()
     return {"message": f"Order marked as {new_status}"}
+
+

@@ -388,3 +388,19 @@ def update_user_profile(
     session: Session = Depends(get_session),
 ):
     return update_user_profile_service(update_data, current_user, session)
+
+# Updating the password:
+from models.Users import PasswordChange
+from services.User_services import change_password
+@app.post("/users/me/change-password")
+def update_password(
+    password_data: PasswordChange,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    return change_password(password_data, user, session)
+from services.Order_services import get_my_booking_history
+# Getting the booking History:
+@app.get("/users/me/booking-history")
+def booking_history(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return get_my_booking_history(user, session)

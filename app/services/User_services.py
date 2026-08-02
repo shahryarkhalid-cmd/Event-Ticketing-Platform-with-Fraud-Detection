@@ -33,7 +33,7 @@ def get_current_user(token: str = Depends(oauth_scheme), session: Session = Depe
 
 def register_user(user : UserCreate , session : Session):
     hashed_pass = hash_password(user.password)
-    final_user = User(full_name = user.full_name , hashed_password = hashed_pass , email=user.email)
+    final_user = User(full_name = user.full_name , hashed_password = hashed_pass , email=user.email , role = user.role)
     
     existing_email_user = session.exec(select(User).where(User.email == user.email)).first()
     
@@ -162,3 +162,15 @@ def update_user_profile_service(update_data: UserUpdate, current_user: User, ses
     session.refresh(current_user)
 
     return current_user
+
+
+# Updating the password:
+from models.Users import PasswordChange
+def change_password(password_data: PasswordChange, user: User, session: Session):
+    if not verify_password(password_data.current_password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+
+    user.hashed_password = hash_password(password_data.new_password)
+    session.add(user)
+    session.flush()
+    return {"message": "Password updated successfully"}

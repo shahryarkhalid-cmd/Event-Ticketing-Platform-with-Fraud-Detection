@@ -33,6 +33,7 @@ class UserCreate(BaseModel):
     email : str 
     full_name : str
     password : str
+    role : str
     
 class UserLogin(BaseModel):
     email : str
@@ -45,6 +46,9 @@ class UserRead(BaseModel):
     role: Optional[UserRole]
     role_selected: bool
     profile_picture_url: Optional[str] = None
+    phone: Optional[str] = None
+    company: Optional[str] = None
+    city: Optional[str] = None
 
 class RoleSelect(BaseModel):
     role: UserRole
@@ -55,3 +59,7 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
     company: Optional[str] = None
     city: Optional[str] = None
+    
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str

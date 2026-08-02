@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime, timezone
 from pydantic import BaseModel
 from typing import List 
-from app.models.Ticket import TicketTierCreate, TicketTierRead
+from models.Ticket import TicketTierCreate, TicketTierRead
 class Event(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     
@@ -112,6 +112,7 @@ class EventUpdateWithTiers(BaseModel):
     food_available: Optional[bool] = None
     refund_policy: Optional[str] = None
     ticket_tiers: Optional[List[TicketTierCreate]] = None
+    terms_accepted: bool
     
 class EventWithTiersRead(BaseModel):
     event: EventRead

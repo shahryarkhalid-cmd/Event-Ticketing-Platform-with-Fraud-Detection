@@ -123,3 +123,19 @@ def get_order_tickets(order_id: int, user: User, session: Session):
             "category_name": tier.category_name if tier else "Unknown",
         })
     return result
+
+# Getting my Booking History:
+from models.Event import Event
+
+def get_my_booking_history(user: User, session: Session):
+    orders = session.exec(select(Order).where(Order.user_id == user.id)).all()
+    result = []
+    for order in orders:
+        event = session.get(Event, order.event_id)
+        result.append({
+            "order_id": order.id,
+            "event_name": event.name if event else "Unknown",
+            "total_price": order.total_price,
+            "status": order.payment_status,
+        })
+    return result

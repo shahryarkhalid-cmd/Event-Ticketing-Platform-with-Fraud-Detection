@@ -1212,3 +1212,234 @@ def test_checkin_forbidden_for_customer(client, test_session):
     # A customer (not organizer/staff) tries to check someone in
     response = client.post(f'/checkin/{ticket_uid}', headers=cust_header)
     assert response.status_code == 403
+    
+    
+import io   
+    
+def make_fake_image(filename="banner.jpg", content_type="image/jpeg", size_bytes=1024):
+    file_bytes = io.BytesIO(b"fake image content" * (size_bytes // 20 + 1))
+    file_bytes.seek(0)
+    return (filename, file_bytes, content_type)
+
+
+def test_upload_event_banner_success(client, mock_supabase_upload):
+    org_header = register_and_login(client, "banner_org@test.com", "Org", "pass123", "organizer")
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data["event"]["id"]
+
+    filename, file_bytes, content_type = make_fake_image()
+    response = client.post(
+        f"/events/{event_id}/banner",
+        files={"file": (filename, file_bytes, content_type)},
+        headers=org_header,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "banner_url" in data
+    assert data["banner_url"].startswith("https://")
+
+
+def test_upload_event_banner_wrong_type_rejected(client, mock_supabase_upload):
+    org_header = register_and_login(client, "banner_org2@test.com", "Org", "pass123", "organizer")
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data["event"]["id"]
+
+    filename, file_bytes, content_type = make_fake_image(
+        filename="malware.exe", content_type="application/x-msdownload"
+    )
+    response = client.post(
+        f"/events/{event_id}/banner",
+        files={"file": (filename, file_bytes, content_type)},
+        headers=org_header,
+    )
+
+    assert response.status_code == 400
+
+
+def test_upload_event_banner_too_large_rejected(client, mock_supabase_upload):
+    org_header = register_and_login(client, "banner_org3@test.com", "Org", "pass123", "organizer")
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data["event"]["id"]
+
+    # 6MB file — over your 5MB limit
+    filename, file_bytes, content_type = make_fake_image(size_bytes=6 * 1024 * 1024)
+    response = client.post(
+        f"/events/{event_id}/banner",
+        files={"file": (filename, file_bytes, content_type)},
+        headers=org_header,
+    )
+
+    assert response.status_code == 400
+
+
+def test_upload_event_banner_not_owner_rejected(client, mock_supabase_upload):
+    org_header = register_and_login(client, "banner_org4@test.com", "Org", "pass123", "organizer")
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data["event"]["id"]
+
+    # A different organizer, not the one who created the event
+    other_org_header = register_and_login(client, "banner_intruder@test.com", "Intruder", "pass123", "organizer")
+
+    filename, file_bytes, content_type = make_fake_image()
+    response = client.post(
+        f"/events/{event_id}/banner",
+        files={"file": (filename, file_bytes, content_type)},
+        headers=other_org_header,
+    )
+
+    assert response.status_code == 403
+
+
+def test_upload_event_banner_event_not_found(client, mock_supabase_upload):
+    org_header = register_and_login(client, "banner_org5@test.com", "Org", "pass123", "organizer")
+
+    filename, file_bytes, content_type = make_fake_image()
+    response = client.post(
+        "/events/999999/banner",
+        files={"file": (filename, file_bytes, content_type)},
+        headers=org_header,
+    )
+
+    assert response.status_code == 404
+    
+    
+    
+# checking the Profile picture 
+def test_upload_profile_picture_success(client, mock_supabase_upload):
+    header = register_and_login(client, "pic_user@test.com", "PicUser", "pass123", "customer")
+
+    filename, file_bytes, content_type = make_fake_image()
+    response = client.post(
+        "/users/me/profile-picture",
+        files={"file": (filename, file_bytes, content_type)},
+        headers=header,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "profile_picture_url" in data
+    assert data["profile_picture_url"].startswith("https://")
+
+
+def test_upload_profile_picture_wrong_type_rejected(client, mock_supabase_upload):
+    header = register_and_login(client, "pic_user2@test.com", "PicUser", "pass123", "customer")
+
+    filename, file_bytes, content_type = make_fake_image(
+        filename="doc.pdf", content_type="application/pdf"
+    )
+    response = client.post(
+        "/users/me/profile-picture",
+        files={"file": (filename, file_bytes, content_type)},
+        headers=header,
+    )
+
+    assert response.status_code == 400
+    
+    
+# Checking the updated profile:
+def test_update_user_profile_partial_update(client):
+    header = register_and_login(client, "update_user@test.com", "OldName", "pass123", "customer")
+
+    response = client.patch(
+        "/users/me/update",
+        json={"full_name": "New Name", "phone": "+1 555 0000"},
+        headers=header,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["full_name"] == "New Name"
+    assert data["phone"] == "+1 555 0000"
+
+
+def test_update_user_profile_does_not_wipe_unset_fields(client):
+    header = register_and_login(client, "update_user2@test.com", "OldName", "pass123", "customer")
+
+    # First update: set city
+    client.patch("/users/me/update", json={"city": "Lahore"}, headers=header)
+
+    # Second update: only send full_name, city should remain untouched
+    response = client.patch(
+        "/users/me/update",
+        json={"full_name": "Updated Name"},
+        headers=header,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["full_name"] == "Updated Name"
+    assert data["city"] == "Lahore"  # should NOT have been wiped
+    
+    
+    
+# Testing for change Password test : 
+def test_change_password_success(client):
+    header = register_and_login(client, "pwd_user@test.com", "PwdUser", "oldpass123", "customer")
+
+    response = client.post(
+        "/users/me/change-password",
+        json={"current_password": "oldpass123", "new_password": "newpass456"},
+        headers=header,
+    )
+
+    assert response.status_code == 200
+
+    # confirm the new password actually works for login
+    login_response = client.post("/auth/login", json={
+        "email": "pwd_user@test.com", "password": "newpass456"
+    })
+    assert login_response.status_code == 200
+    assert "access_token" in login_response.json()
+
+
+def test_change_password_wrong_old_password_rejected(client):
+    header = register_and_login(client, "pwd_user2@test.com", "PwdUser", "correctpass", "customer")
+
+    response = client.post(
+        "/users/me/change-password",
+        json={"current_password": "wrongpass", "new_password": "newpass456"},
+        headers=header,
+    )
+
+    assert response.status_code == 401  # depends on what your service raises
+    
+    
+# checking the booking history :
+
+def test_booking_history_returns_orders(client):
+    org_header = register_and_login(client, "booking_org@test.com", "Org", "pass123", "organizer")
+    event_data = setup_event_with_tiers(client, org_header)
+    event_id = event_data["event"]["id"]
+    event_name = event_data["event"]["name"]
+    tier_id = event_data["ticket_tiers"][0]["id"]
+
+    cust_header = register_and_login(client, "booking_cust@test.com", "Cust", "pass123", "customer")
+
+    order_response = client.post("/orders", json={
+        "event_id": event_id,
+        "items": [{"ticket_tier_id": tier_id, "quantity": 1}]
+    }, headers=cust_header)
+    assert order_response.status_code == 200
+
+    response = client.get("/users/me/booking-history", headers=cust_header)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+
+    entry = data[0]
+    assert "order_id" in entry
+    assert entry["event_name"] == event_name
+    assert "total_price" in entry
+    assert "status" in entry
+
+
+def test_booking_history_empty_for_new_user(client):
+    header = register_and_login(client, "no_bookings@test.com", "NoBooking", "pass123", "customer")
+
+    response = client.get("/users/me/booking-history", headers=header)
+
+    assert response.status_code == 200
+    assert response.json() == []
