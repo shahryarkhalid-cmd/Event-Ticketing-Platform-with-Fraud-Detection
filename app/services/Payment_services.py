@@ -7,6 +7,7 @@ from models.Users import User
 from dependencies.exception import Not_Order , Order_Mismatch , Not_Pending_Order
 import os
 from dotenv import load_dotenv
+from models.Notification import Notification
 load_dotenv()
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
@@ -74,6 +75,12 @@ def handle_stripe_webhook(payload: bytes, sig_header: str, session: Session):
 
         if order and order.payment_status == "pending":
             order.payment_status = "paid"
+            session.add(Notification(
+            user_id=order.user_id,
+            type="payment_success",
+            title="Payment successful",
+            body=f"Your payment of ${order.total_price:.2f} was confirmed."
+                 ))
             session.add(order)
 
             items = session.exec(

@@ -28,6 +28,8 @@ from app.models.Event import Event
 from app.models.Ticket import TicketTier
 from app.models.Orders import OrderItem , Order
 from app.models.Ticket_entity import Ticket
+# alembic/env.py — add alongside your other model imports
+from app.models.Notification import Notification
 load_dotenv()
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

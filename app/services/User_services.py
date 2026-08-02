@@ -30,7 +30,7 @@ def get_current_user(token: str = Depends(oauth_scheme), session: Session = Depe
 
 
 # Registring the User:
-
+from services.Verification_service import generate_and_send_otp
 def register_user(user : UserCreate , session : Session):
     hashed_pass = hash_password(user.password)
     final_user = User(full_name = user.full_name , hashed_password = hashed_pass , email=user.email , role = user.role)
@@ -47,6 +47,9 @@ def register_user(user : UserCreate , session : Session):
         raise User_Exist()
     
     session.add(final_user)
+    session.flush()         
+    session.refresh(final_user)
+    generate_and_send_otp(final_user.email)
     logging.info('User is added to DB')
     return {'message':'User added Sucessfully!'}
 
@@ -54,20 +57,24 @@ def register_user(user : UserCreate , session : Session):
 
 # Logging in the User:
 from fastapi.security import OAuth2PasswordRequestForm
-def logging_in(user : UserLogin, session : Session):
-    
-    # verfiying:
+def logging_in(user: UserLogin, session: Session):
+
     user_email = session.exec(select(User).where(User.email == user.email)).first()
     if user_email is None:
         logging.error('Email is not registered!')
         raise Email_registration()
-    verify = verify_password(user.password , user_email.hashed_password)
-    
+
+    verify = verify_password(user.password, user_email.hashed_password)
     if not verify:
         logging.error('Password MisMatching error')
         raise password_mismatch()
-    token = create_token({'sub' : str(user_email.id)})
-    logging.info("Token is created and logged in sucessful!")
+
+    if not user_email.is_verified:
+        logging.warning(f"Unverified login attempt: {user_email.email}")
+        raise HTTPException(status_code=403, detail="Please verify your email before logging in")
+
+    token = create_token({'sub': str(user_email.id)})
+    logging.info("Token is created and logged in successful!")
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -174,3 +181,5 @@ def change_password(password_data: PasswordChange, user: User, session: Session)
     session.add(user)
     session.flush()
     return {"message": "Password updated successfully"}
+
+

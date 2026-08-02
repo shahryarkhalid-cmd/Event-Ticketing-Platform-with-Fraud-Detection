@@ -63,3 +63,22 @@ def mock_supabase_upload():
             mock_bucket.remove.return_value = None
 
         yield mock_banner_client
+        
+@pytest.fixture(autouse=True)
+def mock_email_sending():
+    with patch("services.Verification_service.send_verification_email") as mock_send:
+        mock_send.return_value = None
+        yield mock_send
+        
+
+@pytest.fixture(autouse=True, scope="session")
+def _fake_redis():
+    import fakeredis
+    import core.redis_client as _rc
+    import services.Order_services as _os
+    import services.Verification_service as _vs   # <-- add this
+
+    fake = fakeredis.FakeRedis(decode_responses=True)
+    _rc.redis_client = fake
+    _os.redis_client = fake
+    _vs.redis_client = fake                        # <-- add this

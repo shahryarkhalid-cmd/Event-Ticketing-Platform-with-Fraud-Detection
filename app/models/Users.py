@@ -63,3 +63,18 @@ class UserUpdate(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str
+    
+class OTPVerify(BaseModel):
+    email: str
+    code: str
+
+class ResendVerification(BaseModel):
+    email: str
+    
+    
+class OTPVerify(BaseModel):
+    email: str
+    code: str
+
+class ResendVerification(BaseModel):
+    email: str

@@ -6,6 +6,7 @@ import logging
 from models.Orders import OrderItem
 from dependencies.exception import Forbidden ,Event_Not_Found
 from models.Ticket import TicketTier
+from models.Notification import Notification
 def Make_Event( event_data : EventCreateWithTiers , user : User , session : Session):
     user_info = session.exec(select(User).where(User.email == user.email)).first()
     if user_info.role != "organizer":
@@ -249,6 +250,7 @@ def get_revenue_overview(user: User, session: Session):
     refunded_amount = sum(o.total_price for o in refunded_orders)
     avg_order_value = total_revenue / len(paid_orders) if paid_orders else 0
     net_revenue = total_revenue - refunded_amount
+    
 
     return {
         "total_revenue": total_revenue,
@@ -290,6 +292,12 @@ def refund_order(order_id: int, user: User, session: Session):
         raise Paid_Refund()
 
     order.payment_status = "refunded"
+    session.add(Notification(
+    user_id=order.user_id,
+    type="refund",
+    title="Refund processed",
+    body=f"${order.total_price:.2f} has been refunded to your original payment method."
+            ))
 
     # Give back seats for every tier in this order, not just one
     items = session.exec(select(OrderItem).where(OrderItem.order_id == order.id)).all()
@@ -408,5 +416,3 @@ def update_fraud_status(order_id: int, new_status: str, user: User, session: Ses
     session.add(order)
     session.flush()
     return {"message": f"Order marked as {new_status}"}
-
-

@@ -8,6 +8,7 @@ from dependencies.exception import Not_customer , Ticket_Tier_not_found , Order_
 from core.redis_client import redis_client
 from core.locking import acquire_lock , release_lock
 from services.fraud_detection import predict_order, fraud_config
+from models.Notification import Notification
 def book_ticket(order_data: OrderCreate, user: User, session: Session):
     if user.role != UserRole.customer:
         raise Not_customer()
@@ -38,6 +39,14 @@ def book_ticket(order_data: OrderCreate, user: User, session: Session):
                 raise Not_Enough_Tickets()
 
             tier.sold_quantity += item.quantity
+            if tier.sold_quantity >= tier.total_seats:
+                    event = session.get(Event, tier.event_id)
+                    session.add(Notification(
+                        user_id=event.organizer_id,
+                        type="sold_out",
+                        title="Tickets sold out",
+                        body=f"{tier.category_name} for '{event.name}' is now fully booked."
+                    ))
             session.add(tier)
 
             subtotal = tier.price * item.quantity
@@ -136,6 +145,6 @@ def get_my_booking_history(user: User, session: Session):
             "order_id": order.id,
             "event_name": event.name if event else "Unknown",
             "total_price": order.total_price,
-            "status": order.payment_status,
+            "status": order.payment_status
         })
     return result

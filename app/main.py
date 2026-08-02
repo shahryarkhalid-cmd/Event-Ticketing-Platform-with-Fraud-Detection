@@ -404,3 +404,41 @@ from services.Order_services import get_my_booking_history
 @app.get("/users/me/booking-history")
 def booking_history(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     return get_my_booking_history(user, session)
+
+
+# Notification session:
+
+from services.Notification_services import get_notifications , mark_notification_read , delete_notification
+@app.get("/notifications")
+def notifications(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return get_notifications(user, session)
+
+@app.post("/notifications/{notification_id}/read")
+def read_notification(notification_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return mark_notification_read(notification_id, user, session)
+
+@app.delete("/notifications/delete")
+def delete_notifications(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    return delete_notification(user, session)
+
+
+
+# AUTH OTP : 
+from fastapi import HTTPException
+from services.Verification_service import verify_otp , generate_and_send_otp
+from models.Users import OTPVerify, ResendVerification
+
+@app.post("/auth/verify-email")
+def verify_email(otp_data: OTPVerify, session: Session = Depends(get_session)):
+    return verify_otp(otp_data.email, otp_data.code, session)
+
+
+@app.post("/auth/resend-verification")
+def resend_verification(data: ResendVerification, session: Session = Depends(get_session)):
+    user = session.exec(select(User).where(User.email == data.email)).first()
+    if not user:
+        raise HTTPException(404, "No account found with this email")
+    if user.is_verified:
+        raise HTTPException(400, "This account is already verified")
+
+    return generate_and_send_otp(user.email)
