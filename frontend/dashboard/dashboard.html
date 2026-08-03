@@ -106,9 +106,9 @@
         <input type="search" id="globalSearch" placeholder="Search events, bookings, tickets…" aria-label="Search" />
       </div>
 
-      <button class="icon-btn" id="messagesBtn" aria-label="Messages">
+      <!-- <button class="icon-btn" id="messagesBtn" aria-label="Messages">
         <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      </button>
+      </button> -->
 
       <div class="dropdown-wrap">
         <button class="icon-btn" id="notifBtn" aria-label="Notifications" aria-haspopup="true">
@@ -128,13 +128,14 @@
             <strong id="topbarUserName">Loading…</strong>
             <small id="topbarUserRole">Organizer</small>
           </span>
-          <svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+          <!-- <svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg> -->
         </button>
-        <div class="dropdown-panel profile-panel" id="profilePanel">
+        <!-- changs in top right corner -->
+        <!-- <div class="dropdown-panel profile-panel" id="profilePanel">
           <a href="#profile" class="dropdown-link">View Profile</a>
           <a href="#settings" class="dropdown-link">Account Settings</a>
           <a href="#" class="dropdown-link danger" id="logoutBtn2">Logout</a>
-        </div>
+        </div> -->  
       </div>
     </div>
   </header>
@@ -187,6 +188,10 @@
           </select>
           <select id="filterCategory" class="select">
             <option value="all">All Categories</option>
+            <option value="all">Concert</option>
+            <option value="all">Festival</option>
+            <option value="all">Food Festival</option>
+            <!-- <option value="all"></option> -->
           </select>
           <select id="sortBy" class="select">
             <option value="newest">Newest</option>
@@ -215,12 +220,13 @@
       </div>
 
       <div class="split-panels">
-        <div class="panel">
+        <!-- Removing graphical view from home page of DASHBOARD -->
+        <!-- <div class="panel">
           <div class="panel-head">
-            <div><h3>Revenue Overview</h3><p class="panel-sub">Last 7 days</p></div>
+            <div><h3>Revenue Overview</h3><p class="panel-sub">Last 7 days</p></div>  
           </div>
           <div class="chart-box" id="revenueChart"></div>
-        </div>
+        </div> -->
         <div class="panel">
           <div class="panel-head">
             <div><h3>Most Popular Category</h3><p class="panel-sub">By tickets sold</p></div>
@@ -519,7 +525,7 @@
           <span class="profile-large-avatar avatar-initials" id="profileAvatarLarge" aria-hidden="true">--</span>
           <div class="form-grid">
             <label class="field"><span>Full Name</span><input type="text" id="profileNameInput" /></label>
-            <label class="field"><span>Email</span><input type="email" id="profileEmailInput" /></label>
+            <!-- <label class="field"><span>Email</span><input type="email" id="profileEmailInput" /></label> -->
             <label class="field"><span>Phone</span><input type="text" id="profilePhoneInput" /></label>
             <label class="field"><span>Company</span><input type="text" id="profileCompanyInput" /></label>
           </div>
@@ -535,8 +541,8 @@
         <div class="settings-list">
           <label class="setting-row"><span>Email notifications</span><input type="checkbox" checked /></label>
           <label class="setting-row"><span>SMS alerts for low ticket stock</span><input type="checkbox" checked /></label>
-          <label class="setting-row"><span>Weekly performance summary</span><input type="checkbox" /></label>
-          <label class="setting-row"><span>Two-factor authentication</span><input type="checkbox" /></label>
+          <!-- <label class="setting-row"><span>Weekly performance summary</span><input type="checkbox" /></label> -->
+          <!-- <label class="setting-row"><span>Two-factor authentication</span><input type="checkbox" /></label> -->
         </div>
       </div>
     </section>
