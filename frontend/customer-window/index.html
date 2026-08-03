@@ -34,7 +34,7 @@
         <a href="#" class="nav-link active" data-view="home">Home</a>
         <a href="#" class="nav-link" data-view="browse">Browse Events</a>
         <a href="#" class="nav-link" data-view="bookings">My Bookings</a>
-        <a href="#" class="nav-link" data-view="wishlist">Wishlist</a>
+        <!-- <a href="#" class="nav-link" data-view="wishlist">Wishlist</a> -->
       </nav>
 
       <div class="nav-actions">
@@ -57,14 +57,15 @@
     <div class="drawer-panel">
       <button class="icon-btn drawer-close" id="drawerClose" aria-label="Close menu">✕</button>
       <div class="drawer-brand"><span class="brand-mark"><img src="assets/logo.png" alt=""></span>
-        <strong>Tixora</strong></div>
+        <strong>Tixora</strong>
+      </div>
 
       <div class="drawer-group-title">Menu</div>
       <a href="#" class="nav-link" data-view="home"><span class="d-ico">🏠</span>Home</a>
       <a href="#" class="nav-link" data-view="browse"><span class="d-ico">🔎</span>Browse Events</a>
       <a href="#" class="nav-link" data-view="bookings"><span class="d-ico">🎫</span>My Bookings <span class="badge-dot"
           id="notifDotBookings" style="display:none;margin-left:auto;"></span></a>
-      <a href="#" class="nav-link" data-view="wishlist"><span class="d-ico">♥</span>Wishlist</a>
+      <!-- <a href="#" class="nav-link" data-view="wishlist"><span class="d-ico">♥</span>Wishlist</a> -->
       <a href="#" class="nav-link" data-view="notifications"><span class="d-ico">🔔</span>Notifications <span
           class="badge-dot" id="notifDot" style="margin-left:auto;"></span></a>
 
@@ -106,7 +107,9 @@
               <h1>Every ticket verified.<br>Every event <span>unforgettable.</span></h1>
               <p>Discover concerts, conferences and experiences near you — booked in seconds, protected by real-time
                 fraud detection.</p>
-              <div class="hero-stats">
+              <!-- Removing stats sesion at the home page -->
+              <!-- ========================================================================================= -->
+              <!-- <div class="hero-stats">
                 <div>
                   <div class="stat-num" data-count="12400">0</div>
                   <div class="stat-label">Events hosted</div>
@@ -115,27 +118,48 @@
                   <div class="stat-num" data-count="980000">0</div>
                   <div class="stat-label">Tickets sold</div>
                 </div>
-                <!-- <div>
+                <div>
                   <div class="stat-num" data-count="99">0</div>
                   <div class="stat-label">% fraud caught</div>
-                </div> -->
-              </div>
+                </div>
+              </div> -->
+              <!-- ========================================================================================= -->
             </div>
             <div class="hero-visual" aria-hidden="true">
-              <div class="floating-ticket t1">
-                <div class="ft-top"><span class="ft-cat">Music</span><span>🎟️</span></div>
-                <div class="ft-title">Skyline Music Festival</div>
-                <div class="ft-meta">Austin · Sep 12</div>
-              </div>
-              <div class="floating-ticket t2">
-                <div class="ft-top"><span class="ft-cat">Technology</span><span>🎟️</span></div>
-                <div class="ft-title">Tech &amp; AI Conference</div>
-                <div class="ft-meta">Austin · Sep 28</div>
+              <div class="phone-mock">
+                <div class="phone-mock__notch"></div>
+                <div class="phone-mock__screen">
+                  <div class="phone-mock__header">
+                    <span class="phone-mock__brand">Tixora</span>
+                    <span class="phone-mock__badge phone-mock__badge--verified">Verified</span>
+                  </div>
+
+                  <div class="morph-stage morph-stage--inline">
+                    <svg class="morph-icon morph-icon--ticket" viewBox="0 0 100 100" fill="none">
+                      <path
+                        d="M15 35c0-5.5 4.5-10 10-10h50c5.5 0 10 4.5 10 10a6 6 0 000 12c0 5.5-4.5 10-10 10H25c-5.5 0-10-4.5-10-10a6 6 0 000-12z"
+                        fill="#4CC9F0" />
+                      <line x1="50" y1="27" x2="50" y2="73" stroke="#001F54" stroke-width="2" stroke-dasharray="4 4" />
+                    </svg>
+                    <svg class="morph-icon morph-icon--shield" viewBox="0 0 100 100" fill="none">
+                      <path d="M50 10l32 12v22c0 22-14 36-32 46-18-10-32-24-32-46V22z" fill="#0B5ED7" />
+                      <path d="M35 50l10 10 20-22" stroke="#fff" stroke-width="6" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    </svg>
+                  </div>
+
+                  <div class="phone-mock__label">
+                    <span class="morph-label__ticket">Skyline Music Festival</span>
+                    <span class="morph-label__shield">✓ Verified — Entry Granted</span>
+                  </div>
+                  <div class="phone-mock__venue">Zilker Park Amphitheater</div>
+                </div>
               </div>
             </div>
           </div>
-
-          <div class="search-bar">
+          <!-- Removing serach bar from home page   -->
+          <!-- ========================================================================================= -->
+          <!-- <div class="search-bar">
             <div class="search-field">
               <label for="heroSearchInput">Search</label>
               <input type="text" id="heroSearchInput" placeholder="Search events, artists, venues" autocomplete="off">
@@ -156,7 +180,8 @@
               <input type="date" id="heroDate">
             </div>
             <button class="btn btn-primary btn-lg" id="heroSearchBtn">Search Events</button>
-          </div>
+          </div> -->
+          <!-- ========================================================================================= -->
         </div>
       </div>
 
@@ -227,7 +252,9 @@
         </div>
       </section>
 
-      <section class="section section-alt">
+      <!-- Removing stats section from the footer of the home page -->
+      <!-- ========================================================================================= -->
+      <!-- <section class="section section-alt">
         <div class="container">
           <div class="stats-band">
             <div class="stat">
@@ -242,13 +269,14 @@
               <div class="stat-value" data-count="980000">0</div>
               <div class="stat-name">Tickets sold</div>
             </div>
-            <!-- <div class="stat">
+            <div class="stat">
               <div class="stat-value" data-count="45000">0</div>
               <div class="stat-name">Fraud attempts blocked</div>
-            </div> -->
+            </div>
           </div>
         </div>
-      </section>
+      </section> -->
+      <!-- ========================================================================================= -->
 
       <!-- <section class="section">
         <div class="container">
@@ -262,8 +290,9 @@
           </div>
         </div>
       </section> -->
-
-      <section class="home-reviews">
+      <!-- Removing reviews from the fooetr of the home page  -->
+      <!-- ========================================================================================= -->
+      <!-- <section class="home-reviews">
         <div class="container">
           <div class="section-head" style="border:none;">
             <div><span class="eyebrow">Loved by attendees</span>
@@ -272,7 +301,8 @@
           </div>
           <div class="home-reviews-grid" id="homeReviewsGrid"></div>
         </div>
-      </section>
+      </section> -->
+      <!-- ========================================================================================= -->
 
     </section>
 
@@ -318,8 +348,77 @@
             <label for="filterCountry">Country</label>
             <select id="filterCountry">
               <option value="all">All countries</option>
+              <option value="Afghanistan">Afghanistan</option>
+              <option value="Albania">Albania</option>
+              <option value="Algeria">Algeria</option>
+              <option value="Argentina">Argentina</option>
+              <option value="Armenia">Armenia</option>
+              <option value="Australia">Australia</option>
+              <option value="Austria">Austria</option>
+              <option value="Azerbaijan">Azerbaijan</option>
+              <option value="Bahrain">Bahrain</option>
+              <option value="Bangladesh">Bangladesh</option>
+              <option value="Belgium">Belgium</option>
+              <option value="Brazil">Brazil</option>
+              <option value="Bulgaria">Bulgaria</option>
+              <option value="Cambodia">Cambodia</option>
+              <option value="Canada">Canada</option>
+              <option value="Chile">Chile</option>
+              <option value="China">China</option>
+              <option value="Colombia">Colombia</option>
+              <option value="Croatia">Croatia</option>
+              <option value="Czech Republic">Czech Republic</option>
+              <option value="Denmark">Denmark</option>
+              <option value="Egypt">Egypt</option>
+              <option value="Finland">Finland</option>
+              <option value="France">France</option>
+              <option value="Germany">Germany</option>
+              <option value="Ghana">Ghana</option>
+              <option value="Greece">Greece</option>
+              <option value="India">India</option>
+              <option value="Indonesia">Indonesia</option>
+              <option value="Iran">Iran</option>
+              <option value="Iraq">Iraq</option>
+              <option value="Ireland">Ireland</option>
+              <option value="Israel">Israel</option>
+              <option value="Italy">Italy</option>
+              <option value="Japan">Japan</option>
+              <option value="Jordan">Jordan</option>
+              <option value="Kazakhstan">Kazakhstan</option>
+              <option value="Kenya">Kenya</option>
+              <option value="Kuwait">Kuwait</option>
+              <option value="Lebanon">Lebanon</option>
+              <option value="Malaysia">Malaysia</option>
+              <option value="Mexico">Mexico</option>
+              <option value="Morocco">Morocco</option>
+              <option value="Nepal">Nepal</option>
+              <option value="Netherlands">Netherlands</option>
+              <option value="New Zealand">New Zealand</option>
+              <option value="Nigeria">Nigeria</option>
+              <option value="Norway">Norway</option>
+              <option value="Oman">Oman</option>
+              <option value="Pakistan">Pakistan</option>
+              <option value="Philippines">Philippines</option>
+              <option value="Poland">Poland</option>
+              <option value="Portugal">Portugal</option>
+              <option value="Qatar">Qatar</option>
+              <option value="Romania">Romania</option>
+              <option value="Russia">Russia</option>
+              <option value="Saudi Arabia">Saudi Arabia</option>
+              <option value="Singapore">Singapore</option>
+              <option value="South Africa">South Africa</option>
+              <option value="South Korea">South Korea</option>
+              <option value="Spain">Spain</option>
+              <option value="Sri Lanka">Sri Lanka</option>
+              <option value="Sweden">Sweden</option>
+              <option value="Switzerland">Switzerland</option>
+              <option value="Thailand">Thailand</option>
+              <option value="Turkey">Turkey</option>
+              <option value="Ukraine">Ukraine</option>
+              <option value="United Arab Emirates">United Arab Emirates</option>
+              <option value="United Kingdom">United Kingdom</option>
               <option value="United States">United States</option>
-            </select>
+              <option value="Vietnam">Vietnam</option>
           </div>
           <div class="filter-field">
             <label for="filterCity">City</label>
@@ -535,7 +634,7 @@
     </section>
 
     <!-- ============================= WISHLIST VIEW ============================ -->
-    <section class="view hidden" data-view="wishlist">
+    <!-- <section class="view hidden" data-view="wishlist">
       <div class="container">
         <div class="page-head">
           <div class="breadcrumbs"><a href="#" data-goto="home">Home</a><span>/</span><span>Wishlist</span></div>
@@ -553,7 +652,7 @@
         </div>
       </div>
       <div style="height:64px;"></div>
-    </section>
+    </section> -->
 
     <!-- =========================== NOTIFICATIONS VIEW ========================== -->
     <section class="view hidden" data-view="notifications">
@@ -613,11 +712,11 @@
                   <input type="text" id="fullName" value="Amara Whitfield" required>
                   <span class="error-msg">Please enter your full name.</span>
                 </div>
-                <div class="form-field">
+                <!-- <div class="form-field">
                   <label for="emailField">Email address</label>
                   <input type="email" id="emailField" value="amara.whitfield@example.com" required>
                   <span class="error-msg">Please enter a valid email.</span>
-                </div>
+                </div> -->
                 <div class="form-field">
                   <label for="phoneField">Phone number</label>
                   <input type="tel" id="phoneField" value="+1 (512) 555-0148">
@@ -685,13 +784,24 @@
 
   <!-- Minimal legal strip. Support / About / Terms / Privacy now live in the side menu (see drawer). -->
   <footer class="app-legal-strip">
-    <div class="container">
+    <!-- <div class="container">
       <span>© 2026 Tixora, Inc. — Made for event people, protected by AI.</span>
       <span>
         <a href="#" data-goto-support="1">Support</a>
         <a href="#" data-goto-about="1">About</a>
         <a href="#" data-goto-legal="1">Terms &amp; Privacy</a>
       </span>
+    </div> -->
+    <div class="site-footer__brand">
+      <img src="assets/logo-white.png" alt="Tixora" width="40" height="40" />
+      <div>
+        <p class="site-footer__name">Tixora</p>
+        <p class="site-footer__tagline">Secure Event Ticketing Platform</p>
+      </div>
+    </div>
+
+    <div class="site-footer__bottom">
+      <p>&copy; 2026 Tixora. All rights reserved.</p>
     </div>
   </footer>
 

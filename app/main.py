@@ -5,6 +5,7 @@ from sqlmodel import Session ,select
 from database import get_session
 from services.User_services import register_user , logging_in
 from models.Users import UserCreate , UserLogin , User , RoleSelect , UserRead
+from dotenv import load_dotenv
 from models.Event import EventCreateWithTiers
 from services.User_services import get_current_user , get_me , select_role
 from services.Organizer_services import Make_Event , get_organizer_events , delete_organizer_event , delete_all_organizer_event , get_specific_event , List_Tickets , get_analytics_summary , get_popular_ticket_categories , get_ticket_sales_last_7_days , refund_order , get_monthly_revenue_trend , get_revenue_overview ,get_organizer_all_bookings  , get_fraud_orders
@@ -29,7 +30,7 @@ from services.Order_services import get_my_orders , book_ticket
 from services.Customer_services import search_events_customer
 from services.Payment_services import create_checkout_session
 from services.Customer_services import get_public_event_detail
-
+load_dotenv()
 
 # Adding API Scheduling:
 from apscheduler.schedulers.background import BackgroundScheduler
