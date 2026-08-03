@@ -1215,10 +1215,10 @@
 
   /* ---------------------------------- Init ------------------------------------- */
   async function init() {
-    // if (!localStorage.getItem("access_token")) {
-    //   window.location.href = "../login_sign_in/login.html";
-    //   return;
-    // }
+    if (!localStorage.getItem("access_token")) {
+      window.location.href = "../login_sign_in/login.html";
+      return;
+    }
 
     try {
       const me = await (await fetch(`${API_BASE}/users/me`, { headers: authHeaders() })).json();

@@ -209,6 +209,17 @@
     };
   }
 
+  function mapNotificationFromBackend(n) {
+    return {
+      id: n.id,
+      title: n.title,
+      body: n.body,
+      time: formatDateTime(n.created_at),
+      isRead: n.is_read,
+      type: "sold" // backend has no real `type` field yet — defaulting until it does
+    };
+  }
+
   const api = {
     events: {
       // GET /get_all_events (+ GET /events/:id/ticket-tiers per event)
@@ -275,7 +286,25 @@
       }
     },
     notifications: {
-      async list() { return []; } // not built on backend yet
+      // GET /notifications
+      async list() {
+        const raw = await fetchJSON(`${API_BASE}/notifications`, { headers: authHeaders() });
+        return raw.map(mapNotificationFromBackend);
+      },
+      // POST /notifications/:id/read
+      async markRead(id) {
+        return fetchJSON(`${API_BASE}/notifications/${id}/read`, {
+          method: "POST",
+          headers: authHeaders()
+        });
+      },
+      // DELETE /notifications/delete
+      async clearAll() {
+        return fetchJSON(`${API_BASE}/notifications/delete`, {
+          method: "DELETE",
+          headers: authHeaders()
+        });
+      }
     },
     fraud: {
       // GET /organizer/fraud-orders
