@@ -87,6 +87,9 @@
     { name: "Noah B.", event: "Startup Founders Summit", rating: 5, avatar: "https://i.pravatar.cc/80?img=51", text: "Clean checkout, real-time fraud screening, and my tickets were ready before I left the app." },
   ];
 
+  // No longer used anywhere — notifications are now fetched live from
+  // GET /notifications (see api.getNotifications / mapNotificationFromBackend
+  // below). Left in place rather than deleted, in case it's useful as a reference.
   const MOCK_NOTIFICATIONS = [
     { type: "confirmed", title: "Booking confirmed", body: "Your booking BK-88213 for Skyline Music Festival is confirmed.", time: "2h ago", unread: true },
     { type: "payment", title: "Payment successful", body: "$190.00 was charged for 2× Premium tickets.", time: "2h ago", unread: true },
@@ -298,6 +301,7 @@
     currentUser: null,
     events: [],
     bookings: [],
+    notifications: [],
     filters: { q: "", category: "all", country: "all", city: "", dateFrom: "", dateTo: "", price: "all", time: "all", sort: "popular" },
     page: 1,
     perPage: 6,
@@ -1369,40 +1373,131 @@
   }
 
   /* ------------------------------- Notifications ----------------------------- */
+  // NOTE on endpoints: GET /notifications, PATCH /notifications/{id}/read,
+  // and DELETE /notifications are assumed from Notification_services.py's
+  // get_notifications / mark_notification_read / delete_notification
+  // functions. Confirm the exact path/method against your router (or
+  // /docs) and adjust the three fetch() calls below if they differ —
+  // this backend previously returned 404/405 for guessed paths.
   const NOTIF_ICON = { confirmed: ["✓", "#DCFCE7", "#067647"], payment: ["💳", "#DBEAFE", "#1D4ED8"], reminder: ["⏰", "#FEF3C7", "#92400E"], updated: ["✎", "#E0F2FE", "#0369A1"], cancelled: ["✕", "#FEE2E2", "#B91C1C"], refund: ["↩", "#EDE9FE", "#6D28D9"] };
+
+  function timeAgo(dateStr) {
+    if (!dateStr) return "";
+    const then = new Date(dateStr);
+    if (Number.isNaN(then.getTime())) return "";
+    const diffMin = Math.floor((Date.now() - then.getTime()) / 60000);
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    return `${Math.floor(diffHr / 24)}d ago`;
+  }
+
+  // Backend Notification row -> shape renderNotifications() expects. Field
+  // names are read defensively (title/message/body, is_read/read, etc.)
+  // since the Notification model itself wasn't shared — mirrors the same
+  // defensive approach used for mapBookingFromBackend above.
+  function mapNotificationFromBackend(n) {
+    return {
+      id: n.id,
+      type: n.type || n.category || "reminder",
+      title: n.title || n.heading || "Notification",
+      body: n.body || n.message || n.description || "",
+      time: timeAgo(n.created_at || n.createdAt),
+      unread: !(n.is_read ?? n.read ?? false),
+    };
+  }
+
+  Object.assign(api, {
+    getNotifications: async () => {
+      const res = await fetch(`${API_BASE}/notifications`, { headers: authHeaders() });
+      if (!res.ok) {
+        console.error(`GET /notifications → ${res.status}`);
+        throw new Error(`Couldn't load notifications (${res.status})`);
+      }
+      const raw = await res.json();
+      return Array.isArray(raw) ? raw.map(mapNotificationFromBackend) : [];
+    },
+    markNotificationRead: async (id) => {
+      const res = await fetch(`${API_BASE}/notifications/${id}/read`, {
+        method: "PATCH",
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        let detail = "";
+        try { const body = await res.json(); detail = formatErrorDetail(body.detail); } catch (e) { /* not JSON */ }
+        console.error(`PATCH /notifications/${id}/read → ${res.status}${detail ? `: ${detail}` : ""}`);
+        throw new Error(detail || `Couldn't mark as read (${res.status})`);
+      }
+    },
+    // Backend only supports clearing ALL notifications for the user at
+    // once (delete_notification takes no notification_id) — there is no
+    // single-notification delete route, so the UI offers one "clear all"
+    // action instead of a per-item delete button.
+    clearAllNotifications: async () => {
+      const res = await fetch(`${API_BASE}/notifications`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        let detail = "";
+        try { const body = await res.json(); detail = formatErrorDetail(body.detail); } catch (e) { /* not JSON */ }
+        console.error(`DELETE /notifications → ${res.status}${detail ? `: ${detail}` : ""}`);
+        throw new Error(detail || `Couldn't delete notifications (${res.status})`);
+      }
+    },
+  });
+
   function renderNotifications() {
     const list = $("#notifList");
     if (!list) return;
-    if (!MOCK_NOTIFICATIONS.length) {
+    if (!state.notifications.length) {
       list.innerHTML = `<div class="empty-state"><div class="icon-wrap">🔔</div><h3>No notifications</h3><p>You're all caught up.</p></div>`;
       updateNotifBadge();
       return;
     }
-    list.innerHTML = MOCK_NOTIFICATIONS.map((n, idx) => {
+    list.innerHTML = state.notifications.map((n) => {
       const [icon, bg, fg] = NOTIF_ICON[n.type] || ["🔔", "#EEF2F7", "#334155"];
       return `
-    <div class="notif-item ${n.unread ? "unread" : ""}" data-idx="${idx}">
+    <div class="notif-item ${n.unread ? "unread" : ""}" data-id="${n.id}">
       <div class="notif-icon" style="background:${bg};color:${fg}">${icon}</div>
       <div class="notif-body"><strong>${escapeHTML(n.title)}</strong><p>${escapeHTML(n.body)}</p></div>
-      <span class="notif-time">${n.time}</span>
-      <button type="button" class="notif-delete" data-delete="${idx}" aria-label="Delete notification">✕</button>
+      <span class="notif-time">${escapeHTML(n.time)}</span>
     </div>`;
     }).join("");
     updateNotifBadge();
-    $$(".notif-item", list).forEach((item) => item.addEventListener("click", (e) => {
-      if (e.target.closest("[data-delete]")) return;
-      const n = MOCK_NOTIFICATIONS[parseInt(item.dataset.idx, 10)];
-      if (n && n.unread) { n.unread = false; renderNotifications(); }
-    }));
-    $$("[data-delete]", list).forEach((btn) => btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const idx = parseInt(btn.dataset.delete, 10);
-      MOCK_NOTIFICATIONS.splice(idx, 1);
-      renderNotifications();
+    $$(".notif-item", list).forEach((item) => item.addEventListener("click", async () => {
+      const n = state.notifications.find((x) => String(x.id) === item.dataset.id);
+      if (!n || !n.unread) return;
+      try {
+        await api.markNotificationRead(n.id);
+        n.unread = false;
+        renderNotifications();
+      } catch (err) {
+        console.error("Mark as read failed:", err);
+        toast("Couldn't update notification", err.message || "Something went wrong.", "err");
+      }
     }));
   }
+
+  function initNotifications() {
+    $("#clearAllNotifBtn")?.addEventListener("click", async () => {
+      if (!state.notifications.length) return;
+      if (!confirm("If you want to delete all notifications, OK.")) return;
+      try {
+        await api.clearAllNotifications();
+        state.notifications = [];
+        renderNotifications();
+        toast("Notifications cleared", "All notifications have been deleted.", "ok");
+      } catch (err) {
+        console.error("Clear all notifications failed:", err);
+        toast("Couldn't clear notifications", err.message || "Something went wrong.", "err");
+      }
+    });
+  }
+
   function updateNotifBadge() {
-    const unread = MOCK_NOTIFICATIONS.filter((n) => n.unread).length;
+    const unread = state.notifications.filter((n) => n.unread).length;
     const badge = $("#notifCount");
     if (badge) {
       badge.textContent = String(unread);
@@ -1609,6 +1704,7 @@
     initProfileForm();
     initNewsletter();
     initFraud();
+    initNotifications();
     updateNotifBadge();
 
     try {
@@ -1624,6 +1720,13 @@
     } catch (err) {
       console.error("Couldn't load bookings:", err);
       state.bookings = [];
+    }
+
+    try {
+      state.notifications = await api.getNotifications();
+    } catch (err) {
+      console.error("Couldn't load notifications:", err);
+      state.notifications = [];
     }
 
     renderFeatured();
