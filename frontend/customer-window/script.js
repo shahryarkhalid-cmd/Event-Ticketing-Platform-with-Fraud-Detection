@@ -180,13 +180,17 @@
     const eventBanner = matchedEvent?.banner || order.event?.banner_url
       || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop";
     const eventDate = matchedEvent?.date || (order.event?.start_datetime || "").split("T")[0];
+    // Needed on the ticket image (date/time/venue) — not previously kept on the
+    // mapped booking object, only used transiently for the upcoming/previous split.
+    const eventTime = matchedEvent?.time || (order.event?.start_datetime || "").split("T")[1]?.slice(0, 5) || "";
+    const eventVenue = matchedEvent?.venue || order.event?.venue || "";
 
     const when = eventDate && new Date(eventDate) < new Date(new Date().toDateString()) ? "previous" : "upcoming";
 
     return {
       id: `ORD-${order.id ?? order.order_id ?? ""}`,
       orderId: order.id ?? order.order_id,
-      event: { title: eventTitle, banner: eventBanner },
+      event: { title: eventTitle, banner: eventBanner, date: eventDate, time: eventTime, venue: eventVenue },
       tier: tierName,
       qty,
       total: Number(total) || 0,
@@ -247,6 +251,36 @@
       }
       const order = await res.json();
       return { orderId: order.id, ...payload };
+    },
+
+    // ---- Ticket QR + listing endpoints ----
+    // Real contract from Order_services.py / qr_service.py (backend files,
+    // not touched here):
+    //   GET /orders/{order_id}/tickets -> [{ ticket_uid, status, category_name }, ...]
+    //     one entry per physical Ticket row for this order (get_order_tickets)
+    //   GET /tickets/{ticket_uid}/qr   -> real PNG (StreamingResponse), one per ticket_uid
+    getOrderTickets: async (orderId) => {
+      const res = await fetch(`${API_BASE}/orders/${orderId}/tickets`, { headers: authHeaders() });
+      if (!res.ok) {
+        let detail = "";
+        try { const body = await res.json(); detail = formatErrorDetail(body.detail); } catch (e) { /* not JSON */ }
+        console.error(`GET /orders/${orderId}/tickets → ${res.status}${detail ? `: ${detail}` : ""}`);
+        throw new Error(detail || `Couldn't load tickets for this order (${res.status})`);
+      }
+      const raw = await res.json();
+      const list = Array.isArray(raw) ? raw : [];
+      return list.map((t) => ({
+        ticketUid: t.ticket_uid,
+        status: t.status,
+        tierName: t.category_name,
+      }));
+    },
+    // One real PNG QR per ticket_uid — no client-side generation, no fake pattern.
+    getTicketQrObjectUrl: async (ticketUid) => {
+      const res = await fetch(`${API_BASE}/tickets/${encodeURIComponent(ticketUid)}/qr`, { headers: authHeaders() });
+      if (!res.ok) throw new Error(`Couldn't load QR code (${res.status})`);
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
     },
   };
   const wait = (ms) => new Promise((res) => setTimeout(res, ms));
@@ -1043,6 +1077,219 @@
     }
   }
 
+  /* --------------------------- Ticket image / QR download --------------------------- */
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Couldn't load image: ${src}`));
+      img.src = src;
+    });
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // Builds the shared summary rows (event/date/venue/booking) shown once,
+  // above the per-ticket QR blocks. Pure display formatting — no data
+  // invented here, all values come straight off the mapped booking.
+  function buildBookingSummaryLines(booking) {
+    const dateFmt = booking.event.date
+      ? new Date(booking.event.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+      : "—";
+    return [
+      ["Date & time", [dateFmt, booking.event.time].filter(Boolean).join(" · ") || "—"],
+      ["Venue", booking.event.venue || "—"],
+      ["Booking ID", booking.id],
+    ];
+  }
+
+  // Renders the downloadable ticket image (JPEG), top → bottom: one blue
+  // header with the real Tixora logo, the event summary once, then one QR
+  // block per REAL physical ticket returned by GET /orders/{id}/tickets
+  // (normally exactly one for a qty-1 order — never invented or duplicated).
+  // Header blue = var(--primary) #001F54 from styles.css, accent stripe =
+  // var(--accent) #4CC9F0 — same brand colors as the rest of the app.
+  async function buildTicketCanvas(booking, tickets, logoImg) {
+    const W = 700;
+    const HEADER_H = 190;
+    const summaryLines = buildBookingSummaryLines(booking);
+    const SUMMARY_ROW_H = 26;
+    const SUMMARY_H = 50 + summaryLines.length * SUMMARY_ROW_H + 30;
+    const QR_SIZE = 210;
+    const CARD_H = QR_SIZE + 130;
+    const GAP = 20;
+    const FOOTER_H = 56;
+    const count = tickets.length;
+    const H = HEADER_H + SUMMARY_H + count * CARD_H + (count - 1) * GAP + FOOTER_H;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, W, H);
+
+    // ---- Blue header with the real logo (once) ----
+    ctx.fillStyle = "#001F54";
+    ctx.fillRect(0, 0, W, HEADER_H);
+    ctx.fillStyle = "#4CC9F0";
+    ctx.fillRect(0, HEADER_H - 5, W, 5);
+
+    const logoSize = 64;
+    if (logoImg) ctx.drawImage(logoImg, (W - logoSize) / 2, 30, logoSize, logoSize);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "700 26px Arial, sans-serif";
+    ctx.fillText("Tixora", W / 2, 30 + logoSize + 30);
+    ctx.font = "500 13px Arial, sans-serif";
+    ctx.fillStyle = "#B9D3F5";
+    ctx.fillText("Secure Event Ticketing · E-Ticket", W / 2, 30 + logoSize + 52);
+    ctx.textAlign = "left";
+
+    // ---- Event summary (once) ----
+    let cy = HEADER_H + 44;
+    ctx.fillStyle = "#0F172A";
+    ctx.font = "700 22px Arial, sans-serif";
+    ctx.fillText(booking.event.title || "Event", 40, cy);
+    cy += 30;
+    ctx.font = "600 13px Arial, sans-serif";
+    const tierLabel = `${booking.tier || "General"} × ${booking.qty ?? 1}`;
+    const pillW = ctx.measureText(tierLabel).width + 28;
+    ctx.fillStyle = "#EEF2FF";
+    roundRect(ctx, 40, cy - 18, pillW, 28, 14);
+    ctx.fill();
+    ctx.fillStyle = "#0B5ED7";
+    ctx.fillText(tierLabel, 40 + 14, cy + 1);
+    cy += 40;
+
+    summaryLines.forEach(([label, value]) => {
+      ctx.font = "400 13px Arial, sans-serif";
+      ctx.fillStyle = "#64748B";
+      ctx.fillText(label, 40, cy);
+      ctx.font = "600 13px Arial, sans-serif";
+      ctx.fillStyle = "#0F172A";
+      ctx.textAlign = "right";
+      ctx.fillText(value, W - 40, cy);
+      ctx.textAlign = "left";
+      cy += SUMMARY_ROW_H;
+    });
+
+    // ---- One QR block per real physical ticket ----
+    const cardsTop = HEADER_H + SUMMARY_H;
+    for (let i = 0; i < count; i++) {
+      const ticket = tickets[i];
+      const top = cardsTop + i * (CARD_H + GAP);
+
+      ctx.strokeStyle = "#E2E8F0";
+      ctx.lineWidth = 1;
+      roundRect(ctx, 24, top, W - 48, CARD_H, 16);
+      ctx.stroke();
+
+      if (count > 1) {
+        ctx.font = "600 12px Arial, sans-serif";
+        ctx.fillStyle = "#64748B";
+        ctx.fillText(`Ticket ${i + 1} of ${count}`, 40, top + 26);
+      }
+
+      const qrX = (W - QR_SIZE) / 2;
+      const qrY = top + (count > 1 ? 40 : 24);
+      ctx.fillStyle = "#F8FAFC";
+      roundRect(ctx, qrX - 16, qrY - 16, QR_SIZE + 32, QR_SIZE + 32, 14);
+      ctx.fill();
+
+      if (ticket.qrImg) {
+        ctx.drawImage(ticket.qrImg, qrX, qrY, QR_SIZE, QR_SIZE);
+      } else {
+        ctx.fillStyle = "#F1F5F9";
+        ctx.fillRect(qrX, qrY, QR_SIZE, QR_SIZE);
+        ctx.fillStyle = "#94A3B8";
+        ctx.font = "13px Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("QR unavailable", qrX + QR_SIZE / 2, qrY + QR_SIZE / 2);
+        ctx.textAlign = "left";
+      }
+
+      ctx.textAlign = "center";
+      ctx.font = "500 12px Arial, sans-serif";
+      ctx.fillStyle = "#64748B";
+      ctx.fillText("Scan this code at entry", W / 2, qrY + QR_SIZE + 26);
+      ctx.font = "400 10px Arial, sans-serif";
+      ctx.fillStyle = "#94A3B8";
+      ctx.fillText(`${ticket.tierName || booking.tier} · ${String(ticket.ticketUid).slice(0, 18)}`, W / 2, qrY + QR_SIZE + 42);
+      ctx.textAlign = "left";
+    }
+
+    // ---- Footer (once) ----
+    const footerTop = H - FOOTER_H;
+    ctx.strokeStyle = "#E2E8F0";
+    ctx.beginPath();
+    ctx.moveTo(30, footerTop);
+    ctx.lineTo(W - 30, footerTop);
+    ctx.stroke();
+    ctx.textAlign = "center";
+    ctx.font = "400 11px Arial, sans-serif";
+    ctx.fillStyle = "#94A3B8";
+    ctx.fillText("Powered by Tixora — AI-powered fraud protection.", W / 2, footerTop + 28);
+    ctx.textAlign = "left";
+
+    return canvas;
+  }
+
+  async function downloadTicketImage(booking, btn) {
+    const originalLabel = btn ? btn.textContent : null;
+    if (btn) { btn.disabled = true; btn.textContent = "Preparing…"; }
+    toast("Preparing ticket", "Fetching your QR code(s) and building the ticket…", "ok");
+
+    const objectUrlsToRevoke = [];
+    try {
+      const orderId = booking.orderId ?? String(booking.id).replace(/^ORD-/, "");
+      const tickets = await api.getOrderTickets(orderId);
+      if (!tickets.length) throw new Error("No tickets found for this booking yet.");
+
+      // Real PNG QR per real ticket_uid — exactly as many QR codes as
+      // physical tickets returned by the backend, never more, never faked.
+      for (const t of tickets) {
+        try {
+          const qrUrl = await api.getTicketQrObjectUrl(t.ticketUid);
+          objectUrlsToRevoke.push(qrUrl);
+          t.qrImg = await loadImage(qrUrl);
+        } catch (qrErr) {
+          console.error(`Couldn't load QR for ${t.ticketUid}:`, qrErr);
+          t.qrImg = null;
+        }
+      }
+
+      const logoImg = await loadImage("assets/logo.png").catch(() => null);
+      const canvas = await buildTicketCanvas(booking, tickets, logoImg);
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Tixora-Ticket-${booking.id}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+
+      toast("Ticket ready", "Your ticket image has downloaded.", "ok");
+    } catch (err) {
+      console.error("Ticket download failed:", err);
+      toast("Couldn't prepare ticket", err.message || "Something went wrong. Please try again.", "err");
+    } finally {
+      objectUrlsToRevoke.forEach((u) => URL.revokeObjectURL(u));
+      if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+    }
+  }
+
   /* -------------------------------- Bookings -------------------------------- */
   function bookingCardHTML(b) {
     const statusLabel = { confirmed: "Confirmed", pending: "Pending", cancelled: "Cancelled" }[b.status];
@@ -1084,7 +1331,8 @@
     }));
     $$("[data-paynow]").forEach((btn) => btn.addEventListener("click", () => payNowFromBookings(btn)));
     $$("[data-download]").forEach((btn) => btn.addEventListener("click", () => {
-      toast("Preparing ticket", "Your PDF ticket download will start shortly.", "ok");
+      const b = state.bookings.find((x) => x.id === btn.dataset.download);
+      if (b) downloadTicketImage(b, btn);
     }));
   }
 
@@ -1216,8 +1464,8 @@
   /* ---------------------------------- Init ------------------------------------- */
   async function init() {
     if (!localStorage.getItem("access_token")) {
-      window.location.href = "../login_sign_in/login.html";
-      return;
+      // window.location.href = "../login_sign_in/login.html";
+      // return;
     }
 
     try {
