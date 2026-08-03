@@ -99,13 +99,30 @@ from fastapi import HTTPException
 # get_order_status:
 
 from models.Ticket_entity import Ticket as TicketInstance
+from models.Event import Event
+
 def get_order_status(order_id: int, user: User, session: Session):
     order = session.get(Order, order_id)
     if not order:
          raise HTTPException(status_code=404, detail="Order not found")
     if order.user_id != user.id:
         raise HTTPException(status_code=403, detail="Not your order")
-    return order
+
+    event = session.get(Event, order.event_id)
+    items = session.exec(select(OrderItem).where(OrderItem.order_id == order.id)).all()
+    total_qty = sum(i.quantity for i in items)
+
+    return OrderRead(
+        id=order.id,
+        user_id=order.user_id,
+        event_id=order.event_id,
+        total_price=order.total_price,
+        payment_status=order.payment_status,
+        fraud_status=order.fraud_status,
+        created_at=order.created_at,
+        event_name=event.name if event else None,
+        ticket_quantity=total_qty,
+    )
 
 
 def get_order_tickets(order_id: int, user: User, session: Session):

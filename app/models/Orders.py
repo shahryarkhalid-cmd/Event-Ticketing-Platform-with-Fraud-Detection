@@ -47,3 +47,5 @@ class OrderRead(BaseModel):
     payment_status: str
     fraud_status: Optional[str] = None
     created_at: datetime
+    event_name: Optional[str] = None
+    ticket_quantity: Optional[int] = None
