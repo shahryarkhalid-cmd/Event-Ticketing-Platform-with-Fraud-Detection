@@ -1111,24 +1111,23 @@
     ];
   }
 
-  // Renders the downloadable ticket image (JPEG), top → bottom: one blue
-  // header with the real Tixora logo, the event summary once, then one QR
-  // block per REAL physical ticket returned by GET /orders/{id}/tickets
-  // (normally exactly one for a qty-1 order — never invented or duplicated).
+  // Renders ONE downloadable ticket image (JPEG) for a SINGLE physical
+  // ticket: blue header with the real Tixora logo, event summary, then ONE
+  // QR box for this one ticket_uid. Called once per real ticket — for a
+  // 10-ticket order this runs 10 times, each with a different real QR, and
+  // every other line (event/date/venue/booking id) staying identical.
   // Header blue = var(--primary) #001F54 from styles.css, accent stripe =
   // var(--accent) #4CC9F0 — same brand colors as the rest of the app.
-  async function buildTicketCanvas(booking, tickets, logoImg) {
+  async function buildTicketCanvas(booking, ticket, index, total, logoImg) {
     const W = 700;
     const HEADER_H = 190;
     const summaryLines = buildBookingSummaryLines(booking);
     const SUMMARY_ROW_H = 26;
     const SUMMARY_H = 50 + summaryLines.length * SUMMARY_ROW_H + 30;
-    const QR_SIZE = 210;
-    const CARD_H = QR_SIZE + 130;
-    const GAP = 20;
+    const QR_SIZE = 240;
+    const QR_SECTION_H = QR_SIZE + 110;
     const FOOTER_H = 56;
-    const count = tickets.length;
-    const H = HEADER_H + SUMMARY_H + count * CARD_H + (count - 1) * GAP + FOOTER_H;
+    const H = HEADER_H + SUMMARY_H + QR_SECTION_H + FOOTER_H;
 
     const canvas = document.createElement("canvas");
     canvas.width = W;
@@ -1138,7 +1137,7 @@
     ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, W, H);
 
-    // ---- Blue header with the real logo (once) ----
+    // ---- Blue header with the real logo ----
     ctx.fillStyle = "#001F54";
     ctx.fillRect(0, 0, W, HEADER_H);
     ctx.fillStyle = "#4CC9F0";
@@ -1155,14 +1154,14 @@
     ctx.fillText("Secure Event Ticketing · E-Ticket", W / 2, 30 + logoSize + 52);
     ctx.textAlign = "left";
 
-    // ---- Event summary (once) ----
+    // ---- Event summary — identical on every ticket in this order ----
     let cy = HEADER_H + 44;
     ctx.fillStyle = "#0F172A";
     ctx.font = "700 22px Arial, sans-serif";
     ctx.fillText(booking.event.title || "Event", 40, cy);
     cy += 30;
     ctx.font = "600 13px Arial, sans-serif";
-    const tierLabel = `${booking.tier || "General"} × ${booking.qty ?? 1}`;
+    const tierLabel = total > 1 ? `${ticket.tierName || booking.tier} · Ticket ${index + 1} of ${total}` : (ticket.tierName || booking.tier);
     const pillW = ctx.measureText(tierLabel).width + 28;
     ctx.fillStyle = "#EEF2FF";
     roundRect(ctx, 40, cy - 18, pillW, 28, 14);
@@ -1183,52 +1182,38 @@
       cy += SUMMARY_ROW_H;
     });
 
-    // ---- One QR block per real physical ticket ----
-    const cardsTop = HEADER_H + SUMMARY_H;
-    for (let i = 0; i < count; i++) {
-      const ticket = tickets[i];
-      const top = cardsTop + i * (CARD_H + GAP);
+    // ---- This ticket's own QR — different on every ticket in the order ----
+    const qrTop = HEADER_H + SUMMARY_H + 30;
+    const qrX = (W - QR_SIZE) / 2;
+    ctx.fillStyle = "#F8FAFC";
+    ctx.strokeStyle = "#E2E8F0";
+    ctx.lineWidth = 1;
+    roundRect(ctx, qrX - 18, qrTop - 18, QR_SIZE + 36, QR_SIZE + 36, 16);
+    ctx.fill();
+    ctx.stroke();
 
-      ctx.strokeStyle = "#E2E8F0";
-      ctx.lineWidth = 1;
-      roundRect(ctx, 24, top, W - 48, CARD_H, 16);
-      ctx.stroke();
-
-      if (count > 1) {
-        ctx.font = "600 12px Arial, sans-serif";
-        ctx.fillStyle = "#64748B";
-        ctx.fillText(`Ticket ${i + 1} of ${count}`, 40, top + 26);
-      }
-
-      const qrX = (W - QR_SIZE) / 2;
-      const qrY = top + (count > 1 ? 40 : 24);
-      ctx.fillStyle = "#F8FAFC";
-      roundRect(ctx, qrX - 16, qrY - 16, QR_SIZE + 32, QR_SIZE + 32, 14);
-      ctx.fill();
-
-      if (ticket.qrImg) {
-        ctx.drawImage(ticket.qrImg, qrX, qrY, QR_SIZE, QR_SIZE);
-      } else {
-        ctx.fillStyle = "#F1F5F9";
-        ctx.fillRect(qrX, qrY, QR_SIZE, QR_SIZE);
-        ctx.fillStyle = "#94A3B8";
-        ctx.font = "13px Arial, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("QR unavailable", qrX + QR_SIZE / 2, qrY + QR_SIZE / 2);
-        ctx.textAlign = "left";
-      }
-
-      ctx.textAlign = "center";
-      ctx.font = "500 12px Arial, sans-serif";
-      ctx.fillStyle = "#64748B";
-      ctx.fillText("Scan this code at entry", W / 2, qrY + QR_SIZE + 26);
-      ctx.font = "400 10px Arial, sans-serif";
+    if (ticket.qrImg) {
+      ctx.drawImage(ticket.qrImg, qrX, qrTop, QR_SIZE, QR_SIZE);
+    } else {
+      ctx.fillStyle = "#F1F5F9";
+      ctx.fillRect(qrX, qrTop, QR_SIZE, QR_SIZE);
       ctx.fillStyle = "#94A3B8";
-      ctx.fillText(`${ticket.tierName || booking.tier} · ${String(ticket.ticketUid).slice(0, 18)}`, W / 2, qrY + QR_SIZE + 42);
+      ctx.font = "13px Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("QR unavailable", qrX + QR_SIZE / 2, qrTop + QR_SIZE / 2);
       ctx.textAlign = "left";
     }
 
-    // ---- Footer (once) ----
+    ctx.textAlign = "center";
+    ctx.font = "500 12px Arial, sans-serif";
+    ctx.fillStyle = "#64748B";
+    ctx.fillText("Scan this code at entry", W / 2, qrTop + QR_SIZE + 30);
+    ctx.font = "400 10px Arial, sans-serif";
+    ctx.fillStyle = "#94A3B8";
+    ctx.fillText(String(ticket.ticketUid).slice(0, 24), W / 2, qrTop + QR_SIZE + 46);
+    ctx.textAlign = "left";
+
+    // ---- Footer ----
     const footerTop = H - FOOTER_H;
     ctx.strokeStyle = "#E2E8F0";
     ctx.beginPath();
@@ -1244,10 +1229,14 @@
     return canvas;
   }
 
+  // Downloads N separate JPG files for an N-ticket order — one file per real
+  // physical ticket, each with its own real QR from the backend and a unique
+  // filename, everything else on the ticket identical. A 10-ticket order
+  // produces 10 files, never one combined image with 10 codes on it.
   async function downloadTicketImage(booking, btn) {
     const originalLabel = btn ? btn.textContent : null;
     if (btn) { btn.disabled = true; btn.textContent = "Preparing…"; }
-    toast("Preparing ticket", "Fetching your QR code(s) and building the ticket…", "ok");
+    toast("Preparing tickets", "Fetching your QR code(s) and building your ticket images…", "ok");
 
     const objectUrlsToRevoke = [];
     try {
@@ -1269,18 +1258,25 @@
       }
 
       const logoImg = await loadImage("assets/logo.png").catch(() => null);
-      const canvas = await buildTicketCanvas(booking, tickets, logoImg);
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Tixora-Ticket-${booking.id}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      const total = tickets.length;
 
-      toast("Ticket ready", "Your ticket image has downloaded.", "ok");
+      for (let i = 0; i < total; i++) {
+        const canvas = await buildTicketCanvas(booking, tickets[i], i, total, logoImg);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = total > 1 ? `Tixora-Ticket-${booking.id}-${i + 1}-of-${total}.jpg` : `Tixora-Ticket-${booking.id}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        // Small gap between downloads — some browsers silently drop rapid-fire
+        // programmatic downloads if they all fire in the same tick.
+        if (i < total - 1) await wait(350);
+      }
+
+      toast("Tickets ready", total > 1 ? `${total} ticket images have downloaded.` : "Your ticket image has downloaded.", "ok");
     } catch (err) {
       console.error("Ticket download failed:", err);
       toast("Couldn't prepare ticket", err.message || "Something went wrong. Please try again.", "err");
