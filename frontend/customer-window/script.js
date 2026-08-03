@@ -104,6 +104,14 @@
     return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
   }
 
+  // For multipart/FormData requests (file uploads) — the browser must set
+  // its own "Content-Type: multipart/form-data; boundary=..." header, so we
+  // deliberately do NOT send one here (unlike authHeaders() above).
+  function authHeadersFormData() {
+    const token = localStorage.getItem("access_token");
+    return { "Authorization": `Bearer ${token}` };
+  }
+
   // FastAPI's 422 "detail" is often an array of {loc, msg, type} objects, not a
   // plain string — without this, `new Error(detail)` renders as "[object Object]"
   // and hides the real reason. Mirrors the same helper in login.js/signup.js.
@@ -344,6 +352,19 @@
 
     const emailInput = $("#emailField");
     if (emailInput) emailInput.value = email;
+
+    // Only overwrite if the backend actually sent a value — otherwise leave
+    // the form's existing placeholder text alone.
+    const phoneInput = $("#phoneField");
+    if (phoneInput && user.phone) phoneInput.value = user.phone;
+
+    const cityInput = $("#cityField");
+    if (cityInput && user.city) cityInput.value = user.city;
+
+    if (user.profile_picture_url) {
+      const avatarImg = $("#profileAvatarImg");
+      if (avatarImg) avatarImg.src = user.profile_picture_url;
+    }
   }
 
   /* ------------------------------ Ripple ---------------------------------- */
@@ -1257,7 +1278,7 @@
         }
       }
 
-      const logoImg = await loadImage("assets/logo.png").catch(() => null);
+      const logoImg = await loadImage("assets/logo-white.png").catch(() => null);
       const total = tickets.length;
 
       for (let i = 0; i < total; i++) {
@@ -1392,10 +1413,15 @@
   }
 
   /* --------------------------------- Profile form ----------------------------- */
+  // NOTE on endpoints below: PUT /users/me, POST /users/profile-picture, and
+  // PUT /users/change-password are assumed to match User_services.py's
+  // update_user_profile_service / upload_profile_picture_service /
+  // change_password functions. If your router registers these under
+  // different paths or HTTP methods, update the three fetch() calls below.
   function initProfileForm() {
     const form = $("#profileForm");
     if (!form) return;
-    form.addEventListener("submit", (e) => {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
       let valid = true;
       $$(".form-field", form).forEach((field) => {
@@ -1406,28 +1432,118 @@
         if (input.type === "email" && input.value && !/^\S+@\S+\.\S+$/.test(input.value)) { field.classList.add("invalid"); valid = false; }
       });
       if (!valid) { toast("Check the form", "Some fields need your attention.", "err"); return; }
-      toast("Profile updated", "Your changes have been saved.", "ok");
+
+      const saveBtn = $('button[type="submit"]', form);
+      const originalLabel = saveBtn ? saveBtn.textContent : null;
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving…"; }
+
+      try {
+        const payload = {
+          full_name: $("#fullName")?.value.trim(),
+          phone: $("#phoneField")?.value.trim(),
+          city: $("#cityField")?.value.trim(),
+        };
+        const res = await fetch(`${API_BASE}/users/me`, {
+          method: "PUT",
+          headers: authHeaders(),
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const detail = formatErrorDetail(data.detail);
+          console.error(`PUT /users/me → ${res.status}${detail ? `: ${detail}` : ""}`);
+          throw new Error(detail || `Couldn't save changes (${res.status})`);
+        }
+        // Merge the backend's response into state so name/phone/city/avatar
+        // all reflect what was actually persisted, not just what we typed.
+        state.currentUser = { ...state.currentUser, ...data };
+        applyCustomerIdentity(state.currentUser);
+        toast("Profile updated", "Your changes have been saved.", "ok");
+      } catch (err) {
+        console.error("Profile update failed:", err);
+        toast("Couldn't save profile", err.message || "Something went wrong. Please try again.", "err");
+      } finally {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = originalLabel; }
+      }
     });
 
-    $("#avatarUpload")?.addEventListener("change", (e) => {
+    $("#avatarUpload")?.addEventListener("change", async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
+
+      const avatarImg = $("#profileAvatarImg");
+      const previousSrc = avatarImg ? avatarImg.src : null;
+
+      // Instant local preview while the real upload is in flight.
       const reader = new FileReader();
-      reader.onload = () => { $("#profileAvatarImg").src = reader.result; };
+      reader.onload = () => { if (avatarImg) avatarImg.src = reader.result; };
       reader.readAsDataURL(file);
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch(`${API_BASE}/users/profile-picture`, {
+          method: "POST",
+          headers: authHeadersFormData(),
+          body: formData,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const detail = formatErrorDetail(data.detail);
+          console.error(`POST /users/profile-picture → ${res.status}${detail ? `: ${detail}` : ""}`);
+          throw new Error(detail || `Couldn't upload photo (${res.status})`);
+        }
+        const url = data.profile_picture_url;
+        if (state.currentUser) state.currentUser.profile_picture_url = url;
+        if (avatarImg && url) avatarImg.src = url;
+        toast("Photo updated", "Your profile picture has been saved.", "ok");
+      } catch (err) {
+        console.error("Avatar upload failed:", err);
+        if (avatarImg && previousSrc) avatarImg.src = previousSrc; // roll back the preview
+        toast("Couldn't upload photo", err.message || "Something went wrong. Please try again.", "err");
+      } finally {
+        e.target.value = ""; // allow re-selecting the same file next time
+      }
     });
 
     const pwdForm = $("#passwordForm");
-    pwdForm?.addEventListener("submit", (e) => {
+    pwdForm?.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const current = $("#currentPassword");
       const next = $("#newPassword");
       const confirm = $("#confirmPassword");
       const field = confirm.closest(".form-field");
       field.classList.remove("invalid");
       if (next.value.length < 8) { next.closest(".form-field").classList.add("invalid"); toast("Weak password", "Use at least 8 characters.", "err"); return; }
       if (next.value !== confirm.value) { field.classList.add("invalid"); toast("Passwords don't match", "Please re-enter to confirm.", "err"); return; }
-      toast("Password changed", "Use your new password next time you log in.", "ok");
-      pwdForm.reset();
+
+      const submitBtn = $('button[type="submit"]', pwdForm);
+      const originalLabel = submitBtn ? submitBtn.textContent : null;
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Updating…"; }
+
+      try {
+        const res = await fetch(`${API_BASE}/users/change-password`, {
+          method: "PUT",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            current_password: current.value,
+            new_password: next.value,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const detail = formatErrorDetail(data.detail);
+          console.error(`PUT /users/change-password → ${res.status}${detail ? `: ${detail}` : ""}`);
+          throw new Error(detail || `Couldn't update password (${res.status})`);
+        }
+        toast("Password changed", "Use your new password next time you log in.", "ok");
+        pwdForm.reset();
+      } catch (err) {
+        console.error("Password change failed:", err);
+        toast("Couldn't update password", err.message || "Current password may be incorrect.", "err");
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalLabel; }
+      }
     });
   }
 
