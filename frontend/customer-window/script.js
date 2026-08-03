@@ -180,17 +180,13 @@
     const eventBanner = matchedEvent?.banner || order.event?.banner_url
       || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop";
     const eventDate = matchedEvent?.date || (order.event?.start_datetime || "").split("T")[0];
-    // Added for the downloadable ticket card (PNG) — purely additive, doesn't
-    // affect any existing field consumers.
-    const eventVenue = matchedEvent?.venue || order.event?.venue || "";
-    const eventTime = matchedEvent?.time || (order.event?.start_datetime || "").split("T")[1]?.slice(0, 5) || "";
 
     const when = eventDate && new Date(eventDate) < new Date(new Date().toDateString()) ? "previous" : "upcoming";
 
     return {
       id: `ORD-${order.id ?? order.order_id ?? ""}`,
       orderId: order.id ?? order.order_id,
-      event: { title: eventTitle, banner: eventBanner, venue: eventVenue, date: eventDate, time: eventTime },
+      event: { title: eventTitle, banner: eventBanner },
       tier: tierName,
       qty,
       total: Number(total) || 0,
@@ -1047,210 +1043,6 @@
     }
   }
 
-  /* --------------------------- Ticket download (PNG) ------------------------ */
-  // Builds a downloadable ticket card: event/order details + the Tixora logo
-  // + the ticket's QR code image. The QR is never generated in the browser —
-  // it's fetched straight from the backend's GET /tickets/{ticket_uid}/qr,
-  // which encodes that ticket's unique ticket_uid, so every ticket (and every
-  // re-download of it) renders the same one-of-a-kind code tied to that
-  // specific ticket row — not a fixed/shared image.
-
-  function loadImageFromURL(src) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = src;
-    });
-  }
-
-  async function loadImageFromAuthEndpoint(url) {
-    const res = await fetch(url, { headers: authHeaders() });
-    if (!res.ok) throw new Error(`Could not load image (${res.status})`);
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    try {
-      return await loadImageFromURL(objectUrl);
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-    }
-  }
-
-  function roundRectPath(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-
-  function drawTicketCanvas({ logoImg, qrImg, eventTitle, venue, dateStr, timeStr, tier, orderId, ticketUid, status }) {
-    const W = 900, H = 380;
-    const canvas = document.createElement("canvas");
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext("2d");
-
-    // Card background
-    ctx.fillStyle = "#FFFFFF";
-    roundRectPath(ctx, 0, 0, W, H, 24);
-    ctx.fill();
-    ctx.save();
-    roundRectPath(ctx, 0, 0, W, H, 24);
-    ctx.clip();
-
-    // Left panel (brand)
-    const leftW = 280;
-    const grad = ctx.createLinearGradient(0, 0, leftW, H);
-    grad.addColorStop(0, "#001F54");
-    grad.addColorStop(1, "#0B5ED7");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, leftW, H);
-
-    if (logoImg) {
-      const logoSize = 64;
-      try { ctx.drawImage(logoImg, 28, 28, logoSize, logoSize); } catch (e) { /* ignore draw failure */ }
-    }
-    ctx.fillStyle = "#FFFFFF";
-    ctx.font = "700 22px Arial, sans-serif";
-    ctx.fillText("Tixora", 28, 122);
-    ctx.font = "400 13px Arial, sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.75)";
-    ctx.fillText("Official Ticket", 28, 144);
-
-    ctx.font = "600 13px Arial, sans-serif";
-    ctx.fillStyle = "#4CC9F0";
-    ctx.fillText((status || "").toUpperCase(), 28, H - 28);
-
-    // Perforation
-    ctx.setLineDash([6, 6]);
-    ctx.strokeStyle = "rgba(15,23,42,0.15)";
-    ctx.beginPath();
-    ctx.moveTo(leftW, 0);
-    ctx.lineTo(leftW, H);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Right panel (details)
-    const padX = leftW + 32;
-    let cursorY = 56;
-    ctx.fillStyle = "#0F172A";
-    ctx.font = "700 26px Arial, sans-serif";
-    wrapText(ctx, eventTitle || "Event", padX, cursorY, 380, 30);
-
-    ctx.font = "400 15px Arial, sans-serif";
-    ctx.fillStyle = "#64748B";
-    cursorY = 128;
-    const lineGap = 24;
-    if (dateStr) { ctx.fillText(`📅  ${dateStr}${timeStr ? " · " + timeStr : ""}`, padX, cursorY); cursorY += lineGap; }
-    if (venue) { ctx.fillText(`📍  ${venue}`, padX, cursorY); cursorY += lineGap; }
-    ctx.fillText(`🎫  ${tier || "General"}`, padX, cursorY); cursorY += lineGap;
-    ctx.fillText(`🆔  Order #${orderId}`, padX, cursorY); cursorY += lineGap;
-
-    ctx.font = "400 11px Arial, sans-serif";
-    ctx.fillStyle = "#94A3B8";
-    ctx.fillText(`Ticket ID: ${ticketUid}`, padX, H - 26);
-
-    // QR code
-    const qrSize = 150;
-    const qrX = W - qrSize - 40;
-    const qrY = (H - qrSize) / 2;
-    ctx.fillStyle = "#F8FAFC";
-    roundRectPath(ctx, qrX - 12, qrY - 12, qrSize + 24, qrSize + 24, 12);
-    ctx.fill();
-    if (qrImg) {
-      try { ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize); } catch (e) { /* ignore draw failure */ }
-    }
-
-    ctx.restore();
-    return canvas;
-  }
-
-  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-    const words = String(text).split(" ");
-    let line = "";
-    let lineY = y;
-    let lines = 0;
-    for (let i = 0; i < words.length && lines < 2; i++) {
-      const testLine = line + words[i] + " ";
-      if (ctx.measureText(testLine).width > maxWidth && line !== "") {
-        ctx.fillText(line, x, lineY);
-        line = words[i] + " ";
-        lineY += lineHeight;
-        lines++;
-      } else {
-        line = testLine;
-      }
-    }
-    ctx.fillText(line, x, lineY);
-  }
-
-  function downloadCanvasAsPNG(canvas, filename) {
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
-    }, "image/png");
-  }
-
-  async function downloadTicketsForBooking(booking, btn) {
-    const originalLabel = btn ? btn.textContent : "";
-    if (btn) { btn.disabled = true; btn.textContent = "Preparing…"; }
-    try {
-      const res = await fetch(`${API_BASE}/orders/${booking.orderId}/tickets`, { headers: authHeaders() });
-      if (!res.ok) throw new Error(`Could not load tickets (${res.status})`);
-      const tickets = await res.json();
-
-      if (!Array.isArray(tickets) || tickets.length === 0) {
-        toast("Ticket not ready", "This booking doesn't have a generated ticket yet — it may still be pending payment.", "warn");
-        return;
-      }
-
-      const logoImg = await loadImageFromURL("assets/logo.png").catch(() => null);
-
-      for (let i = 0; i < tickets.length; i++) {
-        const t = tickets[i];
-        let qrImg = null;
-        try {
-          qrImg = await loadImageFromAuthEndpoint(`${API_BASE}/tickets/${t.ticket_uid}/qr`);
-        } catch (e) {
-          console.error("Failed to load QR for ticket", t.ticket_uid, e);
-        }
-
-        const canvas = drawTicketCanvas({
-          logoImg,
-          qrImg,
-          eventTitle: booking.event?.title,
-          venue: booking.event?.venue,
-          dateStr: booking.event?.date,
-          timeStr: booking.event?.time,
-          tier: t.category_name || booking.tier,
-          orderId: booking.orderId,
-          ticketUid: t.ticket_uid,
-          status: t.status
-        });
-
-        const suffix = tickets.length > 1 ? `-${i + 1}` : "";
-        downloadCanvasAsPNG(canvas, `Tixora-Ticket-${booking.orderId}${suffix}.png`);
-      }
-
-      toast("Ticket ready", tickets.length > 1 ? "Your tickets have been downloaded." : "Your ticket has been downloaded.", "ok");
-    } catch (err) {
-      console.error("Download ticket failed:", err);
-      toast("Download failed", err.message || "Couldn't prepare your ticket. Please try again.", "err");
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = originalLabel || "Download ticket"; }
-    }
-  }
-
   /* -------------------------------- Bookings -------------------------------- */
   function bookingCardHTML(b) {
     const statusLabel = { confirmed: "Confirmed", pending: "Pending", cancelled: "Cancelled" }[b.status];
@@ -1292,13 +1084,7 @@
     }));
     $$("[data-paynow]").forEach((btn) => btn.addEventListener("click", () => payNowFromBookings(btn)));
     $$("[data-download]").forEach((btn) => btn.addEventListener("click", () => {
-      const b = state.bookings.find((x) => x.id === btn.dataset.download);
-      if (!b) return;
-      if (b.status !== "confirmed") {
-        toast("Ticket not available", "Tickets are generated only after payment is confirmed.", "warn");
-        return;
-      }
-      downloadTicketsForBooking(b, btn);
+      toast("Preparing ticket", "Your PDF ticket download will start shortly.", "ok");
     }));
   }
 
@@ -1429,10 +1215,10 @@
 
   /* ---------------------------------- Init ------------------------------------- */
   async function init() {
-    // if (!localStorage.getItem("access_token")) {
-    //   window.location.href = "../login_sign_in/login.html";
-    //   return;
-    // }
+    if (!localStorage.getItem("access_token")) {
+      window.location.href = "../login_sign_in/login.html";
+      return;
+    }
 
     try {
       const me = await (await fetch(`${API_BASE}/users/me`, { headers: authHeaders() })).json();
