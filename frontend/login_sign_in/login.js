@@ -213,11 +213,11 @@
     handleLogin(emailInput.value.trim(), passwordInput.value)
       .then((result) => {
         if (result && result.ok) {
-          if (!result.roleSelected) {
-            showStatus('Login successful — let\'s set up your account…', false);
-            window.location.href = '../role/index.html';
-            return;
-          }
+          // if (!result.roleSelected) {
+          //   showStatus('Login successful — let\'s set up your account…', false);
+          //   window.location.href = '../role/index.html';
+          //   return;
+          // }
 
           if (result.role === 'organizer') {
             showStatus('Login successful — redirecting to your dashboard…', false);

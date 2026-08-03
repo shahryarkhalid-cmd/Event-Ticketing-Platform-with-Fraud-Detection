@@ -38,8 +38,8 @@ def create_checkout_session(order_id: int, user: User, session: Session):
         payment_method_types=["card"],
         line_items=line_items,
         mode="payment",
-        success_url="http://localhost:3000/payment-success?order_id=" + str(order.id),
-        cancel_url="http://localhost:3000/payment-cancelled?order_id=" + str(order.id),
+        success_url="http://localhost:3000/payment-result.html?status=success&order_id=" + str(order.id),
+        cancel_url="http://localhost:3000/payment-result.html?status=cancel&order_id=" + str(order.id),
         metadata={"order_id": str(order.id)}
     )
 
