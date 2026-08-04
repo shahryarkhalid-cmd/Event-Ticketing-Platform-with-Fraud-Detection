@@ -1586,6 +1586,14 @@
       return;
     }
 
+
+    // Back button = force logout (Shahryar's requirement)
+    history.pushState(null, '', location.href);
+    window.addEventListener('popstate', () => {
+      localStorage.removeItem('access_token');
+      window.location.replace('../login_sign_in/login.html');
+    });
+
     renderWelcome();
     bindGlobalUI();
 
@@ -1601,7 +1609,10 @@
       }
     } catch (err) {
       console.error(err);
-      currentUser = structuredClone(store.currentUser);
+      toast("Couldn't verify your account — please log in again.", "danger");
+      localStorage.removeItem("access_token");
+      window.location.href = "../login_sign_in/login.html";
+      return;
     }
     applyOrganizerIdentity(currentUser);
 

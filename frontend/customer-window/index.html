@@ -657,9 +657,12 @@
     <!-- =========================== NOTIFICATIONS VIEW ========================== -->
     <section class="view hidden" data-view="notifications">
       <div class="container" style="max-width:720px;">
-        <div class="page-head">
-          <div class="breadcrumbs"><a href="#" data-goto="home">Home</a><span>/</span><span>Notifications</span></div>
-          <h1 class="page-title">Notifications</h1>
+        <div class="page-head" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+          <div>
+            <div class="breadcrumbs"><a href="#" data-goto="home">Home</a><span>/</span><span>Notifications</span></div>
+            <h1 class="page-title">Notifications</h1>
+          </div>
+          <button type="button" id="clearAllNotifBtn" class="icon-btn" aria-label="Delete all notifications" title="Delete all notifications">🗑️</button>
         </div>
         <div class="panel" style="margin-top:22px;">
           <div class="notif-list" id="notifList"></div>

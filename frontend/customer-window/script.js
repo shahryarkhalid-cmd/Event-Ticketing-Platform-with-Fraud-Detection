@@ -87,6 +87,9 @@
     { name: "Noah B.", event: "Startup Founders Summit", rating: 5, avatar: "https://i.pravatar.cc/80?img=51", text: "Clean checkout, real-time fraud screening, and my tickets were ready before I left the app." },
   ];
 
+  // No longer used anywhere — notifications are now fetched live from
+  // GET /notifications (see api.getNotifications / mapNotificationFromBackend
+  // below). Left in place rather than deleted, in case it's useful as a reference.
   const MOCK_NOTIFICATIONS = [
     { type: "confirmed", title: "Booking confirmed", body: "Your booking BK-88213 for Skyline Music Festival is confirmed.", time: "2h ago", unread: true },
     { type: "payment", title: "Payment successful", body: "$190.00 was charged for 2× Premium tickets.", time: "2h ago", unread: true },
@@ -102,6 +105,14 @@
   function authHeaders() {
     const token = localStorage.getItem("access_token");
     return { "Content-Type": "application/json", "Authorization": `Bearer ${token}` };
+  }
+
+  // For multipart/FormData requests (file uploads) — the browser must set
+  // its own "Content-Type: multipart/form-data; boundary=..." header, so we
+  // deliberately do NOT send one here (unlike authHeaders() above).
+  function authHeadersFormData() {
+    const token = localStorage.getItem("access_token");
+    return { "Authorization": `Bearer ${token}` };
   }
 
   // FastAPI's 422 "detail" is often an array of {loc, msg, type} objects, not a
@@ -180,13 +191,17 @@
     const eventBanner = matchedEvent?.banner || order.event?.banner_url
       || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop";
     const eventDate = matchedEvent?.date || (order.event?.start_datetime || "").split("T")[0];
+    // Needed on the ticket image (date/time/venue) — not previously kept on the
+    // mapped booking object, only used transiently for the upcoming/previous split.
+    const eventTime = matchedEvent?.time || (order.event?.start_datetime || "").split("T")[1]?.slice(0, 5) || "";
+    const eventVenue = matchedEvent?.venue || order.event?.venue || "";
 
     const when = eventDate && new Date(eventDate) < new Date(new Date().toDateString()) ? "previous" : "upcoming";
 
     return {
       id: `ORD-${order.id ?? order.order_id ?? ""}`,
       orderId: order.id ?? order.order_id,
-      event: { title: eventTitle, banner: eventBanner },
+      event: { title: eventTitle, banner: eventBanner, date: eventDate, time: eventTime, venue: eventVenue },
       tier: tierName,
       qty,
       total: Number(total) || 0,
@@ -248,6 +263,36 @@
       const order = await res.json();
       return { orderId: order.id, ...payload };
     },
+
+    // ---- Ticket QR + listing endpoints ----
+    // Real contract from Order_services.py / qr_service.py (backend files,
+    // not touched here):
+    //   GET /orders/{order_id}/tickets -> [{ ticket_uid, status, category_name }, ...]
+    //     one entry per physical Ticket row for this order (get_order_tickets)
+    //   GET /tickets/{ticket_uid}/qr   -> real PNG (StreamingResponse), one per ticket_uid
+    getOrderTickets: async (orderId) => {
+      const res = await fetch(`${API_BASE}/orders/${orderId}/tickets`, { headers: authHeaders() });
+      if (!res.ok) {
+        let detail = "";
+        try { const body = await res.json(); detail = formatErrorDetail(body.detail); } catch (e) { /* not JSON */ }
+        console.error(`GET /orders/${orderId}/tickets → ${res.status}${detail ? `: ${detail}` : ""}`);
+        throw new Error(detail || `Couldn't load tickets for this order (${res.status})`);
+      }
+      const raw = await res.json();
+      const list = Array.isArray(raw) ? raw : [];
+      return list.map((t) => ({
+        ticketUid: t.ticket_uid,
+        status: t.status,
+        tierName: t.category_name,
+      }));
+    },
+    // One real PNG QR per ticket_uid — no client-side generation, no fake pattern.
+    getTicketQrObjectUrl: async (ticketUid) => {
+      const res = await fetch(`${API_BASE}/tickets/${encodeURIComponent(ticketUid)}/qr`, { headers: authHeaders() });
+      if (!res.ok) throw new Error(`Couldn't load QR code (${res.status})`);
+      const blob = await res.blob();
+      return URL.createObjectURL(blob);
+    },
   };
   const wait = (ms) => new Promise((res) => setTimeout(res, ms));
 
@@ -256,6 +301,7 @@
     currentUser: null,
     events: [],
     bookings: [],
+    notifications: [],
     filters: { q: "", category: "all", country: "all", city: "", dateFrom: "", dateTo: "", price: "all", time: "all", sort: "popular" },
     page: 1,
     perPage: 6,
@@ -310,6 +356,19 @@
 
     const emailInput = $("#emailField");
     if (emailInput) emailInput.value = email;
+
+    // Only overwrite if the backend actually sent a value — otherwise leave
+    // the form's existing placeholder text alone.
+    const phoneInput = $("#phoneField");
+    if (phoneInput && user.phone) phoneInput.value = user.phone;
+
+    const cityInput = $("#cityField");
+    if (cityInput && user.city) cityInput.value = user.city;
+
+    if (user.profile_picture_url) {
+      const avatarImg = $("#profileAvatarImg");
+      if (avatarImg) avatarImg.src = user.profile_picture_url;
+    }
   }
 
   /* ------------------------------ Ripple ---------------------------------- */
@@ -1043,6 +1102,215 @@
     }
   }
 
+  /* --------------------------- Ticket image / QR download --------------------------- */
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Couldn't load image: ${src}`));
+      img.src = src;
+    });
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // Builds the shared summary rows (event/date/venue/booking) shown once,
+  // above the per-ticket QR blocks. Pure display formatting — no data
+  // invented here, all values come straight off the mapped booking.
+  function buildBookingSummaryLines(booking) {
+    const dateFmt = booking.event.date
+      ? new Date(booking.event.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+      : "—";
+    return [
+      ["Date & time", [dateFmt, booking.event.time].filter(Boolean).join(" · ") || "—"],
+      ["Venue", booking.event.venue || "—"],
+      ["Booking ID", booking.id],
+    ];
+  }
+
+  // Renders ONE downloadable ticket image (JPEG) for a SINGLE physical
+  // ticket: blue header with the real Tixora logo, event summary, then ONE
+  // QR box for this one ticket_uid. Called once per real ticket — for a
+  // 10-ticket order this runs 10 times, each with a different real QR, and
+  // every other line (event/date/venue/booking id) staying identical.
+  // Header blue = var(--primary) #001F54 from styles.css, accent stripe =
+  // var(--accent) #4CC9F0 — same brand colors as the rest of the app.
+  async function buildTicketCanvas(booking, ticket, index, total, logoImg) {
+    const W = 700;
+    const HEADER_H = 190;
+    const summaryLines = buildBookingSummaryLines(booking);
+    const SUMMARY_ROW_H = 26;
+    const SUMMARY_H = 50 + summaryLines.length * SUMMARY_ROW_H + 30;
+    const QR_SIZE = 240;
+    const QR_SECTION_H = QR_SIZE + 110;
+    const FOOTER_H = 56;
+    const H = HEADER_H + SUMMARY_H + QR_SECTION_H + FOOTER_H;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, W, H);
+
+    // ---- Blue header with the real logo ----
+    ctx.fillStyle = "#001F54";
+    ctx.fillRect(0, 0, W, HEADER_H);
+    ctx.fillStyle = "#4CC9F0";
+    ctx.fillRect(0, HEADER_H - 5, W, 5);
+
+    const logoSize = 64;
+    if (logoImg) ctx.drawImage(logoImg, (W - logoSize) / 2, 30, logoSize, logoSize);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "700 26px Arial, sans-serif";
+    ctx.fillText("Tixora", W / 2, 30 + logoSize + 30);
+    ctx.font = "500 13px Arial, sans-serif";
+    ctx.fillStyle = "#B9D3F5";
+    ctx.fillText("Secure Event Ticketing · E-Ticket", W / 2, 30 + logoSize + 52);
+    ctx.textAlign = "left";
+
+    // ---- Event summary — identical on every ticket in this order ----
+    let cy = HEADER_H + 44;
+    ctx.fillStyle = "#0F172A";
+    ctx.font = "700 22px Arial, sans-serif";
+    ctx.fillText(booking.event.title || "Event", 40, cy);
+    cy += 30;
+    ctx.font = "600 13px Arial, sans-serif";
+    const tierLabel = total > 1 ? `${ticket.tierName || booking.tier} · Ticket ${index + 1} of ${total}` : (ticket.tierName || booking.tier);
+    const pillW = ctx.measureText(tierLabel).width + 28;
+    ctx.fillStyle = "#EEF2FF";
+    roundRect(ctx, 40, cy - 18, pillW, 28, 14);
+    ctx.fill();
+    ctx.fillStyle = "#0B5ED7";
+    ctx.fillText(tierLabel, 40 + 14, cy + 1);
+    cy += 40;
+
+    summaryLines.forEach(([label, value]) => {
+      ctx.font = "400 13px Arial, sans-serif";
+      ctx.fillStyle = "#64748B";
+      ctx.fillText(label, 40, cy);
+      ctx.font = "600 13px Arial, sans-serif";
+      ctx.fillStyle = "#0F172A";
+      ctx.textAlign = "right";
+      ctx.fillText(value, W - 40, cy);
+      ctx.textAlign = "left";
+      cy += SUMMARY_ROW_H;
+    });
+
+    // ---- This ticket's own QR — different on every ticket in the order ----
+    const qrTop = HEADER_H + SUMMARY_H + 30;
+    const qrX = (W - QR_SIZE) / 2;
+    ctx.fillStyle = "#F8FAFC";
+    ctx.strokeStyle = "#E2E8F0";
+    ctx.lineWidth = 1;
+    roundRect(ctx, qrX - 18, qrTop - 18, QR_SIZE + 36, QR_SIZE + 36, 16);
+    ctx.fill();
+    ctx.stroke();
+
+    if (ticket.qrImg) {
+      ctx.drawImage(ticket.qrImg, qrX, qrTop, QR_SIZE, QR_SIZE);
+    } else {
+      ctx.fillStyle = "#F1F5F9";
+      ctx.fillRect(qrX, qrTop, QR_SIZE, QR_SIZE);
+      ctx.fillStyle = "#94A3B8";
+      ctx.font = "13px Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("QR unavailable", qrX + QR_SIZE / 2, qrTop + QR_SIZE / 2);
+      ctx.textAlign = "left";
+    }
+
+    ctx.textAlign = "center";
+    ctx.font = "500 12px Arial, sans-serif";
+    ctx.fillStyle = "#64748B";
+    ctx.fillText("Scan this code at entry", W / 2, qrTop + QR_SIZE + 30);
+    ctx.font = "400 10px Arial, sans-serif";
+    ctx.fillStyle = "#94A3B8";
+    ctx.fillText(String(ticket.ticketUid).slice(0, 24), W / 2, qrTop + QR_SIZE + 46);
+    ctx.textAlign = "left";
+
+    // ---- Footer ----
+    const footerTop = H - FOOTER_H;
+    ctx.strokeStyle = "#E2E8F0";
+    ctx.beginPath();
+    ctx.moveTo(30, footerTop);
+    ctx.lineTo(W - 30, footerTop);
+    ctx.stroke();
+    ctx.textAlign = "center";
+    ctx.font = "400 11px Arial, sans-serif";
+    ctx.fillStyle = "#94A3B8";
+    ctx.fillText("Powered by Tixora — AI-powered fraud protection.", W / 2, footerTop + 28);
+    ctx.textAlign = "left";
+
+    return canvas;
+  }
+
+  // Downloads N separate JPG files for an N-ticket order — one file per real
+  // physical ticket, each with its own real QR from the backend and a unique
+  // filename, everything else on the ticket identical. A 10-ticket order
+  // produces 10 files, never one combined image with 10 codes on it.
+  async function downloadTicketImage(booking, btn) {
+    const originalLabel = btn ? btn.textContent : null;
+    if (btn) { btn.disabled = true; btn.textContent = "Preparing…"; }
+    toast("Preparing tickets", "Fetching your QR code(s) and building your ticket images…", "ok");
+
+    const objectUrlsToRevoke = [];
+    try {
+      const orderId = booking.orderId ?? String(booking.id).replace(/^ORD-/, "");
+      const tickets = await api.getOrderTickets(orderId);
+      if (!tickets.length) throw new Error("No tickets found for this booking yet.");
+
+      // Real PNG QR per real ticket_uid — exactly as many QR codes as
+      // physical tickets returned by the backend, never more, never faked.
+      for (const t of tickets) {
+        try {
+          const qrUrl = await api.getTicketQrObjectUrl(t.ticketUid);
+          objectUrlsToRevoke.push(qrUrl);
+          t.qrImg = await loadImage(qrUrl);
+        } catch (qrErr) {
+          console.error(`Couldn't load QR for ${t.ticketUid}:`, qrErr);
+          t.qrImg = null;
+        }
+      }
+
+      const logoImg = await loadImage("assets/logo-white.png").catch(() => null);
+      const total = tickets.length;
+
+      for (let i = 0; i < total; i++) {
+        const canvas = await buildTicketCanvas(booking, tickets[i], i, total, logoImg);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.95));
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = total > 1 ? `Tixora-Ticket-${booking.id}-${i + 1}-of-${total}.jpg` : `Tixora-Ticket-${booking.id}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        // Small gap between downloads — some browsers silently drop rapid-fire
+        // programmatic downloads if they all fire in the same tick.
+        if (i < total - 1) await wait(350);
+      }
+
+      toast("Tickets ready", total > 1 ? `${total} ticket images have downloaded.` : "Your ticket image has downloaded.", "ok");
+    } catch (err) {
+      console.error("Ticket download failed:", err);
+      toast("Couldn't prepare ticket", err.message || "Something went wrong. Please try again.", "err");
+    } finally {
+      objectUrlsToRevoke.forEach((u) => URL.revokeObjectURL(u));
+      if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+    }
+  }
+
   /* -------------------------------- Bookings -------------------------------- */
   function bookingCardHTML(b) {
     const statusLabel = { confirmed: "Confirmed", pending: "Pending", cancelled: "Cancelled" }[b.status];
@@ -1084,7 +1352,8 @@
     }));
     $$("[data-paynow]").forEach((btn) => btn.addEventListener("click", () => payNowFromBookings(btn)));
     $$("[data-download]").forEach((btn) => btn.addEventListener("click", () => {
-      toast("Preparing ticket", "Your PDF ticket download will start shortly.", "ok");
+      const b = state.bookings.find((x) => x.id === btn.dataset.download);
+      if (b) downloadTicketImage(b, btn);
     }));
   }
 
@@ -1104,40 +1373,131 @@
   }
 
   /* ------------------------------- Notifications ----------------------------- */
+  // NOTE on endpoints: GET /notifications, PATCH /notifications/{id}/read,
+  // and DELETE /notifications are assumed from Notification_services.py's
+  // get_notifications / mark_notification_read / delete_notification
+  // functions. Confirm the exact path/method against your router (or
+  // /docs) and adjust the three fetch() calls below if they differ —
+  // this backend previously returned 404/405 for guessed paths.
   const NOTIF_ICON = { confirmed: ["✓", "#DCFCE7", "#067647"], payment: ["💳", "#DBEAFE", "#1D4ED8"], reminder: ["⏰", "#FEF3C7", "#92400E"], updated: ["✎", "#E0F2FE", "#0369A1"], cancelled: ["✕", "#FEE2E2", "#B91C1C"], refund: ["↩", "#EDE9FE", "#6D28D9"] };
+
+  function timeAgo(dateStr) {
+    if (!dateStr) return "";
+    const then = new Date(dateStr);
+    if (Number.isNaN(then.getTime())) return "";
+    const diffMin = Math.floor((Date.now() - then.getTime()) / 60000);
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    return `${Math.floor(diffHr / 24)}d ago`;
+  }
+
+  // Backend Notification row -> shape renderNotifications() expects. Field
+  // names are read defensively (title/message/body, is_read/read, etc.)
+  // since the Notification model itself wasn't shared — mirrors the same
+  // defensive approach used for mapBookingFromBackend above.
+  function mapNotificationFromBackend(n) {
+    return {
+      id: n.id,
+      type: n.type || n.category || "reminder",
+      title: n.title || n.heading || "Notification",
+      body: n.body || n.message || n.description || "",
+      time: timeAgo(n.created_at || n.createdAt),
+      unread: !(n.is_read ?? n.read ?? false),
+    };
+  }
+
+  Object.assign(api, {
+    getNotifications: async () => {
+      const res = await fetch(`${API_BASE}/notifications`, { headers: authHeaders() });
+      if (!res.ok) {
+        console.error(`GET /notifications → ${res.status}`);
+        throw new Error(`Couldn't load notifications (${res.status})`);
+      }
+      const raw = await res.json();
+      return Array.isArray(raw) ? raw.map(mapNotificationFromBackend) : [];
+    },
+    markNotificationRead: async (id) => {
+      const res = await fetch(`${API_BASE}/notifications/${id}/read`, {
+        method: "PATCH",
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        let detail = "";
+        try { const body = await res.json(); detail = formatErrorDetail(body.detail); } catch (e) { /* not JSON */ }
+        console.error(`PATCH /notifications/${id}/read → ${res.status}${detail ? `: ${detail}` : ""}`);
+        throw new Error(detail || `Couldn't mark as read (${res.status})`);
+      }
+    },
+    // Backend only supports clearing ALL notifications for the user at
+    // once (delete_notification takes no notification_id) — there is no
+    // single-notification delete route, so the UI offers one "clear all"
+    // action instead of a per-item delete button.
+    clearAllNotifications: async () => {
+      const res = await fetch(`${API_BASE}/notifications`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        let detail = "";
+        try { const body = await res.json(); detail = formatErrorDetail(body.detail); } catch (e) { /* not JSON */ }
+        console.error(`DELETE /notifications → ${res.status}${detail ? `: ${detail}` : ""}`);
+        throw new Error(detail || `Couldn't delete notifications (${res.status})`);
+      }
+    },
+  });
+
   function renderNotifications() {
     const list = $("#notifList");
     if (!list) return;
-    if (!MOCK_NOTIFICATIONS.length) {
+    if (!state.notifications.length) {
       list.innerHTML = `<div class="empty-state"><div class="icon-wrap">🔔</div><h3>No notifications</h3><p>You're all caught up.</p></div>`;
       updateNotifBadge();
       return;
     }
-    list.innerHTML = MOCK_NOTIFICATIONS.map((n, idx) => {
+    list.innerHTML = state.notifications.map((n) => {
       const [icon, bg, fg] = NOTIF_ICON[n.type] || ["🔔", "#EEF2F7", "#334155"];
       return `
-    <div class="notif-item ${n.unread ? "unread" : ""}" data-idx="${idx}">
+    <div class="notif-item ${n.unread ? "unread" : ""}" data-id="${n.id}">
       <div class="notif-icon" style="background:${bg};color:${fg}">${icon}</div>
       <div class="notif-body"><strong>${escapeHTML(n.title)}</strong><p>${escapeHTML(n.body)}</p></div>
-      <span class="notif-time">${n.time}</span>
-      <button type="button" class="notif-delete" data-delete="${idx}" aria-label="Delete notification">✕</button>
+      <span class="notif-time">${escapeHTML(n.time)}</span>
     </div>`;
     }).join("");
     updateNotifBadge();
-    $$(".notif-item", list).forEach((item) => item.addEventListener("click", (e) => {
-      if (e.target.closest("[data-delete]")) return;
-      const n = MOCK_NOTIFICATIONS[parseInt(item.dataset.idx, 10)];
-      if (n && n.unread) { n.unread = false; renderNotifications(); }
-    }));
-    $$("[data-delete]", list).forEach((btn) => btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const idx = parseInt(btn.dataset.delete, 10);
-      MOCK_NOTIFICATIONS.splice(idx, 1);
-      renderNotifications();
+    $$(".notif-item", list).forEach((item) => item.addEventListener("click", async () => {
+      const n = state.notifications.find((x) => String(x.id) === item.dataset.id);
+      if (!n || !n.unread) return;
+      try {
+        await api.markNotificationRead(n.id);
+        n.unread = false;
+        renderNotifications();
+      } catch (err) {
+        console.error("Mark as read failed:", err);
+        toast("Couldn't update notification", err.message || "Something went wrong.", "err");
+      }
     }));
   }
+
+  function initNotifications() {
+    $("#clearAllNotifBtn")?.addEventListener("click", async () => {
+      if (!state.notifications.length) return;
+      if (!confirm("If you want to delete all notifications, OK.")) return;
+      try {
+        await api.clearAllNotifications();
+        state.notifications = [];
+        renderNotifications();
+        toast("Notifications cleared", "All notifications have been deleted.", "ok");
+      } catch (err) {
+        console.error("Clear all notifications failed:", err);
+        toast("Couldn't clear notifications", err.message || "Something went wrong.", "err");
+      }
+    });
+  }
+
   function updateNotifBadge() {
-    const unread = MOCK_NOTIFICATIONS.filter((n) => n.unread).length;
+    const unread = state.notifications.filter((n) => n.unread).length;
     const badge = $("#notifCount");
     if (badge) {
       badge.textContent = String(unread);
@@ -1148,10 +1508,15 @@
   }
 
   /* --------------------------------- Profile form ----------------------------- */
+  // NOTE on endpoints below: PUT /users/me, POST /users/profile-picture, and
+  // PUT /users/change-password are assumed to match User_services.py's
+  // update_user_profile_service / upload_profile_picture_service /
+  // change_password functions. If your router registers these under
+  // different paths or HTTP methods, update the three fetch() calls below.
   function initProfileForm() {
     const form = $("#profileForm");
     if (!form) return;
-    form.addEventListener("submit", (e) => {
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
       let valid = true;
       $$(".form-field", form).forEach((field) => {
@@ -1162,28 +1527,118 @@
         if (input.type === "email" && input.value && !/^\S+@\S+\.\S+$/.test(input.value)) { field.classList.add("invalid"); valid = false; }
       });
       if (!valid) { toast("Check the form", "Some fields need your attention.", "err"); return; }
-      toast("Profile updated", "Your changes have been saved.", "ok");
+
+      const saveBtn = $('button[type="submit"]', form);
+      const originalLabel = saveBtn ? saveBtn.textContent : null;
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving…"; }
+
+      try {
+        const payload = {
+          full_name: $("#fullName")?.value.trim(),
+          phone: $("#phoneField")?.value.trim(),
+          city: $("#cityField")?.value.trim(),
+        };
+        const res = await fetch(`${API_BASE}/users/me`, {
+          method: "PUT",
+          headers: authHeaders(),
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const detail = formatErrorDetail(data.detail);
+          console.error(`PUT /users/me → ${res.status}${detail ? `: ${detail}` : ""}`);
+          throw new Error(detail || `Couldn't save changes (${res.status})`);
+        }
+        // Merge the backend's response into state so name/phone/city/avatar
+        // all reflect what was actually persisted, not just what we typed.
+        state.currentUser = { ...state.currentUser, ...data };
+        applyCustomerIdentity(state.currentUser);
+        toast("Profile updated", "Your changes have been saved.", "ok");
+      } catch (err) {
+        console.error("Profile update failed:", err);
+        toast("Couldn't save profile", err.message || "Something went wrong. Please try again.", "err");
+      } finally {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = originalLabel; }
+      }
     });
 
-    $("#avatarUpload")?.addEventListener("change", (e) => {
+    $("#avatarUpload")?.addEventListener("change", async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
+
+      const avatarImg = $("#profileAvatarImg");
+      const previousSrc = avatarImg ? avatarImg.src : null;
+
+      // Instant local preview while the real upload is in flight.
       const reader = new FileReader();
-      reader.onload = () => { $("#profileAvatarImg").src = reader.result; };
+      reader.onload = () => { if (avatarImg) avatarImg.src = reader.result; };
       reader.readAsDataURL(file);
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch(`${API_BASE}/users/profile-picture`, {
+          method: "POST",
+          headers: authHeadersFormData(),
+          body: formData,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const detail = formatErrorDetail(data.detail);
+          console.error(`POST /users/profile-picture → ${res.status}${detail ? `: ${detail}` : ""}`);
+          throw new Error(detail || `Couldn't upload photo (${res.status})`);
+        }
+        const url = data.profile_picture_url;
+        if (state.currentUser) state.currentUser.profile_picture_url = url;
+        if (avatarImg && url) avatarImg.src = url;
+        toast("Photo updated", "Your profile picture has been saved.", "ok");
+      } catch (err) {
+        console.error("Avatar upload failed:", err);
+        if (avatarImg && previousSrc) avatarImg.src = previousSrc; // roll back the preview
+        toast("Couldn't upload photo", err.message || "Something went wrong. Please try again.", "err");
+      } finally {
+        e.target.value = ""; // allow re-selecting the same file next time
+      }
     });
 
     const pwdForm = $("#passwordForm");
-    pwdForm?.addEventListener("submit", (e) => {
+    pwdForm?.addEventListener("submit", async (e) => {
       e.preventDefault();
+      const current = $("#currentPassword");
       const next = $("#newPassword");
       const confirm = $("#confirmPassword");
       const field = confirm.closest(".form-field");
       field.classList.remove("invalid");
       if (next.value.length < 8) { next.closest(".form-field").classList.add("invalid"); toast("Weak password", "Use at least 8 characters.", "err"); return; }
       if (next.value !== confirm.value) { field.classList.add("invalid"); toast("Passwords don't match", "Please re-enter to confirm.", "err"); return; }
-      toast("Password changed", "Use your new password next time you log in.", "ok");
-      pwdForm.reset();
+
+      const submitBtn = $('button[type="submit"]', pwdForm);
+      const originalLabel = submitBtn ? submitBtn.textContent : null;
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Updating…"; }
+
+      try {
+        const res = await fetch(`${API_BASE}/users/change-password`, {
+          method: "PUT",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            current_password: current.value,
+            new_password: next.value,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const detail = formatErrorDetail(data.detail);
+          console.error(`PUT /users/change-password → ${res.status}${detail ? `: ${detail}` : ""}`);
+          throw new Error(detail || `Couldn't update password (${res.status})`);
+        }
+        toast("Password changed", "Use your new password next time you log in.", "ok");
+        pwdForm.reset();
+      } catch (err) {
+        console.error("Password change failed:", err);
+        toast("Couldn't update password", err.message || "Current password may be incorrect.", "err");
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalLabel; }
+      }
     });
   }
 
@@ -1220,6 +1675,17 @@
       return;
     }
 
+    
+
+    // Back button = force logout (Shahryar's requirement)
+    history.pushState(null, '', location.href);
+    window.addEventListener('popstate', () => {
+      localStorage.removeItem('access_token');
+      window.location.replace('../login_sign_in/login.html');
+    });
+
+
+    
     try {
       const me = await (await fetch(`${API_BASE}/users/me`, { headers: authHeaders() })).json();
       if (!me.role_selected) {
@@ -1249,6 +1715,7 @@
     initProfileForm();
     initNewsletter();
     initFraud();
+    initNotifications();
     updateNotifBadge();
 
     try {
@@ -1264,6 +1731,13 @@
     } catch (err) {
       console.error("Couldn't load bookings:", err);
       state.bookings = [];
+    }
+
+    try {
+      state.notifications = await api.getNotifications();
+    } catch (err) {
+      console.error("Couldn't load notifications:", err);
+      state.notifications = [];
     }
 
     renderFeatured();
