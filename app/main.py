@@ -164,7 +164,7 @@ def choose_role(
     return select_role(role_data, user, session)
 
 @app.post("/publish-event")
-#@limiter.limit("50000/month")
+@limiter.limit("5/month")
 def publish_event_route(
     request : Request ,
     event_data: EventCreateWithTiers,
