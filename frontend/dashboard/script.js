@@ -1447,10 +1447,15 @@
     [$("#logoutBtn"), $("#logoutBtn2")].forEach(btn => {
       btn.addEventListener("click", (e) => {
         e.preventDefault();
-        toast("Logging out…");
-        localStorage.removeItem("access_token");
-        setTimeout(() => { window.location.href = "../login_sign_in/login.html"; }, 700);
+        openModal("logoutModal");
       });
+    });
+
+    $("#confirmLogoutBtn").addEventListener("click", () => {
+      closeModal("logoutModal");
+      toast("Logging out…");
+      localStorage.removeItem("access_token");
+      setTimeout(() => { window.location.href = "../login_sign_in/login.html"; }, 700);
     });
 
     // New event buttons
