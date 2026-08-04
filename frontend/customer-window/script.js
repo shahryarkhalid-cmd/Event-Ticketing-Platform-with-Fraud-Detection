@@ -1420,7 +1420,7 @@
     },
     markNotificationRead: async (id) => {
       const res = await fetch(`${API_BASE}/notifications/${id}/read`, {
-        method: "PATCH",
+        method: "POST",
         headers: authHeaders(),
       });
       if (!res.ok) {
@@ -1435,7 +1435,7 @@
     // single-notification delete route, so the UI offers one "clear all"
     // action instead of a per-item delete button.
     clearAllNotifications: async () => {
-      const res = await fetch(`${API_BASE}/notifications`, {
+      const res = await fetch(`${API_BASE}/notifications/delete`, {
         method: "DELETE",
         headers: authHeaders(),
       });
@@ -1675,7 +1675,7 @@
       return;
     }
 
-    
+
 
     // Back button = force logout (Shahryar's requirement)
     history.pushState(null, '', location.href);
@@ -1685,7 +1685,7 @@
     });
 
 
-    
+
     try {
       const me = await (await fetch(`${API_BASE}/users/me`, { headers: authHeaders() })).json();
       if (!me.role_selected) {
@@ -1700,9 +1700,9 @@
       applyCustomerIdentity(me);
     } catch (err) {
       console.error("Couldn't verify session:", err);
-        localStorage.removeItem("access_token");
-        window.location.href = "../login_sign_in/login.html";
-        return;
+      localStorage.removeItem("access_token");
+      window.location.href = "../login_sign_in/login.html";
+      return;
     }
 
     initNavbar();
