@@ -231,6 +231,43 @@
     initTilt();
     initNavToggle();
     initPortalWindowsButton();
+    initAuthGate();
   });
 
 })();
+
+
+/* =======================================================
+   6. AUTH-GATE FOR PORTAL LINKS (Customer Portal / Organizer Hub)
+   ======================================================= */
+function initAuthGate() {
+  const gatedLinks = document.querySelectorAll(
+    'a[href*="customer-window"], a[href*="dashboard/dashboard.html"]'
+  );
+
+  function showAuthToast() {
+    const toast = document.createElement('div');
+    toast.textContent = 'Please log in first';
+    toast.style.cssText = `
+      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+      background: #001F54; color: #fff; padding: 12px 24px; border-radius: 999px;
+      font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25); z-index: 9999; opacity: 0;
+      transition: opacity .25s ease;
+    `;
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => { toast.style.opacity = '1'; });
+    setTimeout(() => toast.remove(), 1800);
+  }
+
+  gatedLinks.forEach((link) => {
+    link.addEventListener('click', (e) => {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        e.preventDefault();
+        showAuthToast();
+        // koi redirect nahi — bas yahin ruk jao, user khud login/signup dhoond lega
+      }
+    });
+  });
+}
