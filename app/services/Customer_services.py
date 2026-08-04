@@ -61,3 +61,19 @@ def get_public_event_detail(id: int, session: Session):
     
     tiers = session.exec(select(TicketTier).where(TicketTier.event_id == id)).all()
     return {"event": event, "ticket_tiers": tiers}
+
+
+
+from sqlmodel import Session, select, func
+from models.Event import Event
+
+def get_event_categories_with_counts(session: Session):
+    results = session.exec(
+        select(Event.category, func.count(Event.id))
+        .group_by(Event.category)
+    ).all()
+
+    return [
+        {"category": category, "count": count}
+        for category, count in results
+    ]

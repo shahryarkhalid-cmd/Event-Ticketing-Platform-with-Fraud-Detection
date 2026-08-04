@@ -478,3 +478,10 @@ def verify_reset_code_route(data: VerifyResetCode, session: Session = Depends(ge
 @app.post("/auth/reset-password")
 def reset_password_route(data: ResetPasswordConfirm, session: Session = Depends(get_session)):
     return reset_password(data.reset_token, data.new_password, session)
+
+
+from services.Customer_services import get_event_categories_with_counts
+
+@app.get("/events/categories")
+def event_categories(session: Session = Depends(get_session)):
+    return get_event_categories_with_counts(session)
