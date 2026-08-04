@@ -1692,11 +1692,31 @@
 
   /* ---------------------------------- Logout ------------------------------------ */
   function initLogout() {
+    const overlay = $("#logoutConfirmModal");
+
     $("#logoutBtn")?.addEventListener("click", () => {
+      overlay.classList.add("open");
+      overlay.setAttribute("aria-hidden", "false");
+    });
+
+    $("#logoutCancelBtn")?.addEventListener("click", () => {
+      overlay.classList.remove("open");
+      overlay.setAttribute("aria-hidden", "true");
+    });
+
+    overlay?.addEventListener("click", (e) => {
+      if (e.target === overlay) {
+        overlay.classList.remove("open");
+        overlay.setAttribute("aria-hidden", "true");
+      }
+    });
+
+    $("#logoutConfirmBtn")?.addEventListener("click", () => {
       localStorage.removeItem("access_token");
       window.location.href = "../login_sign_in/login.html";
     });
   }
+
 
   /* ---------------------------------- Init ------------------------------------- */
   async function init() {
@@ -1719,9 +1739,9 @@
       applyCustomerIdentity(me);
     } catch (err) {
       console.error("Couldn't verify session:", err);
-        localStorage.removeItem("access_token");
-        window.location.href = "../login_sign_in/login.html";
-        return;
+      localStorage.removeItem("access_token");
+      window.location.href = "../login_sign_in/login.html";
+      return;
     }
 
     initNavbar();

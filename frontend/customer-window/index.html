@@ -662,7 +662,8 @@
             <div class="breadcrumbs"><a href="#" data-goto="home">Home</a><span>/</span><span>Notifications</span></div>
             <h1 class="page-title">Notifications</h1>
           </div>
-          <button type="button" id="clearAllNotifBtn" class="icon-btn" aria-label="Delete all notifications" title="Delete all notifications">🗑️</button>
+          <button type="button" id="clearAllNotifBtn" class="icon-btn" aria-label="Delete all notifications"
+            title="Delete all notifications">🗑️</button>
         </div>
         <div class="panel" style="margin-top:22px;">
           <div class="notif-list" id="notifList"></div>
@@ -845,6 +846,22 @@
 
         <button class="btn btn-primary btn-lg btn-block" style="margin-top:18px;" id="proceedBtn" disabled>Proceed to
           Payment</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================= LOGOUT CONFIRM MODAL ========================= -->
+  <div class="modal-overlay" id="logoutConfirmModal" aria-hidden="true" role="dialog" aria-modal="true"
+    aria-labelledby="logoutConfirmTitle">
+    <div class="modal-box" style="max-width:360px;">
+      <div class="modal-body" style="text-align:center;">
+        <h3 class="modal-event-title" id="logoutConfirmTitle" style="margin-bottom:8px;">Log out?</h3>
+        <p class="text-muted" style="margin-bottom:22px;">Are you sure you want to log out?</p>
+        <div style="display:flex;gap:12px;">
+          <button class="btn btn-ghost" id="logoutCancelBtn" style="flex:1;">No</button>
+          <button class="btn btn-dark" id="logoutConfirmBtn" style="flex:1;">Yes</button>
+        </div>
       </div>
     </div>
   </div>

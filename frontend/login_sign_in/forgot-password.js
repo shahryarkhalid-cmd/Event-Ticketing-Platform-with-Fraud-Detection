@@ -96,12 +96,16 @@
       setLoading(sendBtn, false);
       state.email = email;
       document.getElementById('fp-email-target').textContent = email;
-      // Always advance — per backend contract this endpoint returns 200
-      // whether or not the email exists, so the UI never reveals which
-      // emails are registered.
-      goToStep(1);
-      startResendCooldown();
       if (!ok) console.warn('Could not reach /auth/forgot-password — confirm this endpoint exists on the backend.');
+
+      // Show spam-folder notice; advance to the code step only after user taps OK
+      var spamModal = document.getElementById('fp-spam-modal');
+      spamModal.style.display = 'flex';
+      document.getElementById('fp-spam-ok-btn').onclick = function () {
+        spamModal.style.display = 'none';
+        goToStep(1);
+        startResendCooldown();
+      };
     });
   });
 
