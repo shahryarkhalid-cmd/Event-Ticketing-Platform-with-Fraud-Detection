@@ -40,12 +40,6 @@ def register_user(user : UserCreate , session : Session):
     if existing_email_user:
         logging.error('Email already exist')
         raise Email_exist()
-    existing_user = session.exec(select(User).where(User.full_name == user.full_name)).first()
-    
-    if existing_user :
-        logging.error('User already Exists')
-        raise User_Exist()
-    
     session.add(final_user)
     session.flush()         
     session.refresh(final_user)
@@ -85,13 +79,7 @@ def get_me(user1: User, session: Session):
     user = session.exec(select(User).where(User.id == user1.id)).first()
     if not user:
         raise HTTPException(404, "User not found")
-    return {
-        "id": user.id,
-        "email": user.email,
-        "full_name": user.full_name,
-        "role": user.role,
-        "role_selected": user.role_selected,
-    }
+    return user
 
 
 # One-time role selection. Can only be called once per account - after
@@ -117,7 +105,7 @@ import uuid
 from fastapi import HTTPException
 from core.supabase_client import supabase
 
-PROFILE_BUCKET = "profile-pictures"
+PROFILE_BUCKET = "profile_pictures"
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_SIZE_MB = 3  # profile pics can be smaller than event banners
 

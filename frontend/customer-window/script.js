@@ -1419,8 +1419,8 @@
       return Array.isArray(raw) ? raw.map(mapNotificationFromBackend) : [];
     },
     markNotificationRead: async (id) => {
-      const res = await fetch(`${API_BASE}/notifications/${id}/read`, {
-        method: "PATCH",
+      const res = await fetch(`${API_BASE}/notifications/{notification_id}/read`, {
+        method: "POST",
         headers: authHeaders(),
       });
       if (!res.ok) {
@@ -1435,7 +1435,7 @@
     // single-notification delete route, so the UI offers one "clear all"
     // action instead of a per-item delete button.
     clearAllNotifications: async () => {
-      const res = await fetch(`${API_BASE}/notifications`, {
+      const res = await fetch(`${API_BASE}/notifications/delete`, {
         method: "DELETE",
         headers: authHeaders(),
       });
@@ -1538,15 +1538,16 @@
           phone: $("#phoneField")?.value.trim(),
           city: $("#cityField")?.value.trim(),
         };
-        const res = await fetch(`${API_BASE}/users/me`, {
-          method: "PUT",
-          headers: authHeaders(),
+        const res = await fetch(`${API_BASE}/users/me/update`, {
+          method: "PATCH",
+          headers: {...authHeaders(),
+          "Content-Type": "application/json",},
           body: JSON.stringify(payload),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const detail = formatErrorDetail(data.detail);
-          console.error(`PUT /users/me → ${res.status}${detail ? `: ${detail}` : ""}`);
+          console.error(`PUT /users/me/update → ${res.status}${detail ? `: ${detail}` : ""}`);
           throw new Error(detail || `Couldn't save changes (${res.status})`);
         }
         // Merge the backend's response into state so name/phone/city/avatar
@@ -1577,7 +1578,7 @@
       try {
         const formData = new FormData();
         formData.append("file", file);
-        const res = await fetch(`${API_BASE}/users/profile-picture`, {
+        const res = await fetch(`${API_BASE}/users/me/profile-picture`, {
           method: "POST",
           headers: authHeadersFormData(),
           body: formData,
@@ -1585,7 +1586,7 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const detail = formatErrorDetail(data.detail);
-          console.error(`POST /users/profile-picture → ${res.status}${detail ? `: ${detail}` : ""}`);
+          console.error(`POST /users/me/profile-picture → ${res.status}${detail ? `: ${detail}` : ""}`);
           throw new Error(detail || `Couldn't upload photo (${res.status})`);
         }
         const url = data.profile_picture_url;
@@ -1617,8 +1618,8 @@
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Updating…"; }
 
       try {
-        const res = await fetch(`${API_BASE}/users/change-password`, {
-          method: "PUT",
+        const res = await fetch(`${API_BASE}//users/me/change-password`, {
+          method: "POST",
           headers: authHeaders(),
           body: JSON.stringify({
             current_password: current.value,
@@ -1676,7 +1677,8 @@
     }
 
     try {
-      const me = await (await fetch(`${API_BASE}/users/me`, { headers: authHeaders() })).json();
+      const me = await (await fetch(`${API_BASE}/users/me`, { headers: authHeaders() , cache: "no-store" })).json();
+      console.log("DEBUG me object:", me);
       if (!me.role_selected) {
         window.location.href = "../role/index.html";
         return;

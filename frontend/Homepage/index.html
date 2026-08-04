@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Tixora — Web-Native Event Ticketing</title>
+  <meta name="description"
+    content="Tixora is a 100% web-native event discovery, digital ticketing, and organizer management platform. No app downloads. No installs. Just the browser." />
+  <meta name="theme-color" content="#001F54" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@600;700;800&display=swap"
+    rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+  <style>
+
+  </style>
+</head>
+
+<body>
+
+  <!-- ============================================================
+       ANTIGRAVITY PARTICLE CANVAS — fixed full-viewport background,
+       rendered/driven entirely by script.js. Sits behind everything.
+       ============================================================ -->
+  <canvas id="antigravity-canvas" aria-hidden="true"></canvas>
+
+  <!-- ============================================================
+       A. TOP NAVIGATION — floating glassmorphic pill bar
+       ============================================================ -->
+  <header class="nav-shell">
+    <nav class="nav-bar" aria-label="Primary">
+      <a href="#top" class="nav-brand">
+        <img src="assets/favicon-256.png" alt="Tixora" class="nav-brand__logo" />
+        <span class="nav-brand__name">TIXORA</span>
+      </a>
+
+      <ul class="nav-links" id="nav-links">
+        <!-- REPLACE WITH YOUR ACTUAL CUSTOMER PORTAL FILE IF NOT SPA-ROUTED -->
+        <li><a href="#showcase" data-tab-target="customer">Customer View</a></li>
+        <!-- REPLACE WITH YOUR ACTUAL ORGANIZER PORTAL FILE IF NOT SPA-ROUTED -->
+        <li><a href="#showcase" data-tab-target="organizer">Organizer Hub</a></li>
+        <li><a href="#features">Platform Features</a></li>
+        <li><a href="#about">About Team</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <button type="button" class="btn btn--pill btn--ghost-secondary" id="portal-windows-btn">Portal Windows</button>
+        <!-- BACKEND INTEGRATION NOTE: point at the real login page/route -->
+        <a href="../login_sign_in/login.html" class="btn btn--pill btn--ghost">Log In</a>
+        <!-- BACKEND INTEGRATION NOTE: point at the real signup page/route -->
+        <a href="../login_sign_in/signup.html" class="btn btn--pill btn--primary">Sign Up</a>
+      </div>
+
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="nav-links"
+        aria-label="Toggle navigation menu">
+        <span></span><span></span><span></span>
+      </button>
+    </nav>
+  </header>
+
+  <main id="top">
+
+    <!-- ============================================================
+         B. HERO — central gravity stage
+         ============================================================ -->
+    <section class="hero">
+      <div class="hero__inner">
+        <div class="status-badge">
+          <span class="status-badge__dot" aria-hidden="true"></span>
+          100% Web Native — No Application Downloads Needed
+        </div>
+
+        <h1 class="hero__heading">
+          Experience liftoff with the<br />
+          <span class="text-gradient">next-gen web platform</span>
+        </h1>
+
+        <p class="hero__subtitle">
+          Browse events, buy tickets, and manage your own — all from a browser tab.
+          No app-store downloads, no waiting on updates, no friction between
+          discovering an event and holding a stub in your pocket.
+        </p>
+
+        <div class="hero__actions">
+          <a href="../customer-window/index.html" class="btn btn--lg btn--primary">Explore Customer Portal →</a>
+          <a href="../dashboard/dashboard.html" class="btn btn--lg btn--ghost">Launch Organizer Hub</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         C. INTERACTIVE APP SHOWCASE — tabbed switcher + 3D tilt
+         ============================================================ -->
+    <section class="showcase" id="showcase">
+      <div class="showcase__tabs" role="tablist" aria-label="Application preview">
+        <button type="button" class="showcase__tab is-active" role="tab" aria-selected="true" data-view="customer">
+          Customer Storefront Preview
+        </button>
+        <button type="button" class="showcase__tab" role="tab" aria-selected="false" data-view="organizer">
+          Organizer Command Center Preview
+        </button>
+      </div>
+
+      <div class="browser-frame" id="browser-frame">
+        <div class="browser-frame__chrome">
+          <div class="browser-frame__dots" aria-hidden="true">
+            <span class="dot dot--red"></span>
+            <span class="dot dot--yellow"></span>
+            <span class="dot dot--green"></span>
+          </div>
+          <div class="browser-frame__url" id="browser-url">https://tixora.app/events/live-discovery</div>
+        </div>
+        <div class="browser-frame__stage" id="browser-stage">
+          <!-- REPLACE WITH YOUR CUSTOMER STOREFRONT SCREENSHOT/MOCKUP -->
+          <div class="mockup mockup--customer is-active" data-mockup="customer">
+            <img src="assets/cus.png" alt="Customer Storefront Preview" class="mockup__image" />
+          </div>
+          <!-- REPLACE WITH YOUR ORGANIZER DASHBOARD SCREENSHOT/MOCKUP -->
+          <div class="mockup mockup--organizer" data-mockup="organizer">
+            <img src="assets/das.png" alt="Organizer Command Center Preview" class="mockup__image" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         D. ENCRYPTED DIGITAL TICKET STUB WIDGET
+         ============================================================ -->
+    <section class="stub-section">
+      <div class="stub-section__copy">
+        <p class="eyebrow">Encrypted Digital Stubs</p>
+        <h2>A ticket that can't be faked, forwarded twice, or forgotten at home.</h2>
+        <p class="muted">
+          Every Tixora stub is a live, rotating credential — not a static QR you can
+          screenshot and resell. Gate scanners verify it in real time against our
+          Shield Fraud Engine, so the only valid stub is the one on your phone, right now.
+        </p>
+      </div>
+
+      <div class="ticket-stub" aria-hidden="true">
+        <div class="ticket-stub__shimmer"></div>
+        <div class="ticket-stub__row">
+          <span class="ticket-stub__label">Event</span>
+          <span class="ticket-stub__value">Northern Lights Music Festival</span>
+        </div>
+        <div class="ticket-stub__grid">
+          <div><span class="ticket-stub__label">Tier</span><span class="ticket-stub__value">VIP</span></div>
+          <div><span class="ticket-stub__label">Gate</span><span class="ticket-stub__value">B3</span></div>
+          <div><span class="ticket-stub__label">Seat</span><span class="ticket-stub__value">GA</span></div>
+        </div>
+        <div class="ticket-stub__footer">
+          <span class="ticket-stub__pass">PASS ID · TX-88214-VIP</span>
+          <div class="ticket-stub__qr" aria-hidden="true">
+            <!-- REPLACE WITH A REAL DYNAMIC QR CODE RENDER -->
+            <span>QR</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         E. PROMOTIONAL BANNER STAGE
+         ============================================================ -->
+    <section class="promo-banner">
+      <div class="promo-banner__overlay" aria-hidden="true"></div>
+      <div class="promo-banner__content">
+        <h2>Empower Your Live Events</h2>
+        <p>Set up ticket tiers, track sales in real time, and stop fraud before it reaches the gate — all from one
+          dashboard.</p>
+        <a href="../dashboard/dashboard.html#create-event" class="btn btn--lg btn--primary">Create Event Now</a>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         F. CORE FEATURE MATRIX
+         ============================================================ -->
+    <section class="features" id="features">
+      <div class="section-head">
+        <p class="eyebrow">Platform Features</p>
+        <h2>Everything runs in the browser you already have open.</h2>
+      </div>
+
+      <div class="feature-grid">
+        <article class="feature-card">
+          <div class="feature-card__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <path d="M4 6h16v4a2 2 0 000 4v4H4v-4a2 2 0 000-4V6z" stroke="currentColor" stroke-width="1.6"
+                stroke-linejoin="round" />
+              <path d="M9 6v12" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 3" />
+            </svg>
+          </div>
+          <h3>Zero App Installs</h3>
+          <p>Every portal — customer, organizer, and gate scanner — runs entirely in the browser. No app-store review
+            cycles, no forced updates, no storage taken up on anyone's phone.</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-card__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <path d="M4 19V10M12 19V5M20 19v-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </div>
+          <h3>Organizer Command</h3>
+          <p>Watch capacity, revenue, and sell-through update live as tickets move. Every tier, every gate, every sale —
+            visible the moment it happens, not the next morning.</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-card__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+              <path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3z" stroke="currentColor" stroke-width="1.6"
+                stroke-linejoin="round" />
+              <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
+          </div>
+          <h3>Shield Fraud Engine</h3>
+          <p>Stub credentials rotate continuously and are verified server-side at the gate — screenshots, duplicates,
+            and resale scams get flagged before anyone walks through.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         G. TEAM & STORY SECTION
+         ============================================================ -->
+    <section class="about" id="about">
+      <div class="section-head">
+        <p class="eyebrow">About Tixora</p>
+        <h2>Built by four classmates tired of ticketing fees, app downloads, and scalpers.</h2>
+        <p class="muted about__story">
+          Tixora started as a class project between four computer science students who'd all
+          had the same bad night out: a $12 "convenience fee," a forced app download for a
+          single concert, and a resale price triple the face value. We built the platform we
+          wished existed — one that runs entirely in a browser tab, charges organizers fairly,
+          and makes a resold, screenshotted ticket worthless at the gate.
+        </p>
+      </div>
+
+      <div class="team-grid">
+        <article class="team-card">
+          <!-- REPLACE WITH YOUR IMAGE (300x300 or 500x500, square headshot) -->
+          <img src="assets/sherry.png" alt="Shahrayar" class="team-card__avatar" />
+          <h3>Shahrayar</h3>
+          <p class="team-card__role">Backend Lead &amp; Systems Architect</p>
+          <p class="team-card__bio">Built the core backend infrastructure, API logic, and server-side architecture
+            powering the entire platform.</p>
+        </article>
+
+        <article class="team-card">
+          <!-- REPLACE WITH YOUR IMAGE (300x300 or 500x500, square headshot) -->
+          <img src="assets/tasfi.png" alt="Tasfi ul Iman" class="team-card__avatar" />
+          <h3>Tasfi ul Iman</h3>
+          <p class="team-card__role">Frontend Developer &amp; UI Engineer</p>
+          <p class="team-card__bio">Built the customer and organizer interfaces, translating designs into responsive,
+            functional pages.</p>
+        </article>
+
+        <article class="team-card">
+          <!-- REPLACE WITH YOUR IMAGE (300x300 or 500x500, square headshot) -->
+          <img src="assets/bakar.png" alt="Abu Bakar" class="team-card__avatar" />
+          <h3>Abu Bakar</h3>
+          <p class="team-card__role">Frontend Developer &amp; Interaction Designer</p>
+          <p class="team-card__bio">Crafted the visual layout and interactive elements, focusing on smooth navigation
+            and a polished user experience.</p>
+        </article>
+
+        <article class="team-card">
+          <!-- REPLACE WITH YOUR IMAGE (300x300 or 500x500, square headshot) -->
+          <img src="assets/talha.jpeg" alt="Talha Amin" class="team-card__avatar" />  
+          <h3>Talha Amin</h3>
+          <p class="team-card__role">Fraud Detection &amp; ML Engineer</p>
+          <p class="team-card__bio">Designed and trained the fraud detection model used to flag suspicious ticket
+            activity and prevent scalping.</p>
+        </article>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================================
+       H. FOOTER
+       ============================================================ -->
+  <footer class="site-footer">
+    <div class="site-footer__grid">
+      <div class="site-footer__brand">
+        <a href="#top" class="nav-brand nav-brand--footer">
+          <img src="assets/logo-white.png" alt="Tixora" class="nav-brand__logo" />
+          <span class="nav-brand__name">TIXORA</span>
+        </a>
+        <p>Web-native event discovery, digital ticketing, and organizer management — no installs required.</p>
+      </div>
+
+      <div class="site-footer__col">
+        <h4>Platform</h4>
+        <ul>
+          <li><a href="../customer-window/index.html">Customer Portal</a></li>
+          <li><a href="../dashboard/dashboard.html">Organizer Hub</a></li>
+          <li><a href="#features">Shield Fraud Engine</a></li>
+          <li><a href="#">Pricing</a></li>
+        </ul>
+      </div>
+
+      <div class="site-footer__col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#about">About Team</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Blog</a></li>
+          <li><a href="#">Contact</a></li>
+        </ul>
+      </div>
+
+      <div class="site-footer__col">
+        <h4>Account</h4>
+        <ul>
+          <!-- BACKEND INTEGRATION NOTE: point these at the real routes -->
+          <li><a href="../login_sign_in/login.html">Log In</a></li>
+          <li><a href="../login_sign_in/signup.html">Sign Up</a></li>
+          <li><a href="../customer-window//index.html">Customer Portal</a></li>
+          <li><a href="../dashboard/dashboard.html">Organizer Hub</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="site-footer__sub">
+      <p>&copy; 2026 TIXORA Web Application. All rights reserved.</p>
+      <p>Engineered by Shahrayar, Tasfi ul Iman, Abu Bakar, &amp; Talha Amin</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+
+</html>

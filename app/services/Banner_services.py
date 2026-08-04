@@ -6,7 +6,7 @@ from sqlmodel import Session
 from services.User_services import get_current_user
 from database import get_session
 from models.Event import Event
-BUCKET_NAME = "event-banners"
+BUCKET_NAME = "event_banners"
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_SIZE_MB = 5
 
