@@ -52,14 +52,19 @@
     },
   ];
 
-  const CATEGORIES = [
-    { name: "Music", icon: "🎵", count: 128, color: "#EEF2FF" },
-    { name: "Business", icon: "💼", count: 64, color: "#ECFDF5" },
-    { name: "Art", icon: "🎨", count: 40, color: "#FFF7ED" },
-    { name: "Sports", icon: "🏆", count: 96, color: "#FEF2F2" },
-    { name: "Comedy", icon: "🎤", count: 33, color: "#F0F9FF" },
-    { name: "Technology", icon: "💻", count: 57, color: "#F5F3FF" },
-  ];
+  // Static icon/color per category name — no longer a source of truth for
+  // *counts* (those come from real fetched events, see deriveCategories()
+  // below). Any category name not listed here falls back to a default
+  // icon/color in deriveCategories() so new backend categories still render.
+  const CATEGORY_META = {
+    Music: { icon: "🎵", color: "#EEF2FF" },
+    Business: { icon: "💼", color: "#ECFDF5" },
+    Art: { icon: "🎨", color: "#FFF7ED" },
+    Sports: { icon: "🏆", color: "#FEF2F2" },
+    Comedy: { icon: "🎤", color: "#F0F9FF" },
+    Technology: { icon: "💻", color: "#F5F3FF" },
+  };
+  const DEFAULT_CATEGORY_META = { icon: "🎟️", color: "#F1F5F9" };
 
   const CITIES = [
     { name: "Austin", count: 210, img: "https://images.unsplash.com/photo-1531218150217-54595bc2b934?q=80&w=800&auto=format&fit=crop" },
@@ -422,20 +427,20 @@
   }
 
   /* --------------------------- View / tab routing -------------------------- */
+  function showView(name) {
+    $$(".view").forEach((v) => v.classList.toggle("hidden", v.dataset.view !== name));
+    $$(".nav-link[data-view]").forEach((l) => l.classList.toggle("active", l.dataset.view === name));
+    $$(".bottom-tab[data-view]").forEach((t) => t.classList.toggle("active", t.dataset.view === name));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    const active = document.querySelector(`.view[data-view="${name}"]`);
+    active?.classList.remove("page-view");
+    void active?.offsetWidth; // restart animation
+    active?.classList.add("page-view");
+  }
+
   function initViews() {
-    const views = $$(".view");
     const navLinks = $$(".nav-link[data-view]");
     const bottomTabs = $$(".bottom-tab[data-view]");
-    function showView(name) {
-      views.forEach((v) => v.classList.toggle("hidden", v.dataset.view !== name));
-      navLinks.forEach((l) => l.classList.toggle("active", l.dataset.view === name));
-      bottomTabs.forEach((t) => t.classList.toggle("active", t.dataset.view === name));
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      const active = document.querySelector(`.view[data-view="${name}"]`);
-      active?.classList.remove("page-view");
-      void active?.offsetWidth; // restart animation
-      active?.classList.add("page-view");
-    }
 
     navLinks.forEach((link) => {
       link.addEventListener("click", (e) => {
@@ -451,11 +456,14 @@
       });
     });
 
-    $$("[data-goto]").forEach((el) => {
-      el.addEventListener("click", (e) => {
-        e.preventDefault();
-        showView(el.dataset.goto);
-      });
+    // Delegated (not per-element) so this also works for [data-goto]
+    // elements that get rendered later from backend data — category tiles,
+    // city tiles, event cards, etc. — not just what's in the DOM at init.
+    document.addEventListener("click", (e) => {
+      const el = e.target.closest("[data-goto]");
+      if (!el) return;
+      e.preventDefault();
+      showView(el.dataset.goto);
     });
 
     showView("home");
@@ -758,20 +766,40 @@
     bindCardEvents(el);
   }
 
+  // Groups the real fetched events by their `category` field and counts
+  // them — this is what makes the "Browse by category" tiles reflect
+  // actual backend data instead of the old hardcoded counts.
+  function deriveCategories(events) {
+    const counts = {};
+    events.forEach((ev) => {
+      if (!ev.category) return;
+      counts[ev.category] = (counts[ev.category] || 0) + 1;
+    });
+    return Object.keys(counts).map((name) => {
+      const meta = CATEGORY_META[name] || DEFAULT_CATEGORY_META;
+      return { name, count: counts[name], icon: meta.icon, color: meta.color };
+    }).sort((a, b) => b.count - a.count);
+  }
+
   function renderCategories() {
     const el = $("#categoriesGrid");
     if (!el) return;
-    el.innerHTML = CATEGORIES.map((c) => `
+    const categories = deriveCategories(state.events);
+    if (!categories.length) { el.innerHTML = ""; return; }
+    el.innerHTML = categories.map((c) => `
       <a class="cat-tile" href="#" data-goto="browse" data-cat-jump="${c.name}">
         <div class="cat-icon" style="background:${c.color}">${c.icon}</div>
         <span>${c.name}</span>
-        <small>${c.count} events</small>
+        <small>${c.count} event${c.count === 1 ? "" : "s"}</small>
       </a>`).join("");
     el.querySelectorAll("[data-cat-jump]").forEach((tile) => {
       tile.addEventListener("click", () => {
         state.filters.category = tile.dataset.catJump;
+        state.page = 1;
         const sel = $("#filterCategory");
         if (sel) sel.value = tile.dataset.catJump;
+        $$(".tab-chip[data-cat]").forEach((c) => c.classList.toggle("active", c.dataset.cat === tile.dataset.catJump));
+        renderEvents();
       });
     });
   }
@@ -787,8 +815,10 @@
     el.querySelectorAll("[data-city-jump]").forEach((tile) => {
       tile.addEventListener("click", () => {
         state.filters.city = tile.dataset.cityJump;
+        state.page = 1;
         const sel = $("#filterCity");
         if (sel) sel.value = tile.dataset.cityJump;
+        renderEvents();
       });
     });
   }
@@ -1419,8 +1449,8 @@
       return Array.isArray(raw) ? raw.map(mapNotificationFromBackend) : [];
     },
     markNotificationRead: async (id) => {
-      const res = await fetch(`${API_BASE}/notifications/{notification_id}/read`, {
-        method: "POST",
+      const res = await fetch(`${API_BASE}/notifications/${id}/read`, {
+        method: "PATCH",
         headers: authHeaders(),
       });
       if (!res.ok) {
@@ -1435,7 +1465,7 @@
     // single-notification delete route, so the UI offers one "clear all"
     // action instead of a per-item delete button.
     clearAllNotifications: async () => {
-      const res = await fetch(`${API_BASE}/notifications/delete`, {
+      const res = await fetch(`${API_BASE}/notifications`, {
         method: "DELETE",
         headers: authHeaders(),
       });
@@ -1538,16 +1568,15 @@
           phone: $("#phoneField")?.value.trim(),
           city: $("#cityField")?.value.trim(),
         };
-        const res = await fetch(`${API_BASE}/users/me/update`, {
-          method: "PATCH",
-          headers: {...authHeaders(),
-          "Content-Type": "application/json",},
+        const res = await fetch(`${API_BASE}/users/me`, {
+          method: "PUT",
+          headers: authHeaders(),
           body: JSON.stringify(payload),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const detail = formatErrorDetail(data.detail);
-          console.error(`PUT /users/me/update → ${res.status}${detail ? `: ${detail}` : ""}`);
+          console.error(`PUT /users/me → ${res.status}${detail ? `: ${detail}` : ""}`);
           throw new Error(detail || `Couldn't save changes (${res.status})`);
         }
         // Merge the backend's response into state so name/phone/city/avatar
@@ -1578,7 +1607,7 @@
       try {
         const formData = new FormData();
         formData.append("file", file);
-        const res = await fetch(`${API_BASE}/users/me/profile-picture`, {
+        const res = await fetch(`${API_BASE}/users/profile-picture`, {
           method: "POST",
           headers: authHeadersFormData(),
           body: formData,
@@ -1586,7 +1615,7 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const detail = formatErrorDetail(data.detail);
-          console.error(`POST /users/me/profile-picture → ${res.status}${detail ? `: ${detail}` : ""}`);
+          console.error(`POST /users/profile-picture → ${res.status}${detail ? `: ${detail}` : ""}`);
           throw new Error(detail || `Couldn't upload photo (${res.status})`);
         }
         const url = data.profile_picture_url;
@@ -1618,8 +1647,8 @@
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Updating…"; }
 
       try {
-        const res = await fetch(`${API_BASE}//users/me/change-password`, {
-          method: "POST",
+        const res = await fetch(`${API_BASE}/users/change-password`, {
+          method: "PUT",
           headers: authHeaders(),
           body: JSON.stringify({
             current_password: current.value,
@@ -1672,24 +1701,12 @@
   /* ---------------------------------- Init ------------------------------------- */
   async function init() {
     if (!localStorage.getItem("access_token")) {
-      window.location.href = "../login_sign_in/login.html";
-      return;
+      // window.location.href = "../login_sign_in/login.html";
+      // return;
     }
 
-
-
-    // Back button = force logout (Shahryar's requirement)
-    history.pushState(null, '', location.href);
-    window.addEventListener('popstate', () => {
-      localStorage.removeItem('access_token');
-      window.location.replace('../login_sign_in/login.html');
-    });
-
-
-
     try {
-      const me = await (await fetch(`${API_BASE}/users/me`, { headers: authHeaders() , cache: "no-store" })).json();
-      console.log("DEBUG me object:", me);
+      const me = await (await fetch(`${API_BASE}/users/me`, { headers: authHeaders() })).json();
       if (!me.role_selected) {
         window.location.href = "../role/index.html";
         return;
@@ -1702,9 +1719,9 @@
       applyCustomerIdentity(me);
     } catch (err) {
       console.error("Couldn't verify session:", err);
-      localStorage.removeItem("access_token");
-      window.location.href = "../login_sign_in/login.html";
-      return;
+        localStorage.removeItem("access_token");
+        window.location.href = "../login_sign_in/login.html";
+        return;
     }
 
     initNavbar();
