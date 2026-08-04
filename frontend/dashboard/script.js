@@ -16,7 +16,7 @@
   const $ = (sel, ctx = document) => ctx.querySelector(sel);
   const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
   const uid = (p = "id") => `${p}_${Math.random().toString(36).slice(2, 9)}`;
-  const currency = (n) => `PKR ${Number(n || 0).toLocaleString("en-PK")}`;
+  const currency = (n) => `USD ${Number(n || 0).toLocaleString("en-US")}`;
   // NOTE: ticket tiers can carry their own currency (PKR/USD/AED — see
   // mapTierFromBackend), but every revenue sum in this file (computeStats,
   // analytics, revenue) just adds raw numbers together and labels the total
@@ -678,7 +678,7 @@
   /* ------------------------------------------------------------------ */
   function newTicketCategory() {
     return {
-      id: uid("tkt"), name: "", price: 0, currency: "PKR", totalSeats: 0, availableSeats: 0, sold: 0,
+      id: uid("tkt"), name: "", price: 0, currency: "USD", totalSeats: 0, availableSeats: 0, sold: 0,
       description: "", benefits: "", color: TICKET_COLORS[currentTicketDraft.length % TICKET_COLORS.length],
       salesStart: "", salesEnd: "", maxPerPerson: 4
     };
@@ -702,9 +702,7 @@
         <label>Price <input type="number" min="0" data-tk="price" value="${t.price}" /></label>
         <label>Currency
           <select data-tk="currency">
-            <option ${t.currency === "PKR" ? "selected" : ""}>PKR</option>
-            <option ${t.currency === "USD" ? "selected" : ""}>USD</option>
-            <option ${t.currency === "AED" ? "selected" : ""}>AED</option>
+          <option ${t.currency === "USD" ? "selected" : ""}>USD</option>
           </select>
         </label>
       </div>
@@ -1510,7 +1508,10 @@
 
       try {
         const { profile_picture_url } = await api.users.uploadPicture(file);
-        currentUser = { ...currentUser, profile_picture_url };
+
+        const me = await api.auth.me();   // fresh data from backend
+        currentUser = me;
+
         applyOrganizerIdentity(currentUser);
         toast("Profile picture updated", "success");
       } catch (err) {
@@ -1748,7 +1749,7 @@
       console.error(err);
       toast("Couldn't verify your account — please log in again.", "danger");
       localStorage.removeItem("access_token");
-      window.location.href = "../login_sign_in/login.html";
+      window.location.href = "../Homepage/index.html";
       return;
     }
     applyOrganizerIdentity(currentUser);
