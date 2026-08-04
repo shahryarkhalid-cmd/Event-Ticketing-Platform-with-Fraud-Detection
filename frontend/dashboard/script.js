@@ -1715,8 +1715,8 @@
   /* ------------------------------------------------------------------ */
   async function init() {
     if (!localStorage.getItem("access_token")) {
-      window.location.href = "../login_sign_in/login.html";
-      return;
+      // window.location.href = "../login_sign_in/login.html";
+      // return;
     }
 
 
