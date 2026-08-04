@@ -226,11 +226,115 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    initSessionGuard();
     initParticleCanvas();
     initShowcaseTabs();
     initTilt();
     initNavToggle();
     initPortalWindowsButton();
+    initAuthGate();
   });
 
 })();
+
+/* =======================================================
+   6. AUTH-GATE FOR PORTAL LINKS (Customer Portal / Organizer Hub)
+   ======================================================= */
+function initAuthGate() {
+  const API_BASE = 'http://localhost:8000';
+
+  const customerLinks = document.querySelectorAll('a[href*="customer-window"]');
+  const organizerLinks = document.querySelectorAll('a[href*="dashboard/dashboard.html"]');
+
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+      background: #001F54; color: #fff; padding: 12px 24px; border-radius: 999px;
+      font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25); z-index: 9999; opacity: 0;
+      transition: opacity .25s ease; max-width: 90%; text-align: center;
+    `;
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => { toast.style.opacity = '1'; });
+    setTimeout(() => toast.remove(), 2200);
+  }
+
+  function showRolePopup(actualRole, correctPath) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center; z-index: 9999;
+      font-family: 'Inter', sans-serif;
+    `;
+    overlay.innerHTML = `
+      <div style="background:#fff; border-radius:16px; padding:28px 24px; max-width:340px; width:90%; text-align:center; box-shadow:0 20px 50px rgba(0,0,0,0.3);">
+        <p style="margin:0 0 8px; font-weight:600; color:#001F54; font-size:16px;">You're logged in as ${actualRole}</p>
+        <p style="margin:0 0 20px; color:#555; font-size:14px;">This link isn't for your account type.</p>
+        <div style="display:flex; gap:10px;">
+          <button id="rp-cancel" style="flex:1; padding:10px; border-radius:999px; border:1px solid #ccc; background:#fff; cursor:pointer;">Cancel</button>
+          <button id="rp-go" style="flex:1; padding:10px; border-radius:999px; border:none; background:#001F54; color:#fff; cursor:pointer;">Go to my portal</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#rp-cancel').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#rp-go').addEventListener('click', () => { window.location.href = correctPath; });
+  }
+
+  async function handleGatedClick(e, expectedRole) {
+    const token = localStorage.getItem('access_token');
+
+    if (!token) {
+      e.preventDefault();
+      showToast('Please log in first');
+      return;
+    }
+
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_BASE}/users/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) { showToast('Session expired — please log in again'); return; }
+      const me = await res.json();
+
+      if (me.role === expectedRole) {
+        window.location.href = e.currentTarget.getAttribute('href');
+      } else {
+        const correctPath = me.role === 'organizer'
+          ? '../dashboard/dashboard.html'
+          : '../customer-window/index.html';
+        showRolePopup(me.role, correctPath);
+      }
+    } catch (err) {
+      showToast('Something went wrong — please try again');
+    }
+  }
+
+  customerLinks.forEach((link) => link.addEventListener('click', (e) => handleGatedClick(e, 'customer')));
+  organizerLinks.forEach((link) => link.addEventListener('click', (e) => handleGatedClick(e, 'organizer')));
+}
+
+
+  /* =======================================================
+   7. SESSION GUARD — logs the user out if they arrive back
+      on the homepage from customer-window or dashboard
+   ======================================================= */
+function initSessionGuard() {
+  const cameFromPortal = document.referrer.includes('customer-window')
+    || document.referrer.includes('dashboard/dashboard.html');
+
+  if (cameFromPortal) {
+    localStorage.removeItem('access_token');
+  }
+
+  // Also cover the browser's back-forward cache (bfcache) case, where the
+  // page is restored without a fresh referrer check.
+  window.addEventListener('pageshow', (e) => {
+  if (e.persisted && cameFromPortal) {
+      localStorage.removeItem('access_token');
+    }
+  });
+}

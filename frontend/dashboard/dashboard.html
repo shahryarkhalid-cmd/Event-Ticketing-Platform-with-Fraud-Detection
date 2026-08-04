@@ -668,6 +668,15 @@
               <h3>Notifications</h3>
               <p class="panel-sub">Stay on top of what's happening</p>
             </div>
+            <button class="icon-btn danger-btn" id="clearNotifsBtn" aria-label="Clear all notifications"
+              title="Clear all notifications">
+              <svg viewBox="0 0 24 24">
+                <path d="M4 7h16" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+                <path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" />
+              </svg>
+            </button>
           </div>
           <div class="notif-list full" id="notifListFull"></div>
         </div>
@@ -749,17 +758,21 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="previewModal">
-    <div class="modal">
-      <div class="modal-head">
-        <h3>Event Preview</h3>
-        <button class="modal-close" data-close-modal="previewModal">
+  <div class="modal-overlay" id="clearNotifsModal">
+    <div class="modal modal-sm">
+      <div class="modal-body center">
+        <div class="warn-icon">
           <svg viewBox="0 0 24 24">
-            <path d="M18 6 6 18M6 6l12 12" />
+            <path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
           </svg>
-        </button>
+        </div>
+        <h3>Clear all notifications?</h3>
+        <p>This will permanently remove every notification from your account. This action cannot be undone.</p>
+        <div class="modal-actions center">
+          <button class="btn btn-outline" data-close-modal="clearNotifsModal">Cancel</button>
+          <button class="btn btn-danger" id="confirmClearNotifsBtn">Clear All</button>
+        </div>
       </div>
-      <div class="modal-body" id="previewBody"></div>
     </div>
   </div>
 

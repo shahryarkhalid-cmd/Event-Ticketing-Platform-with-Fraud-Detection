@@ -1672,9 +1672,20 @@
   /* ---------------------------------- Init ------------------------------------- */
   async function init() {
     if (!localStorage.getItem("access_token")) {
-      // window.location.href = "../login_sign_in/login.html";
-      // return;
+      window.location.href = "../login_sign_in/login.html";
+      return;
     }
+
+
+
+    // Back button = force logout (Shahryar's requirement)
+    history.pushState(null, '', location.href);
+    window.addEventListener('popstate', () => {
+      localStorage.removeItem('access_token');
+      window.location.replace('../login_sign_in/login.html');
+    });
+
+
 
     try {
       const me = await (await fetch(`${API_BASE}/users/me`, { headers: authHeaders() , cache: "no-store" })).json();
@@ -1691,9 +1702,9 @@
       applyCustomerIdentity(me);
     } catch (err) {
       console.error("Couldn't verify session:", err);
-        localStorage.removeItem("access_token");
-        window.location.href = "../login_sign_in/login.html";
-        return;
+      localStorage.removeItem("access_token");
+      window.location.href = "../login_sign_in/login.html";
+      return;
     }
 
     initNavbar();

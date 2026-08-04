@@ -1486,6 +1486,29 @@
       }
     });
 
+    // Clear all notifications
+    $("#clearNotifsBtn").addEventListener("click", () => {
+      if (!notifications.length) {
+        toast("No notifications to clear.");
+        return;
+      }
+      openModal("clearNotifsModal");
+    });
+
+    $("#confirmClearNotifsBtn").addEventListener("click", async () => {
+      try {
+        await api.notifications.clearAll();
+        notifications = [];
+        renderNotifications($("#notifList"), notifications.slice(0, 4));
+        renderNotifications($("#notifListFull"), notifications, true);
+        closeModal("clearNotifsModal");
+        toast("All notifications cleared", "danger");
+      } catch (err) {
+        console.error(err);
+        toast("Couldn't clear notifications — please try again.", "danger");
+      }
+    });
+
     // Filters / search / sort
     ["eventSearch", "filterStatus", "filterCategory", "sortBy"].forEach(id => {
       const el = $(`#${id}`);
@@ -1586,6 +1609,14 @@
       return;
     }
 
+
+    // Back button = force logout (Shahryar's requirement)
+    history.pushState(null, '', location.href);
+    window.addEventListener('popstate', () => {
+      localStorage.removeItem('access_token');
+      window.location.replace('../login_sign_in/login.html');
+    });
+
     renderWelcome();
     bindGlobalUI();
 
@@ -1601,7 +1632,10 @@
       }
     } catch (err) {
       console.error(err);
-      currentUser = structuredClone(store.currentUser);
+      toast("Couldn't verify your account — please log in again.", "danger");
+      localStorage.removeItem("access_token");
+      window.location.href = "../login_sign_in/login.html";
+      return;
     }
     applyOrganizerIdentity(currentUser);
 
