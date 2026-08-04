@@ -145,6 +145,9 @@
     const [date] = (evt.start_datetime || "").split("T");
     const time = (evt.start_datetime || "").split("T")[1]?.slice(0, 5) || "";
     const lowestPrice = tiers.length ? Math.min(...tiers.map(t => t.price)) : 0;
+    // "starting price" should show the currency of whichever tier that
+    // lowest price actually belongs to, not a hardcoded currency.
+    const lowestTier = tiers.find(t => t.price === lowestPrice);
     const totalRemaining = tiers.reduce((s, t) => s + (t.total_seats - t.sold_quantity), 0);
 
     return {
@@ -159,12 +162,14 @@
       organizer: "", // no organizer name on Event yet — see note below
       banner: evt.banner_url || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop",
       price: lowestPrice,
+      currency: lowestTier?.currency || tiers[0]?.currency || "USD",
       seatsLeft: totalRemaining,
       trending: false, // not implemented on backend
       tiers: tiers.map(t => ({
         id: t.id,
         name: t.category_name,
         price: t.price,
+        currency: t.currency,
         remaining: t.total_seats - t.sold_quantity,
         color: TIER_COLORS[t.category_name] || "#6B7280"
       }))
@@ -182,6 +187,10 @@
     const matchedEvent = eventsById && eventId != null ? eventsById[String(eventId)] : null;
 
     const tierName = firstItem.tier_name || firstItem.category_name || firstItem.name || order.tier_name || "General";
+    // OrderRead has no currency field on the backend — best-effort recovery
+    // by matching this order's tier name back to the event's tier list.
+    const matchedTier = matchedEvent?.tiers?.find(t => t.name === tierName);
+    const currency = matchedTier?.currency || "USD";
     const qty = items.length
       ? items.reduce((s, i) => s + Number(i.quantity ?? i.qty ?? 0), 0)
       : Number(order.quantity ?? order.ticket_quantity ?? 1);
@@ -210,6 +219,7 @@
       tier: tierName,
       qty,
       total: Number(total) || 0,
+      currency,
       status,
       when
     };
@@ -315,7 +325,16 @@
     cart: {}, // { tierName: qty } for the event currently open in the quick ticket modal
   };
 
-  const money = (n) => "$" + n.toFixed(2);
+  // Ticket tiers carry their own currency code (organizer picks PKR/USD/AED
+  // per tier in the dashboard) — this was previously ignored entirely and
+  // every price was hardcoded with a "$" prefix regardless of what the
+  // organizer actually set. Now formats using the tier/event's real currency.
+  const CURRENCY_PREFIX = { USD: "$", PKR: "PKR ", AED: "AED ", EUR: "€", GBP: "£" };
+  const money = (n, curr) => {
+    const code = (curr || "USD").toUpperCase();
+    const prefix = CURRENCY_PREFIX[code] || `${code} `;
+    return prefix + Number(n || 0).toFixed(2);
+  };
   const $ = (sel, ctx = document) => ctx.querySelector(sel);
   const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
 
@@ -373,6 +392,10 @@
     if (user.profile_picture_url) {
       const avatarImg = $("#profileAvatarImg");
       if (avatarImg) avatarImg.src = user.profile_picture_url;
+      // Header avatar (top-right circle next to the notification bell) —
+      // has no id in the markup, so it's targeted via its existing class.
+      const headerAvatarImg = $(".avatar-btn img");
+      if (headerAvatarImg) headerAvatarImg.src = user.profile_picture_url;
     }
   }
 
@@ -697,7 +720,7 @@
         <div class="event-card-tear"></div>
       </div>
       <div class="event-card-footer">
-        <div class="event-card-price">${money(ev.price)}<small>starting price</small></div>
+        <div class="event-card-price">${money(ev.price, ev.currency)}<small>starting price</small></div>
         <div class="seats-left ${low ? "low" : ""}">${ev.seatsLeft} seats left</div>
       </div>
     </article>`;
@@ -934,7 +957,7 @@
           </div>
         </div>
         <div class="class-right">
-          <span class="class-price">${money(tier.price)}</span>
+          <span class="class-price">${money(tier.price, tier.currency)}</span>
           <div class="stepper">
             <button type="button" class="st-minus" data-act="minus" data-tier="${tier.id}" ${qty <= 0 ? "disabled" : ""} aria-label="Decrease ${tier.name} quantity">−</button>
             <span class="stepper-val">${qty}</span>
@@ -974,7 +997,7 @@
     box.innerHTML = entries.map((t) => `
       <div class="cart-item">
         <span class="ci-name"><span class="ci-dot" style="background:${t.color}"></span>${t.name} × ${t.qty}</span>
-        <span class="ci-right">${money(t.price * t.qty)}<button type="button" class="ci-remove" data-remove="${t.id}" aria-label="Remove ${t.name}">✕</button></span>
+        <span class="ci-right">${money(t.price * t.qty, t.currency)}<button type="button" class="ci-remove" data-remove="${t.id}" aria-label="Remove ${t.name}">✕</button></span>
       </div>`).join("");
     $$("[data-remove]", box).forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -993,11 +1016,20 @@
     const subtotal = entries.reduce((s, t) => s + t.price * t.qty, 0);
     const fees = subtotal > 0 ? +(subtotal * 0.06).toFixed(2) : 0;
     const total = +(subtotal + fees).toFixed(2);
+    // All tiers on one event are assumed to share one currency (organizer
+    // side already treats it that way) — fall back to the event's currency
+    // when the cart is empty.
+    const curr = entries[0]?.currency || ev.currency;
 
-    $("#sumSubtotal").textContent = money(subtotal);
+    $("#sumSubtotal").textContent = money(subtotal, curr);
     $("#sumQty").textContent = String(totalQty);
-    $("#sumFees").textContent = money(fees);
-    $("#sumTotal").textContent = money(total);
+    $("#sumFees").textContent = money(fees, curr);
+    $("#sumTotal").textContent = money(total, curr);
+    // Keep the raw numeric total (and its currency) around so the checkout
+    // handler doesn't have to scrape/parse the formatted "PKR 1,234.00"
+    // string back out of the DOM.
+    state.cartTotal = total;
+    state.cartCurrency = curr;
 
     $("#proceedBtn").disabled = entries.length === 0;
   }
@@ -1023,7 +1055,11 @@
         const order = await api.createOrder({
           eventId: ev.id,
           items: entries.map((t) => ({ tierId: t.id, tierName: t.name, qty: t.qty, price: t.price })),
-          total: parseFloat($("#sumTotal").textContent.replace("$", "")),
+          // Use the raw numeric total kept in state instead of scraping the
+          // formatted summary text — that used to assume a literal "$"
+          // prefix and silently produced NaN for any other currency (PKR,
+          // AED, etc).
+          total: state.cartTotal,
         });
         toast("Order created", `${order.orderId} — proceed to payment.`, "ok");
         closeTicketModal();
@@ -1054,7 +1090,7 @@
     $("#paySummaryTotal").textContent = totalStr;
     $("#paySummaryOrderId").textContent = orderId;
     $("#paySummaryItems").innerHTML = items.map((i) => `
-      <div class="price-row"><span>${escapeHTML(i.name)} × ${i.qty}</span><span>${money(i.price * i.qty)}</span></div>`).join("");
+      <div class="price-row"><span>${escapeHTML(i.name)} × ${i.qty}</span><span>${money(i.price * i.qty, i.currency)}</span></div>`).join("");
     resetPaymentState();
   }
 
@@ -1354,7 +1390,7 @@
           <span class="row">🆔 ${b.id}</span>
           <span class="row">🎫 ${b.tier}</span>
           <span class="row">🔢 Qty ${b.qty}</span>
-          <span class="row">💳 ${money(b.total)}</span>
+          <span class="row">💳 ${money(b.total, b.currency)}</span>
         </div>
         <span class="status-pill ${b.status}">${icon} ${statusLabel}</span>
       </div>
@@ -1538,11 +1574,11 @@
   }
 
   /* --------------------------------- Profile form ----------------------------- */
-  // NOTE on endpoints below: PUT /users/me, POST /users/profile-picture, and
-  // PUT /users/change-password are assumed to match User_services.py's
+  // Endpoints below matched against main.py's actual route registrations:
+  // PATCH /users/me/update, POST /users/me/profile-picture, and
+  // POST /users/me/change-password (User_services.py's
   // update_user_profile_service / upload_profile_picture_service /
-  // change_password functions. If your router registers these under
-  // different paths or HTTP methods, update the three fetch() calls below.
+  // change_password functions).
   function initProfileForm() {
     const form = $("#profileForm");
     if (!form) return;
@@ -1576,7 +1612,7 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const detail = formatErrorDetail(data.detail);
-          console.error(`PUT /users/me → ${res.status}${detail ? `: ${detail}` : ""}`);
+          console.error(`PATCH /users/me/update → ${res.status}${detail ? `: ${detail}` : ""}`);
           throw new Error(detail || `Couldn't save changes (${res.status})`);
         }
         // Merge the backend's response into state so name/phone/city/avatar
@@ -1621,6 +1657,9 @@
         const url = data.profile_picture_url;
         if (state.currentUser) state.currentUser.profile_picture_url = url;
         if (avatarImg && url) avatarImg.src = url;
+        // Keep the header avatar (next to the notification bell) in sync too.
+        const headerAvatarImg = $(".avatar-btn img");
+        if (headerAvatarImg && url) headerAvatarImg.src = url;
         toast("Photo updated", "Your profile picture has been saved.", "ok");
       } catch (err) {
         console.error("Avatar upload failed:", err);
@@ -1658,7 +1697,11 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const detail = formatErrorDetail(data.detail);
+<<<<<<< HEAD
           console.error(`PUT /users/me/change-password → ${res.status}${detail ? `: ${detail}` : ""}`);
+=======
+          console.error(`POST /users/me/change-password → ${res.status}${detail ? `: ${detail}` : ""}`);
+>>>>>>> b1a868817fa3343ddaa1f42586986d23af03a6f1
           throw new Error(detail || `Couldn't update password (${res.status})`);
         }
         toast("Password changed", "Use your new password next time you log in.", "ok");

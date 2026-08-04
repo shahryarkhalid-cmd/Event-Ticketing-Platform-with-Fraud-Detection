@@ -4,7 +4,7 @@ FROM python:3.13-slim AS builder
 WORKDIR /build
 
 COPY requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
+RUN --mount=type=cache,id=pip-cache,target=/root/.cache/pip \
     pip install --default-timeout=120 --retries 10 --target=/build/deps -r requirements.txt
 
 COPY . .
