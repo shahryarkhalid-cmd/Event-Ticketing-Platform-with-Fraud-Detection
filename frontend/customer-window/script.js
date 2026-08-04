@@ -1713,7 +1713,7 @@
 
     $("#logoutConfirmBtn")?.addEventListener("click", () => {
       localStorage.removeItem("access_token");
-      window.location.href = "../login_sign_in/login.html";
+      window.location.href = "../Homepage/index.html";
     });
   }
 
@@ -1721,8 +1721,8 @@
   /* ---------------------------------- Init ------------------------------------- */
   async function init() {
     if (!localStorage.getItem("access_token")) {
-      window.location.href = "../login_sign_in/login.html";
-      return;
+      // window.location.href = "../login_sign_in/login.html";
+      // return;
     }
 
     try {
@@ -1740,7 +1740,7 @@
     } catch (err) {
       console.error("Couldn't verify session:", err);
       localStorage.removeItem("access_token");
-      window.location.href = "../login_sign_in/login.html";
+      window.location.href = "../Homepage/index.html";
       return;
     }
 

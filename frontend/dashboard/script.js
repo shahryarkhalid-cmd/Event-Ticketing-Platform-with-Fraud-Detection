@@ -1543,7 +1543,7 @@
       closeModal("logoutModal");
       toast("Logging out…");
       localStorage.removeItem("access_token");
-      setTimeout(() => { window.location.href = "../login_sign_in/login.html"; }, 700);
+      setTimeout(() => { window.location.href = "../Homepage/index.html"; }, 700);
     });
 
     // New event buttons
@@ -1724,7 +1724,7 @@
     history.pushState(null, '', location.href);
     window.addEventListener('popstate', () => {
       localStorage.removeItem('access_token');
-      window.location.replace('../login_sign_in/login.html');
+      window.location.replace('../Homepage/index.html');
     });
 
     renderWelcome();
