@@ -1619,13 +1619,17 @@
     });
 
     // Global search -> jump to events view and filter
-    $("#globalSearch").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        $("#eventSearch").value = e.target.value;
-        goTo("events");
-        renderEventsGrid();
-      }
-    });
+    // Global search -> jump to events view and filter
+    const globalSearchEl = $("#globalSearch");
+    if (globalSearchEl) {
+      globalSearchEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          $("#eventSearch").value = e.target.value;
+          goTo("events");
+          renderEventsGrid();
+        }
+      });
+    }
 
     // Bookings search/filter
     const bookingSearch = $("#bookingSearch");
