@@ -2038,6 +2038,11 @@ p {
   color: #B91C1C;
 }
 
+.status-pill.expired {
+  background: #FFEDD5;
+  color: #9A3412;
+}
+
 .status-pill.flagged {
   background: #FEE2E2;
   color: #B91C1C;
@@ -3177,4 +3182,31 @@ p {
   .class-right {
     margin-left: auto;
   }
+}
+/* ---- Pending order auto-cancel countdown (replaces Cancel booking button
+   for unpaid orders, which the backend auto-expires 20 minutes after
+   creation) ---- */
+.expiry-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #FFF7ED;
+  color: #9A3412;
+  font-size: 12.5px;
+  font-weight: 500;
+  border: 1px solid #FED7AA;
+  white-space: nowrap;
+}
+
+.expiry-countdown strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.expiry-countdown.expired {
+  background: #FEE2E2;
+  color: #B91C1C;
+  border-color: #FCA5A5;
 }
