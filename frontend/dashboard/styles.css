@@ -376,6 +376,16 @@ svg {
   transform: translateY(-1px);
 }
 
+
+.icon-btn.danger-btn {
+  color: var(--danger);
+}
+
+.icon-btn.danger-btn:hover {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+
 .icon-btn .dot {
   position: absolute;
   top: 8px;
@@ -2148,6 +2158,8 @@ svg {
     width: 100%;
     justify-content: center;
   }
+
+
 
   .toolbar {
     flex-direction: column;
