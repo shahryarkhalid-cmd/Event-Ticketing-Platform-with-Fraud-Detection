@@ -100,7 +100,9 @@
     if (!res.ok) {
       let detail = "";
       try { detail = await res.text(); } catch (e) { /* ignore */ }
-      throw new Error(`${options.method || "GET"} ${url} → ${res.status}${detail ? `: ${detail}` : ""}`);
+      const err = new Error(`${options.method || "GET"} ${url} → ${res.status}${detail ? `: ${detail}` : ""}`);
+      err.status = res.status; // lets callers branch on e.g. 429 rate-limit vs other failures
+      throw err;
     }
     return res.json();
   }
@@ -323,6 +325,33 @@
       async overview() { return fetchJSON(`${API_BASE}/organizer/revenue/overview`, { headers: authHeaders() }); },
       // GET /organizer/revenue/trend
       async trend() { return fetchJSON(`${API_BASE}/organizer/revenue/trend`, { headers: authHeaders() }); }
+    },
+    users: {
+      // PATCH /users/me/update
+      async updateProfile(payload) {
+        return fetchJSON(`${API_BASE}/users/me/update`, {
+          method: "PATCH",
+          headers: authHeaders(),
+          body: JSON.stringify(payload)
+        });
+      },
+      // POST /users/me/profile-picture — multipart file upload
+      async uploadPicture(file) {
+        const token = localStorage.getItem("access_token");
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch(`${API_BASE}/users/me/profile-picture`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` }, // no Content-Type — browser sets the multipart boundary
+          body: formData
+        });
+        if (!res.ok) {
+          let detail = "";
+          try { const errBody = await res.json(); detail = errBody.detail; } catch (e) { /* ignore */ }
+          throw new Error(detail || `Profile picture upload failed (${res.status})`);
+        }
+        return res.json(); // { profile_picture_url }
+      }
     },
     auth: {
       // GET /users/me — resolves the authenticated user from the JWT.
@@ -1032,7 +1061,13 @@
       goTo("events");
     } catch (err) {
       console.error(err);
-      toast("Couldn't save this event — please check your connection and try again.", "danger");
+      if (err.status === 429) {
+        // Backend's @limiter.limit("5/month") on /publish-event tripped —
+        // this is not the "event was edited" path, so only show it for new events.
+        openModal("eventLimitModal");
+      } else {
+        toast("Couldn't save this event — please check your connection and try again.", "danger");
+      }
     }
   }
 
@@ -1444,11 +1479,64 @@
     document.addEventListener("click", () => $$(".dropdown-wrap.open").forEach(w => w.classList.remove("open")));
 
     // Logout
-    [$("#logoutBtn"), $("#logoutBtn2")].forEach(btn => {
+    [$("#logoutBtn"), $("#logoutBtn2")].filter(Boolean).forEach(btn => {
       btn.addEventListener("click", (e) => {
         e.preventDefault();
         openModal("logoutModal");
       });
+    });
+
+    // Profile picture upload — click the small edit badge to open the file
+    // picker, then upload immediately on selection (mirrors event banner UX).
+    $("#avatarEditBtn")?.addEventListener("click", () => $("#profilePictureInput").click());
+    $("#profilePictureInput")?.addEventListener("change", async () => {
+      const input = $("#profilePictureInput");
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      // Mirrors the backend's own validation (User_services.py) for instant feedback.
+      const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast("Please choose a JPEG, PNG, or WEBP image.", "danger");
+        input.value = "";
+        return;
+      }
+      const MAX_BYTES = 3 * 1024 * 1024; // backend's MAX_SIZE_MB = 3
+      if (file.size > MAX_BYTES) {
+        toast("Image is too large — please choose one under 3MB.", "danger");
+        input.value = "";
+        return;
+      }
+
+      try {
+        const { profile_picture_url } = await api.users.uploadPicture(file);
+        currentUser = { ...currentUser, profile_picture_url };
+        applyOrganizerIdentity(currentUser);
+        toast("Profile picture updated", "success");
+      } catch (err) {
+        console.error(err);
+        toast("Couldn't upload your picture — please try again.", "danger");
+      } finally {
+        input.value = "";
+      }
+    });
+
+    // Save Changes on the Profile page — persists name/phone/company.
+    $("#saveProfileBtn")?.addEventListener("click", async () => {
+      const payload = {
+        full_name: $("#profileNameInput").value.trim(),
+        phone: $("#profilePhoneInput").value.trim(),
+        company: $("#profileCompanyInput").value.trim()
+      };
+      try {
+        const updated = await api.users.updateProfile(payload);
+        currentUser = updated;
+        applyOrganizerIdentity(currentUser);
+        toast("Profile updated successfully", "success");
+      } catch (err) {
+        console.error(err);
+        toast("Couldn't save your changes — please try again.", "danger");
+      }
     });
 
     $("#confirmLogoutBtn").addEventListener("click", () => {
@@ -1580,17 +1668,34 @@
   /* ------------------------------------------------------------------ */
   /* Logged-in organizer identity                                         */
   /* ------------------------------------------------------------------ */
+  // Shows the profile picture <img> if the organizer has uploaded one,
+  // otherwise falls back to the initials badge. Used for both the topbar
+  // chip and the large avatar on the Profile page.
+  function setAvatarDisplay(initialsEl, imgEl, initials, pictureUrl) {
+    if (!initialsEl || !imgEl) return;
+    if (pictureUrl) {
+      imgEl.src = pictureUrl;
+      imgEl.hidden = false;
+      initialsEl.hidden = true;
+    } else {
+      initialsEl.textContent = initials;
+      initialsEl.hidden = false;
+      imgEl.hidden = true;
+    }
+  }
+
   function applyOrganizerIdentity(user) {
     const name = (user && user.full_name) || "Organizer";
     const firstName = name.split(" ")[0];
     const initials = getInitials(name);
+    const pictureUrl = user && user.profile_picture_url;
 
     $("#welcomeName").textContent = `${firstName} 👋`;
-    $("#topbarAvatar").textContent = initials;
+    setAvatarDisplay($("#topbarAvatar"), $("#topbarAvatarImg"), initials, pictureUrl);
     $("#topbarUserName").textContent = name;
-    $("#profileAvatarLarge").textContent = initials;
+    setAvatarDisplay($("#profileAvatarLarge"), $("#profileAvatarImg"), initials, pictureUrl);
     $("#profileNameInput").value = name;
-    $("#profileEmailInput").value = (user && user.email) || "";
+    if ($("#profileEmailInput")) $("#profileEmailInput").value = (user && user.email) || "";
     $("#profilePhoneInput").value = (user && user.phone) || "";
     $("#profileCompanyInput").value = (user && user.company) || "";
   }
