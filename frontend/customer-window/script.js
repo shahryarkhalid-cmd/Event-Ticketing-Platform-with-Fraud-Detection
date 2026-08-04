@@ -1449,14 +1449,14 @@
       return Array.isArray(raw) ? raw.map(mapNotificationFromBackend) : [];
     },
     markNotificationRead: async (id) => {
-      const res = await fetch(`${API_BASE}/notifications/${id}/read`, {
-        method: "PATCH",
+      const res = await fetch(`${API_BASE}/notifications/{notification_id}/read`, {
+        method: "POST",
         headers: authHeaders(),
       });
       if (!res.ok) {
         let detail = "";
         try { const body = await res.json(); detail = formatErrorDetail(body.detail); } catch (e) { /* not JSON */ }
-        console.error(`PATCH /notifications/${id}/read → ${res.status}${detail ? `: ${detail}` : ""}`);
+        console.error(`PATCH /notifications/{notification_id}/read → ${res.status}${detail ? `: ${detail}` : ""}`);
         throw new Error(detail || `Couldn't mark as read (${res.status})`);
       }
     },
@@ -1465,7 +1465,7 @@
     // single-notification delete route, so the UI offers one "clear all"
     // action instead of a per-item delete button.
     clearAllNotifications: async () => {
-      const res = await fetch(`${API_BASE}/notifications`, {
+      const res = await fetch(`${API_BASE}/notifications/delete`, {
         method: "DELETE",
         headers: authHeaders(),
       });
@@ -1568,8 +1568,8 @@
           phone: $("#phoneField")?.value.trim(),
           city: $("#cityField")?.value.trim(),
         };
-        const res = await fetch(`${API_BASE}/users/me`, {
-          method: "PUT",
+        const res = await fetch(`${API_BASE}/users/me/update`, {
+          method: "PATCH",
           headers: authHeaders(),
           body: JSON.stringify(payload),
         });
@@ -1607,7 +1607,7 @@
       try {
         const formData = new FormData();
         formData.append("file", file);
-        const res = await fetch(`${API_BASE}/users/profile-picture`, {
+        const res = await fetch(`${API_BASE}/users/me/profile-picture`, {
           method: "POST",
           headers: authHeadersFormData(),
           body: formData,
@@ -1615,7 +1615,7 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const detail = formatErrorDetail(data.detail);
-          console.error(`POST /users/profile-picture → ${res.status}${detail ? `: ${detail}` : ""}`);
+          console.error(`POST /users/me/profile-picture → ${res.status}${detail ? `: ${detail}` : ""}`);
           throw new Error(detail || `Couldn't upload photo (${res.status})`);
         }
         const url = data.profile_picture_url;
@@ -1647,8 +1647,8 @@
       if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Updating…"; }
 
       try {
-        const res = await fetch(`${API_BASE}/users/change-password`, {
-          method: "PUT",
+        const res = await fetch(`${API_BASE}/users/me/change-password`, {
+          method: "POST",
           headers: authHeaders(),
           body: JSON.stringify({
             current_password: current.value,
@@ -1658,7 +1658,7 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const detail = formatErrorDetail(data.detail);
-          console.error(`PUT /users/change-password → ${res.status}${detail ? `: ${detail}` : ""}`);
+          console.error(`PUT /users/me/change-password → ${res.status}${detail ? `: ${detail}` : ""}`);
           throw new Error(detail || `Couldn't update password (${res.status})`);
         }
         toast("Password changed", "Use your new password next time you log in.", "ok");
