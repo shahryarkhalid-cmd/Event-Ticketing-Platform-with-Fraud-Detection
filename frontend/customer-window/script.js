@@ -1713,7 +1713,7 @@
 
     $("#logoutConfirmBtn")?.addEventListener("click", () => {
       localStorage.removeItem("access_token");
-      window.location.href = "../login_sign_in/login.html";
+      window.location.href = "../Homepage/index.html";
     });
   }
 
@@ -1740,7 +1740,7 @@
     } catch (err) {
       console.error("Couldn't verify session:", err);
       localStorage.removeItem("access_token");
-      window.location.href = "../login_sign_in/login.html";
+      window.location.href = "../Homepage/index.html";
       return;
     }
 
