@@ -234,7 +234,7 @@
       qty,
       total: Number(total) || 0,
       currency,
-      status,
+      status: rawstatus,
       when,
       // Used to work out the 20-minute payment window for pending tickets.
       // Falls back to null when the backend doesn't send it yet — see
