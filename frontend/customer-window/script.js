@@ -525,7 +525,14 @@
       showView(el.dataset.goto);
     });
 
-    showView("home");
+    // Lets other pages deep-link straight into a specific view — used by
+    // payment-result.html so "Go to My Orders" / "Download Your Ticket"
+    // after a successful payment lands directly on My Bookings
+    // (../customer-window/index.html?view=bookings) instead of Home, where
+    // the just-confirmed order's real Download ticket button lives.
+    const availableViews = $$(".view[data-view]").map((v) => v.dataset.view);
+    const requestedView = new URLSearchParams(window.location.search).get("view");
+    showView(availableViews.includes(requestedView) ? requestedView : "home");
   }
 
   /* ------------------------------ Animated counters ------------------------ */
