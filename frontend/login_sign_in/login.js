@@ -148,16 +148,6 @@
     formStatus.classList.toggle('is-error', Boolean(isError));
   }
 
-  /**
-   * Placeholder login handler.
-   * Replace the inside of this function with a real API call, e.g.:
-   *
-   *   const response = await fetch('/api/auth/login', {
-   *     method: 'POST',
-   *     headers: { 'Content-Type': 'application/json' },
-   *     body: JSON.stringify({ email, password })
-   *   });
-   */
   const API_BASE = "https://event-ticketing-platform-with-fraud-detection-production.up.railway.app";
   async function handleLogin(email, password) {
   try {
@@ -180,7 +170,7 @@
     // Find out whether this account already picked a role. First-time
     // users (role_selected === false) go to the role-selection page
     // exactly once; everyone else goes straight to their dashboard.
-    const meResponse = await fetch('http://localhost:8000/users/me', {
+    const meResponse = await fetch(`${API_BASE}/users/me`, {
       headers: { Authorization: `Bearer ${data.access_token}` }
     });
 
@@ -214,12 +204,6 @@
     handleLogin(emailInput.value.trim(), passwordInput.value)
       .then((result) => {
         if (result && result.ok) {
-          // if (!result.roleSelected) {
-          //   showStatus('Login successful — let\'s set up your account…', false);
-          //   window.location.href = '../role/index.html';
-          //   return;
-          // }
-
           if (result.role === 'organizer') {
             showStatus('Login successful — redirecting to your dashboard…', false);
             window.location.href = '../dashboard/dashboard.html';
