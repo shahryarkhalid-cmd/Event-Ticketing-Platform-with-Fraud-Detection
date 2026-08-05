@@ -1491,6 +1491,21 @@
     }
     toggleDropdown("notifBtn");
     toggleDropdown("profileBtn");
+
+    $("#markAllReadBtn")?.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const unread = notifications.filter(n => !n.isRead);
+      if (!unread.length) return;
+      try {
+        await Promise.all(unread.map(n => api.notifications.markRead(n.id)));
+        unread.forEach(n => n.isRead = true);
+        renderNotifications($("#notifList"), notifications.slice(0, 4));
+        renderNotifications($("#notifListFull"), notifications, true);
+      } catch (err) {
+        console.error(err);
+        toast("Couldn't mark all as read.", "danger");
+      }
+    });
     document.addEventListener("click", () => $$(".dropdown-wrap.open").forEach(w => w.classList.remove("open")));
 
     // Logout
