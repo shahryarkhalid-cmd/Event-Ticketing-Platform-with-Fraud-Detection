@@ -105,7 +105,7 @@
   ];
 
   /* ------------------------------ API stubs ------------------------------ */
-  const API_BASE = "http://localhost:8000";
+  const API_BASE = "https://event-ticketing-platform-with-fraud-detection-production.up.railway.app";
 
   function authHeaders() {
     const token = localStorage.getItem("access_token");
@@ -192,24 +192,6 @@
     };
   }
 
-  // Maps the backend's `payment_status` (or `status`) onto the four states
-  // the UI actually knows how to render: "pending", "confirmed", "expired",
-  // "cancelled". This matters because order_expiry.py flips stale pending
-  // orders to payment_status="expired" server-side (via its 20-minute
-  // cutoff cron/job) — that's the source of truth for expiry, not just the
-  // client-side countdown. Any status string this doesn't recognise falls
-  // back to "cancelled" (safest — hides Pay Now / Download rather than
-  // risking showing them for an unknown/unexpected state).
-  function normalizeOrderStatus(raw) {
-    const s = String(raw || "pending").toLowerCase().trim();
-    if (s === "pending" || s === "awaiting_payment") return "pending";
-    if (s === "expired" || s === "timed_out") return "expired";
-    if (["confirmed", "paid", "completed", "success", "successful", "captured"].includes(s)) return "confirmed";
-    if (["cancelled", "canceled", "refunded", "failed", "void"].includes(s)) return "cancelled";
-    console.warn(`Unrecognized order status "${raw}" — treating as cancelled.`);
-    return "cancelled";
-  }
-
   // backend Order -> shape bookingCardHTML()/renderBookings() expect.
   // The exact OrderRead schema isn't visible from the frontend alone, so this
   // reads a handful of plausible field names defensively (mirrors the same
@@ -230,7 +212,7 @@
       : Number(order.quantity ?? order.ticket_quantity ?? 1);
 
     const total = order.total_amount ?? order.amount ?? order.total_price ?? order.total ?? 0;
-    const rawStatus = normalizeOrderStatus(order.status || order.payment_status);
+    const rawStatus = String(order.status || order.payment_status || "pending").toLowerCase();
 
 
     const eventTitle = matchedEvent?.title || order.event?.name || order.event?.title || order.event_name || "Event";
@@ -525,14 +507,7 @@
       showView(el.dataset.goto);
     });
 
-    // Lets other pages deep-link straight into a specific view — used by
-    // payment-result.html so "Go to My Orders" / "Download Your Ticket"
-    // after a successful payment lands directly on My Bookings
-    // (../customer-window/index.html?view=bookings) instead of Home, where
-    // the just-confirmed order's real Download ticket button lives.
-    const availableViews = $$(".view[data-view]").map((v) => v.dataset.view);
-    const requestedView = new URLSearchParams(window.location.search).get("view");
-    showView(availableViews.includes(requestedView) ? requestedView : "home");
+    showView("home");
   }
 
   /* ------------------------------ Animated counters ------------------------ */
@@ -1588,31 +1563,20 @@
   }
 
   function bookingCardHTML(b) {
-    // Backend-confirmed expiry (order_expiry.py already flipped
-    // payment_status="expired" server-side) is authoritative — no need to
-    // wait on the client-side timer for these, they're already over.
-    const isBackendExpired = b.status === "expired";
     const isPendingUpcoming = b.status === "pending" && b.when === "upcoming";
-
     let expiresAt = null;
-    let isExpired = isBackendExpired;
+    let isExpired = false;
     if (isPendingUpcoming) {
       expiresAt = getTicketExpiryTime(b);
       isExpired = Date.now() >= expiresAt;
-      // Local 20-minute window ran out client-side before the backend told
-      // us — treat it as expired right away so Pay Now disappears instantly
-      // instead of waiting on the next fetch from the server.
-      if (isExpired) b.status = "expired";
+      // Booking's 20-minute payment window has run out — treat it as
+      // cancelled everywhere (status pill, filters, etc.), not just in the
+      // little expiry message.
+      if (isExpired) b.status = "cancelled";
     }
 
-    const showExpiryMsg = isPendingUpcoming || isBackendExpired;
-
-    // "expired" reuses the "Cancelled ✕" pill styling/label (matches how
-    // My Bookings should read: a lapsed order simply reads as cancelled),
-    // while still getting its own dedicated expiry line below.
-    const pillStatus = b.status === "expired" ? "cancelled" : b.status;
-    const statusLabel = { confirmed: "Confirmed", pending: "Pending", cancelled: "Cancelled" }[pillStatus] || "Cancelled";
-    const icon = { confirmed: "✓", pending: "…", cancelled: "✕" }[pillStatus] || "✕";
+    const statusLabel = { confirmed: "Confirmed", pending: "Pending", cancelled: "Cancelled" }[b.status];
+    const icon = { confirmed: "✓", pending: "…", cancelled: "✕" }[b.status];
 
     return `
     <div class="booking-card">
@@ -1625,19 +1589,19 @@
           <span class="row">🔢 Qty ${b.qty}</span>
           <span class="row">💳 ${money(b.total, b.currency)}</span>
         </div>
-        <span class="status-pill ${pillStatus}" data-status-pill="${b.id}">${icon} ${statusLabel}</span>
+        <span class="status-pill ${b.status}" data-status-pill="${b.id}">${icon} ${statusLabel}</span>
       </div>
       <div class="booking-actions">
         <div class="qr-box" title="QR placeholder">▦▦▦</div>
         ${isPendingUpcoming && !isExpired ? `<button class="btn btn-success btn-sm" data-paynow="${b.orderId}" data-booking="${b.id}">Pay Now</button>` : ""}
         ${b.status === "confirmed" ? `<button class="btn btn-outline btn-sm" data-download="${b.id}">Download ticket</button>` : ""}
-        ${showExpiryMsg
-        ? `<span class="ticket-expiry-msg${isExpired ? " expired" : ""}" data-booking="${b.id}" data-expires-at="${expiresAt ?? ""}">
+        ${isPendingUpcoming
+        ? `<span class="ticket-expiry-msg${isExpired ? " expired" : ""}" data-booking="${b.id}" data-expires-at="${expiresAt}">
       ${isExpired
           ? "❌ This booking has expired and been cancelled."
           : `⏳ Expires in <span class="expiry-countdown">${formatCountdown(expiresAt - Date.now())}</span> if payment is not completed.`}
    </span>`
-        : ""}
+        : ""} 
       </div>
     </div>`;
   }
@@ -1660,7 +1624,7 @@
           const pill = document.querySelector(`[data-status-pill="${bookingId}"]`);
           if (pill) { pill.className = "status-pill cancelled"; pill.textContent = "✕ Cancelled"; }
           const b = state.bookings.find((x) => x.id === bookingId);
-          if (b) b.status = "expired";
+          if (b) b.status = "cancelled";
         }
       } else {
         const countdownEl = span.querySelector(".expiry-countdown");
