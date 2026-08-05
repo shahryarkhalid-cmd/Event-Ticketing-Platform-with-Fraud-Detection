@@ -257,8 +257,10 @@
 
   refreshBtn.addEventListener('click', () => window.location.reload());
 
-  // "Download Ticket" is a placeholder only, per spec — no handler wired yet.
-  downloadLink.addEventListener('click', (event) => event.preventDefault());
+  // "Download Ticket" now links straight to My Bookings (?view=bookings),
+  // where the real Download ticket button lives for this (now-confirmed)
+  // order — see customer-window/script.js bookingCardHTML(). Nothing to
+  // wire up here beyond the href already on the element.
 
   document.addEventListener('DOMContentLoaded', init);
 })();
