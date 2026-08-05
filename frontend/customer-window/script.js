@@ -1402,7 +1402,11 @@
         <div class="qr-box" title="QR placeholder">▦▦▦</div>
         ${b.status === "pending" ? `<button class="btn btn-success btn-sm" data-paynow="${b.orderId}">Pay Now</button>` : ""}
         <button class="btn btn-outline btn-sm" data-download="${b.id}">Download ticket</button>
-        ${b.status !== "cancelled" && b.when === "upcoming" ? `<button class="btn btn-danger-outline btn-sm" data-cancel="${b.id}">Cancel booking</button>` : ""}
+        ${b.status !== "cancelled" && b.when === "upcoming"
+        ? `<span class="ticket-expiry-msg" data-booking="${b.id}">
+      ⏳ This ticket will expire shortly if payment is not completed.
+   </span>`
+        : ""} 
       </div>
     </div>`;
   }
