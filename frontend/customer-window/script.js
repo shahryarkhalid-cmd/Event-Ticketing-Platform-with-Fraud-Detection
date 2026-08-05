@@ -223,7 +223,11 @@
       total: Number(total) || 0,
       currency,
       status,
-      when
+      when,
+      // Used to work out the 20-minute payment window for pending tickets.
+      // Falls back to null when the backend doesn't send it yet — see
+      // getTicketExpiryTime() below for the fallback behaviour.
+      createdAt: order.created_at || order.createdAt || order.created || null
     };
   }
 
@@ -835,7 +839,7 @@
     el.innerHTML = CITIES.map((c) => `
       <a class="city-tile" href="#" data-goto="browse" data-city-jump="${c.name}">
         <img src="${c.img}" alt="${c.name}" loading="lazy">
-        <div class="city-tile-label"><strong>${c.name}</strong><span>${c.count} events</span></div>
+        <div class="city-tile-label"><strong>${c.name}</strong></div>
       </a>`).join("");
     el.querySelectorAll("[data-city-jump]").forEach((tile) => {
       tile.addEventListener("click", () => {
@@ -1017,7 +1021,8 @@
     const entries = ev.tiers.map((t) => ({ ...t, qty: state.cart[t.id] || 0 })).filter((t) => t.qty > 0);
     const totalQty = entries.reduce((s, t) => s + t.qty, 0);
     const subtotal = entries.reduce((s, t) => s + t.price * t.qty, 0);
-    const fees = subtotal > 0 ? +(subtotal * 0.06).toFixed(2) : 0;
+    // No service/convenience fee is charged — total is just the subtotal.
+    const fees = 0;
     const total = +(subtotal + fees).toFixed(2);
     // All tiers on one event are assumed to share one currency (organizer
     // side already treats it that way) — fall back to the event's currency
@@ -1026,7 +1031,6 @@
 
     $("#sumSubtotal").textContent = money(subtotal, curr);
     $("#sumQty").textContent = String(totalQty);
-    $("#sumFees").textContent = money(fees, curr);
     $("#sumTotal").textContent = money(total, curr);
     // Keep the raw numeric total (and its currency) around so the checkout
     // handler doesn't have to scrape/parse the formatted "PKR 1,234.00"
@@ -1382,9 +1386,92 @@
   }
 
   /* -------------------------------- Bookings -------------------------------- */
+  // Pending tickets have a 20-minute window to be paid for before they expire.
+  const TICKET_EXPIRY_MINUTES = 20;
+  const TICKET_EXPIRY_MS = TICKET_EXPIRY_MINUTES * 60 * 1000;
+
+  // Turns whatever the backend sent for "created at" into a trustworthy
+  // milliseconds-since-epoch value, or null if it can't be trusted.
+  // Guards against the two things that were causing tickets to look expired
+  // the instant they were booked:
+  //   1) the value being unix SECONDS rather than milliseconds (which
+  //      `new Date(x)` would otherwise read as sometime in 1970), and
+  //   2) a timestamp that, once parsed, lands in the future or more than a
+  //      day in the past for a booking the customer is looking at right
+  //      now — a sign the format didn't parse the way we expected.
+  function parseCreatedAt(raw) {
+    if (raw === null || raw === undefined || raw === "") return null;
+    let ms = null;
+    if (typeof raw === "number") {
+      ms = raw < 1e12 ? raw * 1000 : raw; // seconds → ms
+    } else if (typeof raw === "string") {
+      let str = raw.trim();
+      // Many backends (FastAPI/Python included) emit "naive" ISO timestamps
+      // with no timezone info at all, e.g. "2026-08-05T11:00:00.123456" —
+      // meaning UTC, but with nothing on the string saying so. `new Date()`
+      // treats a string like that as LOCAL time, not UTC. For anyone ahead
+      // of UTC (Lahore is UTC+5) that silently shifts "createdAt" hours into
+      // the past, which pushed the 20-minute expiry into the past too and
+      // made the Pay Now button disappear within seconds of booking instead
+      // of after 20 minutes. Fix: if there's no Z / +HH:MM / -HH:MM offset,
+      // assume UTC and say so explicitly before parsing.
+      const hasTimezone = /Z$|[+-]\d{2}:?\d{2}$/.test(str);
+      if (!hasTimezone && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(str)) {
+        str = str.replace(" ", "T") + "Z";
+      }
+      const parsed = new Date(str).getTime();
+      ms = Number.isNaN(parsed) ? null : parsed;
+    }
+    if (ms == null) return null;
+    const now = Date.now();
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    if (ms > now + 60 * 1000 || ms < now - ONE_DAY) return null;
+    return ms;
+  }
+
+  // Works out (and remembers) when the 20-minute countdown for a pending
+  // ticket started. Prefers the real order creation time from the backend;
+  // if that isn't available/trustworthy, falls back to "the first time this
+  // browser saw this pending booking", cached in sessionStorage so the
+  // countdown doesn't reset on refresh.
+  function getTicketExpiryTime(b) {
+    let createdMs = parseCreatedAt(b.createdAt);
+    if (createdMs == null) {
+      const key = `tixora_ticket_created_${b.id}`;
+      const stored = sessionStorage.getItem(key);
+      if (stored) {
+        createdMs = Number(stored);
+      } else {
+        createdMs = Date.now();
+        try { sessionStorage.setItem(key, String(createdMs)); } catch (e) { /* storage unavailable — countdown still works this session */ }
+      }
+    }
+    return createdMs + TICKET_EXPIRY_MS;
+  }
+
+  function formatCountdown(ms) {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const mm = Math.floor(totalSeconds / 60);
+    const ss = totalSeconds % 60;
+    return `${mm}:${String(ss).padStart(2, "0")}`;
+  }
+
   function bookingCardHTML(b) {
+    const isPendingUpcoming = b.status === "pending" && b.when === "upcoming";
+    let expiresAt = null;
+    let isExpired = false;
+    if (isPendingUpcoming) {
+      expiresAt = getTicketExpiryTime(b);
+      isExpired = Date.now() >= expiresAt;
+      // Booking's 20-minute payment window has run out — treat it as
+      // cancelled everywhere (status pill, filters, etc.), not just in the
+      // little expiry message.
+      if (isExpired) b.status = "cancelled";
+    }
+
     const statusLabel = { confirmed: "Confirmed", pending: "Pending", cancelled: "Cancelled" }[b.status];
     const icon = { confirmed: "✓", pending: "…", cancelled: "✕" }[b.status];
+
     return `
     <div class="booking-card">
       <div class="booking-media"><img src="${b.event.banner}" alt="${escapeHTML(b.event.title)}" loading="lazy"></div>
@@ -1396,20 +1483,50 @@
           <span class="row">🔢 Qty ${b.qty}</span>
           <span class="row">💳 ${money(b.total, b.currency)}</span>
         </div>
-        <span class="status-pill ${b.status}">${icon} ${statusLabel}</span>
+        <span class="status-pill ${b.status}" data-status-pill="${b.id}">${icon} ${statusLabel}</span>
       </div>
       <div class="booking-actions">
         <div class="qr-box" title="QR placeholder">▦▦▦</div>
-        ${b.status === "pending" ? `<button class="btn btn-success btn-sm" data-paynow="${b.orderId}">Pay Now</button>` : ""}
+        ${isPendingUpcoming && !isExpired ? `<button class="btn btn-success btn-sm" data-paynow="${b.orderId}" data-booking="${b.id}">Pay Now</button>` : ""}
         <button class="btn btn-outline btn-sm" data-download="${b.id}">Download ticket</button>
-        ${b.status !== "cancelled" && b.when === "upcoming"
-        ? `<span class="ticket-expiry-msg" data-booking="${b.id}">
-      ⏳ This ticket will expire shortly if payment is not completed.
+        ${isPendingUpcoming
+        ? `<span class="ticket-expiry-msg${isExpired ? " expired" : ""}" data-booking="${b.id}" data-expires-at="${expiresAt}">
+      ${isExpired
+          ? "❌ This booking has expired and been cancelled."
+          : `⏳ Expires in <span class="expiry-countdown">${formatCountdown(expiresAt - Date.now())}</span> if payment is not completed.`}
    </span>`
         : ""} 
       </div>
     </div>`;
   }
+
+  // Ticks every second so the "Expires in mm:ss" countdown updates live, and
+  // flips a ticket to the expired/cancelled state (hiding Pay Now, updating
+  // the status pill, showing "has expired") the moment its 20-minute window
+  // runs out — without needing a full re-render of the bookings list.
+  function tickTicketExpiries() {
+    $$(".ticket-expiry-msg[data-expires-at]").forEach((span) => {
+      const expiresAt = Number(span.dataset.expiresAt);
+      const bookingId = span.dataset.booking;
+      const remaining = expiresAt - Date.now();
+      if (remaining <= 0) {
+        if (!span.classList.contains("expired")) {
+          span.classList.add("expired");
+          span.textContent = "❌ This booking has expired and been cancelled.";
+          const payBtn = document.querySelector(`[data-paynow][data-booking="${bookingId}"]`);
+          if (payBtn) payBtn.remove();
+          const pill = document.querySelector(`[data-status-pill="${bookingId}"]`);
+          if (pill) { pill.className = "status-pill cancelled"; pill.textContent = "✕ Cancelled"; }
+          const b = state.bookings.find((x) => x.id === bookingId);
+          if (b) b.status = "cancelled";
+        }
+      } else {
+        const countdownEl = span.querySelector(".expiry-countdown");
+        if (countdownEl) countdownEl.textContent = formatCountdown(remaining);
+      }
+    });
+  }
+  setInterval(tickTicketExpiries, 1000);
 
   function renderBookings() {
     const upcomingEl = $("#upcomingBookings");
