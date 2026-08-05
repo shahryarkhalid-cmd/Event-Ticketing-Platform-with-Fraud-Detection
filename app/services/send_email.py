@@ -1,11 +1,21 @@
 from dotenv import load_dotenv
 load_dotenv()
 import os
+import socket
 import smtplib
 from email.mime.text import MIMEText
 
 GMAIL_ADDRESS = os.environ["GMAIL_ADDRESS"]
 GMAIL_APP_PASSWORD = os.environ["GMAIL_APP_PASSWORD"]
+
+# --- Force IPv4 for outbound SMTP connections ---
+# Railway's containers often can't route outbound IPv6 traffic, and Python's
+# default DNS resolution may return an IPv6 address for smtp.gmail.com,
+# causing "[Errno 101] Network is unreachable". This forces IPv4 only.
+_original_getaddrinfo = socket.getaddrinfo
+def _getaddrinfo_ipv4(host, port, family=0, type=0, proto=0, flags=0):
+    return _original_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+socket.getaddrinfo = _getaddrinfo_ipv4
 
 
 def _send_email(to_email: str, subject: str, html_body: str):
@@ -15,7 +25,7 @@ def _send_email(to_email: str, subject: str, html_body: str):
     msg["To"] = to_email
 
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
             server.starttls()
             server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
             server.sendmail(GMAIL_ADDRESS, [to_email], msg.as_string())
