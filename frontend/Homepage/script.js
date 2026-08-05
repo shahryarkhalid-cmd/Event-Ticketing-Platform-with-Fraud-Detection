@@ -241,7 +241,7 @@
    6. AUTH-GATE FOR PORTAL LINKS (Customer Portal / Organizer Hub)
    ======================================================= */
 function initAuthGate() {
-  const API_BASE = 'http://localhost:8000';
+  const API_BASE = 'https://event-ticketing-platform-with-fraud-detection-production.up.railway.app';
 
   const customerLinks = document.querySelectorAll('a[href*="customer-window"]');
   const organizerLinks = document.querySelectorAll('a[href*="dashboard/dashboard.html"]');

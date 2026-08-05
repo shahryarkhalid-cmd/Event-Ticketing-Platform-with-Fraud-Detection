@@ -22,7 +22,7 @@
 (function () {
   'use strict';
 
-  var API_BASE = 'http://localhost:8000';
+  var API_BASE = 'https://event-ticketing-platform-with-fraud-detection-production.up.railway.app';
   var MIN_PASSWORD_LENGTH = 8;
   var EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   var RESEND_COOLDOWN_S = 60;

@@ -6,7 +6,7 @@
 (function () {
   'use strict';
 
-  var API_BASE = 'http://localhost:8000';
+  var API_BASE = 'https://event-ticketing-platform-with-fraud-detection-production.up.railway.app';
 
   var roleOptions = document.querySelectorAll('.role-option');
   var page = document.querySelector('.page');

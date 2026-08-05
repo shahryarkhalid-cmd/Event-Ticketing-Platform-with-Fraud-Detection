@@ -158,9 +158,10 @@
    *     body: JSON.stringify({ email, password })
    *   });
    */
+  const API_BASE = "https://event-ticketing-platform-with-fraud-detection-production.up.railway.app";
   async function handleLogin(email, password) {
   try {
-    const response = await fetch('http://localhost:8000/auth/login', {
+    const response = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })

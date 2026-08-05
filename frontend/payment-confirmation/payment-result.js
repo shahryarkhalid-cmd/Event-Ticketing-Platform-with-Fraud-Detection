@@ -26,7 +26,7 @@
   // ---------------------------------------------------------
   // Config — adjust API_BASE if the backend isn't on localhost.
   // ---------------------------------------------------------
-  const API_BASE = 'http://localhost:8000';
+  const API_BASE = 'https://event-ticketing-platform-with-fraud-detection-production.up.railway.app';
   const POLL_INTERVAL_MS = 2500;
   const POLL_TIMEOUT_MS = 60000; // stop polling after 60s and show the timeout state
   const DASHBOARD_URL = '../customer-window/index.html';

@@ -201,9 +201,10 @@
    *     yet. So there is no "auto-login right after signup" possible; the user
    *     must verify their email first, then log in for real afterwards.
    */
+  const API_BASE = "https://event-ticketing-platform-with-fraud-detection-production.up.railway.app";
   async function handleSignup(fullname, email, password) {
   try {
-    const response = await fetch('http://localhost:8000/auth/register', {
+    const response = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

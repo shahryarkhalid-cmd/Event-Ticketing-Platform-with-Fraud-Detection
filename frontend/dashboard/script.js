@@ -84,7 +84,7 @@
   /* ------------------------------------------------------------------ */
   /* API layer                                                            */
   /* ------------------------------------------------------------------ */
-  const API_BASE = "http://localhost:8000";
+  const API_BASE = "https://event-ticketing-platform-with-fraud-detection-production.up.railway.app";
 
   function authHeaders() {
     const token = localStorage.getItem("access_token");
