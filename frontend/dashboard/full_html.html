@@ -1043,8 +1043,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
         <div class="panel-head">
           <div>
             <h3>Fraud Detection</h3>
-            <p class="panel-sub">AI-flagged bookings that need a manual review · UI preview, not connected to a live model yet</p>
-          </div>
+                <p class="panel-sub">AI-flagged bookings that need a manual review</p>          </div>
         </div>
 
         <div class="toolbar" id="fraudToolbar">
@@ -2097,15 +2096,18 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
       .map(([label, value], i) => ({ label, value, color: TICKET_COLORS[i % TICKET_COLORS.length] }));
   }
 
-  function renderDashboardCharts() {
-    // mock 7-day revenue trend derived from current total revenue
-    const total = computeStats().revenue || 50000;
-    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const weights = [0.08, 0.1, 0.12, 0.14, 0.18, 0.22, 0.16];
-    const values = weights.map(w => Math.round(total * w));
-    renderLineChart($("#revenueChart"), days, values, (v) => currency(v));
-    renderDonutChart($("#categoryChart"), categorySalesBreakdown());
-  }
+ function renderDashboardCharts() {
+  const total = computeStats().revenue || 50000;
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const weights = [0.08, 0.1, 0.12, 0.14, 0.18, 0.22, 0.16];
+  const values = weights.map(w => Math.round(total * w));
+
+  const revenueChartEl = $("#revenueChart");
+  if (revenueChartEl) renderLineChart(revenueChartEl, days, values, (v) => currency(v));
+
+  const categoryChartEl = $("#categoryChart");
+  if (categoryChartEl) renderDonutChart(categoryChartEl, categorySalesBreakdown());
+}
 
   function renderAnalyticsView() {
     const s = computeStats();
@@ -2200,7 +2202,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
       <td><span class="fraud-status ${r.status}">${FRAUD_STATUS_LABELS[r.status] || r.status}</span></td>
       <td>
         <div class="fraud-actions">
-          <button type="button" data-fraud-action="review" ${r.status === "reviewing" ? "disabled" : ""}>Mark Reviewing</button>
+          <button type="button" data-fraud-action="review" ${r.status === "under_review" ? "disabled" : ""}>Mark Reviewing</button>
           <button type="button" class="confirm" data-fraud-action="confirm">Confirm Fraud</button>
           <button type="button" data-fraud-action="dismiss">Dismiss</button>
         </div>
@@ -2240,6 +2242,7 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
       if (!btn) return;
       const row = e.target.closest("tr[data-id]");
       const record = fraudRecords.find(r => r.id === row.dataset.id);
+      console.log("Looking for:", row.dataset.id, "Available IDs:", fraudRecords.map(r => r.id));
       if (!record) return;
       const action = btn.dataset.fraudAction;
       if (action === "review") record.status = "reviewing";

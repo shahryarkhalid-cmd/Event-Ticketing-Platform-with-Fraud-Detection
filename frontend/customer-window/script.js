@@ -197,14 +197,9 @@
 
     const total = order.total_amount ?? order.amount ?? order.total_price ?? order.total ?? 0;
     const rawStatus = String(order.status || order.payment_status || "pending").toLowerCase();
-    // "expired" is the backend's real status once order_expiry.py's sweep
-    // catches a stale unpaid order (see expire_stale_orders) — it previously
-    // wasn't recognized here and silently fell through to "pending", which
-    // left already-dead orders showing a live Pay Now button forever.
     const status = rawStatus === "paid" || rawStatus === "confirmed" ? "confirmed"
       : (rawStatus === "cancelled" || rawStatus === "canceled" || rawStatus === "failed") ? "cancelled"
-        : rawStatus === "expired" ? "expired"
-          : "pending";
+        : "pending";
 
     const eventTitle = matchedEvent?.title || order.event?.name || order.event?.title || order.event_name || "Event";
     const eventBanner = matchedEvent?.banner || order.event?.banner_url
@@ -217,12 +212,6 @@
 
     const when = eventDate && new Date(eventDate) < new Date(new Date().toDateString()) ? "previous" : "upcoming";
 
-    // Needed to compute the auto-cancel countdown for pending orders — the
-    // backend expires unpaid orders 20 minutes after Order.created_at
-    // (see app/services/order_expiry.py), so the frontend needs this
-    // timestamp to show a live "time left to pay" countdown.
-    const createdAt = order.created_at || order.createdAt || null;
-
     return {
       id: `ORD-${order.id ?? order.order_id ?? ""}`,
       orderId: order.id ?? order.order_id,
@@ -232,8 +221,7 @@
       total: Number(total) || 0,
       currency,
       status,
-      when,
-      createdAt
+      when
     };
   }
 
@@ -349,58 +337,6 @@
   };
   const $ = (sel, ctx = document) => ctx.querySelector(sel);
   const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
-
-  /* ------------------------ Pending order auto-cancel countdown ------------------------ */
-  // Matches the backend's cutoff exactly (app/services/order_expiry.py):
-  // pending orders older than this are released/expired.
-  const ORDER_EXPIRY_MINUTES = 20;
-  // Booking ids we've already triggered a bookings refresh for once their
-  // countdown hit zero — prevents re-fetching on every re-render/tick while
-  // we wait for the backend's own sweep (which runs every 10 min) to catch up.
-  const expiryReconciled = new Set();
-
-  function computeExpiryTime(createdAt) {
-    if (!createdAt) return null;
-    const created = new Date(createdAt);
-    if (Number.isNaN(created.getTime())) return null;
-    return created.getTime() + ORDER_EXPIRY_MINUTES * 60 * 1000;
-  }
-
-  function formatCountdown(msRemaining) {
-    const totalSec = Math.max(0, Math.floor(msRemaining / 1000));
-    const m = Math.floor(totalSec / 60);
-    const s = totalSec % 60;
-    return `${m}:${String(s).padStart(2, "0")}`;
-  }
-
-  function tickExpiryCountdowns() {
-    const now = Date.now();
-    $$(".expiry-countdown[data-expiry]").forEach((el) => {
-      const expiry = Number(el.dataset.expiry);
-      const bookingId = el.dataset.booking;
-      const valEl = el.querySelector("[data-countdown-val]");
-      if (!valEl || Number.isNaN(expiry)) return;
-      const remaining = expiry - now;
-      if (remaining <= 0) {
-        // No digits once the deadline passes — plain text instead of a
-        // "00:00" that looks frozen/broken.
-        if (!el.classList.contains("expired")) {
-          el.innerHTML = "⏳ Ticket will be cancelled soon";
-          el.classList.add("expired");
-        }
-        if (bookingId && !expiryReconciled.has(bookingId)) {
-          expiryReconciled.add(bookingId);
-          // The visual countdown hit zero — refresh from the backend so the
-          // booking reflects its real status once the periodic sweep runs.
-          api.getBookings(state.events)
-            .then((bookings) => { state.bookings = bookings; renderBookings(); })
-            .catch((err) => console.error("Couldn't refresh bookings after expiry:", err));
-        }
-      } else {
-        valEl.textContent = formatCountdown(remaining);
-      }
-    });
-  }
 
   /* ------------------------------ Toasts ---------------------------------- */
   function toast(title, body, kind = "ok") {
@@ -1397,11 +1333,7 @@
     try {
       const orderId = booking.orderId ?? String(booking.id).replace(/^ORD-/, "");
       const tickets = await api.getOrderTickets(orderId);
-      // Tickets only exist once the backend's Stripe webhook has processed
-      // this order (see Payment_services.py's handle_stripe_webhook, which
-      // is the only place ticket_uid rows get created). An empty list here
-      // means that webhook hasn't run for this order yet.
-      if (!tickets.length) throw new Error("No tickets found for this order yet — this shows up once payment is confirmed.");
+      if (!tickets.length) throw new Error("No tickets found for this booking yet.");
 
       // Real PNG QR per real ticket_uid — exactly as many QR codes as
       // physical tickets returned by the backend, never more, never faked.
@@ -1447,8 +1379,8 @@
 
   /* -------------------------------- Bookings -------------------------------- */
   function bookingCardHTML(b) {
-    const statusLabel = { confirmed: "Confirmed", pending: "Pending", cancelled: "Cancelled", expired: "Expired" }[b.status];
-    const icon = { confirmed: "✓", pending: "…", cancelled: "✕", expired: "⏱" }[b.status];
+    const statusLabel = { confirmed: "Confirmed", pending: "Pending", cancelled: "Cancelled" }[b.status];
+    const icon = { confirmed: "✓", pending: "…", cancelled: "✕" }[b.status];
     return `
     <div class="booking-card">
       <div class="booking-media"><img src="${b.event.banner}" alt="${escapeHTML(b.event.title)}" loading="lazy"></div>
@@ -1465,28 +1397,8 @@
       <div class="booking-actions">
         <div class="qr-box" title="QR placeholder">▦▦▦</div>
         ${b.status === "pending" ? `<button class="btn btn-success btn-sm" data-paynow="${b.orderId}">Pay Now</button>` : ""}
-        ${b.status === "confirmed"
-          // Backend only creates real Ticket rows (and therefore QR codes)
-          // once payment_status flips to "paid" inside the Stripe webhook
-          // (see Payment_services.py's handle_stripe_webhook) — pending,
-          // expired, and cancelled orders never have a ticket to download.
-          ? `<button class="btn btn-outline btn-sm" data-download="${b.id}">Download ticket</button>`
-          : ""}
-        ${(() => {
-          if (b.status === "pending") {
-            // Pending orders auto-cancel on the backend exactly 20 minutes
-            // after creation (order_expiry.py) — show a live countdown to
-            // that exact moment instead of a Cancel button, since there's
-            // nothing to manually cancel here.
-            const expiryTime = computeExpiryTime(b.createdAt);
-            return expiryTime
-              ? `<span class="expiry-countdown" data-booking="${b.id}" data-expiry="${expiryTime}">⏳ Ticket will be cancelled in <strong data-countdown-val>--:--</strong></span>`
-              : "";
-          }
-          return b.status !== "cancelled" && b.status !== "expired" && b.when === "upcoming"
-            ? `<button class="btn btn-danger-outline btn-sm" data-cancel="${b.id}">Cancel booking</button>`
-            : "";
-        })()}
+        <button class="btn btn-outline btn-sm" data-download="${b.id}">Download ticket</button>
+        ${b.status !== "cancelled" && b.when === "upcoming" ? `<button class="btn btn-danger-outline btn-sm" data-cancel="${b.id}">Cancel booking</button>` : ""}
       </div>
     </div>`;
   }
@@ -1509,8 +1421,6 @@
       const b = state.bookings.find((x) => x.id === btn.dataset.download);
       if (b) downloadTicketImage(b, btn);
     }));
-
-    tickExpiryCountdowns();
   }
 
   /* ---------------------------- Home reviews (site-wide) -------------------- */
@@ -1575,14 +1485,14 @@
       return Array.isArray(raw) ? raw.map(mapNotificationFromBackend) : [];
     },
     markNotificationRead: async (id) => {
-      const res = await fetch(`${API_BASE}/notifications/${id}/read`, {
-        method: "PATCH",
+      const res = await fetch(`${API_BASE}/notifications/{notification_id}/read`, {
+        method: "POST",
         headers: authHeaders(),
       });
       if (!res.ok) {
         let detail = "";
         try { const body = await res.json(); detail = formatErrorDetail(body.detail); } catch (e) { /* not JSON */ }
-        console.error(`PATCH /notifications/${id}/read → ${res.status}${detail ? `: ${detail}` : ""}`);
+        console.error(`PATCH /notifications/{notification_id}/read → ${res.status}${detail ? `: ${detail}` : ""}`);
         throw new Error(detail || `Couldn't mark as read (${res.status})`);
       }
     },
@@ -1591,7 +1501,7 @@
     // single-notification delete route, so the UI offers one "clear all"
     // action instead of a per-item delete button.
     clearAllNotifications: async () => {
-      const res = await fetch(`${API_BASE}/notifications`, {
+      const res = await fetch(`${API_BASE}/notifications/delete`, {
         method: "DELETE",
         headers: authHeaders(),
       });
@@ -1842,7 +1752,7 @@
 
     $("#logoutConfirmBtn")?.addEventListener("click", () => {
       localStorage.removeItem("access_token");
-      window.location.href = "../login_sign_in/login.html";
+      window.location.href = "../Homepage/index.html";
     });
   }
 
@@ -1850,8 +1760,8 @@
   /* ---------------------------------- Init ------------------------------------- */
   async function init() {
     if (!localStorage.getItem("access_token")) {
-      // window.location.href = "../login_sign_in/login.html";
-      // return;
+      window.location.href = "../login_sign_in/login.html";
+      return;
     }
 
     try {
@@ -1869,7 +1779,7 @@
     } catch (err) {
       console.error("Couldn't verify session:", err);
       localStorage.removeItem("access_token");
-      window.location.href = "../login_sign_in/login.html";
+      window.location.href = "../Homepage/index.html";
       return;
     }
 
@@ -1919,7 +1829,6 @@
     renderNotifications();
     renderHomeReviews();
     initCounters();
-    setInterval(tickExpiryCountdowns, 1000);
 
     $("#globalLoader")?.classList.add("hidden");
   }

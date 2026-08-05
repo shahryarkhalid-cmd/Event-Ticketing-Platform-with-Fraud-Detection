@@ -31,21 +31,34 @@ def get_current_user(token: str = Depends(oauth_scheme), session: Session = Depe
 
 # Registring the User:
 from services.Verification_service import generate_and_send_otp
-def register_user(user : UserCreate , session : Session):
-    hashed_pass = hash_password(user.password)
-    final_user = User(full_name = user.full_name , hashed_password = hashed_pass , email=user.email)
-    
-    existing_email_user = session.exec(select(User).where(User.email == user.email)).first()
-    
+def register_user(user: UserCreate, session: Session):
+    existing_email_user = session.exec(
+        select(User).where(User.email == user.email)
+    ).first()
+
     if existing_email_user:
-        logging.error('Email already exist')
-        raise Email_exist()
+        if existing_email_user.is_verified:
+            logging.error('Email already exists and is verified')
+            raise Email_exist()
+        else:
+            # user registered but never verified — resend OTP instead of blocking
+            generate_and_send_otp(existing_email_user.email)
+            logging.info('Unverified user re-registered, OTP resent')
+            return {'message': 'Account exists but is not verified. A new OTP has been sent.'}
+
+    hashed_pass = hash_password(user.password)
+    final_user = User(
+        full_name=user.full_name,
+        hashed_password=hashed_pass,
+        email=user.email,
+    )
+
     session.add(final_user)
-    session.flush()         
+    session.flush()
     session.refresh(final_user)
     generate_and_send_otp(final_user.email)
-    logging.info('User is added to DB')
-    return {'message':'User added Sucessfully!'}
+    logging.info('User added to DB')
+    return {'message': 'User added successfully! Please verify your email.'}
 
 
 

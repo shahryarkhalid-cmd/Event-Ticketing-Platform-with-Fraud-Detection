@@ -1306,7 +1306,7 @@
   /* ------------------------------------------------------------------ */
   /* Fraud Detection (UI-only, no backend logic)                          */
   /* ------------------------------------------------------------------ */
-  const FRAUD_STATUS_LABELS = { flagged: "Flagged", reviewing: "Under Review", confirmed: "Confirmed Fraud", dismissed: "Dismissed" };
+  const FRAUD_STATUS_LABELS = { fraud_review: "Flagged", under_review: "Under Review", confirmed_fraud: "Confirmed Fraud", dismissed: "Dismissed" };
 
   function riskLevel(score) {
     if (score >= 75) return "high";
@@ -1371,20 +1371,38 @@
   }
 
   function bindFraudTableActions() {
-    $("#fraudTable tbody").addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-fraud-action]");
-      if (!btn) return;
-      const row = e.target.closest("tr[data-id]");
-      const record = fraudRecords.find(r => r.id === row.dataset.id);
-      if (!record) return;
-      const action = btn.dataset.fraudAction;
+  $("#fraudTable tbody").addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-fraud-action]");
+    if (!btn) return;
+    const row = e.target.closest("tr[data-id]");
+    const record = fraudRecords.find(r => r.id == row.dataset.id);
+    if (!record) return;
+    const action = btn.dataset.fraudAction;
+
+    const endpointByAction = {
+      review: "review",
+      confirm: "confirm",
+      dismiss: "dismiss"
+    };
+
+    try {
+      await fetchJSON(`${API_BASE}/organizer/fraud-orders/${record.id}/${endpointByAction[action]}`, {
+        method: "POST",
+        headers: authHeaders()
+      });
+
       if (action === "review") record.status = "reviewing";
       if (action === "confirm") record.status = "confirmed";
       if (action === "dismiss") record.status = "dismissed";
+
       applyFraudFilters();
       toast(`Marked as ${FRAUD_STATUS_LABELS[record.status]}`, action === "confirm" ? "danger" : "success");
-    });
-  }
+    } catch (err) {
+      console.error(err);
+      toast("Couldn't update this record — please try again.", "danger");
+    }
+  });
+}
 
   /* ------------------------------------------------------------------ */
   /* Ticket management view (per-event picker)                            */
@@ -1667,7 +1685,7 @@
     // Form submit / draft / preview
     $("#eventForm").addEventListener("submit", (e) => handleEventSubmit(e, "published"));
     $("#saveDraftBtn").addEventListener("click", (e) => handleEventSubmit(e, "draft"));
-    $("#previewBtn").addEventListener("click", openPreview);
+    $("#previewBtn")?.addEventListener("click", openPreview);
   }
 
   /* ------------------------------------------------------------------ */
