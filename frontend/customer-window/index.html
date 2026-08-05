@@ -821,7 +821,74 @@
         <h3 class="modal-event-title" id="modalEventTitle">Event name</h3>
         <div class="modal-event-date" id="modalEventDate">Date · Venue</div>
         <p class="modal-event-desc" id="modalEventDesc">Description</p>
+        <!-- ===== ELABORATED EVENT INFO ===== -->
+        <div class="event-detail-panel" id="eventDetailInfo">
+          <button type="button" class="event-detail-toggle" id="eventDetailToggle" aria-expanded="false">
+            <span>📋 Event Information</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+          <div class="event-detail-body" id="eventDetailBody">
+            <div class="event-detail-grid">
+              <div class="info-block">
+                <div class="info-block-title">🎫 Event Details</div>
+                <div class="info-line"><span class="info-key">Event ID</span><span class="info-val"
+                    id="infoEventId">—</span></div>
+                <div class="info-line"><span class="info-key">Category</span><span class="info-val"
+                    id="infoCategory">—</span></div>
+                <div class="info-line"><span class="info-key">Status</span><span class="info-val"
+                    id="infoStatus">—</span></div>
+                <div class="info-line"><span class="info-key">Organizer</span><span class="info-val"
+                    id="infoOrganizer">—</span></div>
+              </div>
 
+              <div class="info-block">
+                <div class="info-block-title">📍 Location</div>
+                <div class="info-line"><span class="info-key">Venue</span><span class="info-val" id="infoVenue">—</span>
+                </div>
+                <div class="info-line"><span class="info-key">Address</span><span class="info-val"
+                    id="infoAddress">—</span></div>
+                <div class="info-line"><span class="info-key">City</span><span class="info-val" id="infoCity">—</span>
+                </div>
+                <div class="info-line"><span class="info-key">Country</span><span class="info-val"
+                    id="infoCountry">—</span></div>
+                <div class="info-line"><span class="info-key">Postal Code</span><span class="info-val"
+                    id="infoPostal">—</span></div>
+              </div>
+
+              <div class="info-block">
+                <div class="info-block-title">🕐 Date & Time</div>
+                <div class="info-line"><span class="info-key">Starts</span><span class="info-val"
+                    id="infoStart">—</span></div>
+                <div class="info-line"><span class="info-key">Ends</span><span class="info-val" id="infoEnd">—</span>
+                </div>
+                <div class="info-line"><span class="info-key">Duration</span><span class="info-val"
+                    id="infoDuration">—</span></div>
+              </div>
+
+              <div class="info-block">
+                <div class="info-block-title">🎟️ Capacity</div>
+                <div class="info-line"><span class="info-key">Total Capacity</span><span class="info-val"
+                    id="infoCapacity">—</span></div>
+                <div class="info-line"><span class="info-key">Seats Left</span><span class="info-val"
+                    id="infoSeatsLeft">—</span></div>
+              </div>
+
+              <div class="info-block info-block-full">
+                <div class="info-block-title">📋 Policies & Amenities</div>
+                <div class="info-tags" id="infoPolicies">
+                  <span class="info-tag" id="infoAge">All ages welcome</span>
+                  <span class="info-tag" id="infoDress">Casual</span>
+                  <span class="info-tag" id="infoParking">No parking info</span>
+                  <span class="info-tag" id="infoFood">No food info</span>
+                  <span class="info-tag" id="infoRefund">No refund policy</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- ========================================== -->
         <div class="modal-divider"></div>
 
         <span class="field-label">Select ticket classes &amp; quantities</span>

@@ -159,7 +159,7 @@
       date,
       time,
       venue: evt.venue,
-      address: evt.address,
+      address: evt.address || "",
       description: evt.description || "",
       organizer: "", // no organizer name on Event yet — see note below
       banner: evt.banner_url || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop",
@@ -167,6 +167,20 @@
       currency: lowestTier?.currency || tiers[0]?.currency || "USD",
       seatsLeft: totalRemaining,
       trending: false, // not implemented on backend
+
+      // ===== ELABORATED EVENT FIELDS =====
+      startDateTime: (evt.start_datetime || "").slice(0, 16),
+      endDateTime: (evt.end_datetime || "").slice(0, 16),
+      capacity: evt.max_capacity || 0,
+      status: evt.status || "published",
+      age: evt.age_restriction || "",
+      dresscode: evt.dress_code || "",
+      parking: evt.parking_available || false,
+      food: evt.food_available || false,
+      refund: evt.refund_policy || "",
+      postalCode: evt.postal_code || "",
+      // ====================================
+
       tiers: tiers.map(t => ({
         id: t.id,
         name: t.category_name,
@@ -199,9 +213,7 @@
 
     const total = order.total_amount ?? order.amount ?? order.total_price ?? order.total ?? 0;
     const rawStatus = String(order.status || order.payment_status || "pending").toLowerCase();
-    const status = rawStatus === "paid" || rawStatus === "confirmed" ? "confirmed"
-      : (rawStatus === "cancelled" || rawStatus === "canceled" || rawStatus === "failed") ? "cancelled"
-        : "pending";
+
 
     const eventTitle = matchedEvent?.title || order.event?.name || order.event?.title || order.event_name || "Event";
     const eventBanner = matchedEvent?.banner || order.event?.banner_url
@@ -926,7 +938,101 @@
     const locationStr = [ev.venue, ev.address, ev.city, ev.country].filter(Boolean).join(", ");
     $("#modalEventDate").textContent = `${dateFmt} · ${ev.time} · ${locationStr}`;
     $("#modalEventDesc").textContent = ev.description || `Join ${ev.organizer} for ${ev.title} in ${ev.city}. Mix and match ticket classes and quantities into a single order below.`;
+    // ===== POPULATE ELABORATED EVENT INFO =====
+    const infoEl = $("#eventDetailInfo");
+    if (infoEl) {
+      // Toggle functionality
+      const toggleBtn = $("#eventDetailToggle");
+      const body = $("#eventDetailBody");
+      if (toggleBtn && body) {
+        toggleBtn.setAttribute("aria-expanded", "false");
+        body.classList.remove("open");
+        toggleBtn.onclick = () => {
+          const isOpen = body.classList.toggle("open");
+          toggleBtn.setAttribute("aria-expanded", String(isOpen));
+        };
+      }
 
+      $("#infoEventId").textContent = "#" + ev.id;
+      $("#infoCategory").textContent = ev.category || "General";
+      $("#infoStatus").textContent = (ev.status || "upcoming").replace(/^./, c => c.toUpperCase());
+      $("#infoOrganizer").textContent = ev.organizer || "Tixora Events";
+
+      $("#infoVenue").textContent = ev.venue || "—";
+      $("#infoAddress").textContent = ev.address || "Not specified";
+      $("#infoCity").textContent = ev.city || "—";
+      $("#infoCountry").textContent = ev.country || "—";
+      $("#infoPostal").textContent = ev.postalCode || "—";
+
+      const fmtDT = (dt) => {
+        if (!dt) return "—";
+        const d = new Date(dt);
+        return isNaN(d) ? dt : d.toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+      };
+      $("#infoStart").textContent = fmtDT(ev.startDateTime);
+      $("#infoEnd").textContent = fmtDT(ev.endDateTime);
+
+      const calcDuration = (start, end) => {
+        if (!start || !end) return "—";
+        const s = new Date(start), e = new Date(end);
+        if (isNaN(s) || isNaN(e)) return "—";
+        const diffMs = e - s;
+        const hrs = Math.floor(diffMs / 3600000);
+        const mins = Math.round((diffMs % 3600000) / 60000);
+        if (hrs <= 0 && mins <= 0) return "—";
+        return `${hrs > 0 ? hrs + " hr" + (hrs > 1 ? "s" : "") + " " : ""}${mins > 0 ? mins + " min" : ""}`.trim();
+      };
+      $("#infoDuration").textContent = calcDuration(ev.startDateTime, ev.endDateTime);
+
+      $("#infoCapacity").textContent = (ev.capacity || 0) + " seats";
+      $("#infoSeatsLeft").textContent = (ev.seatsLeft ?? 0) + " seats left";
+
+      // Policies as styled tags
+      const ageEl = $("#infoAge");
+      ageEl.textContent = ev.age ? ev.age + "+" : "All ages welcome";
+      ageEl.className = "info-tag" + (ev.age ? "" : " positive");
+
+      const dressEl = $("#infoDress");
+      dressEl.textContent = ev.dresscode || "Casual";
+      dressEl.className = "info-tag";
+
+      const parkEl = $("#infoParking");
+      if (ev.parking === true) {
+        parkEl.textContent = "✅ Parking available";
+        parkEl.className = "info-tag positive";
+      } else if (ev.parking === false) {
+        parkEl.textContent = "❌ No parking";
+        parkEl.className = "info-tag negative";
+      } else {
+        parkEl.textContent = "Parking info unavailable";
+        parkEl.className = "info-tag";
+      }
+
+      const foodEl = $("#infoFood");
+      if (ev.food === true) {
+        foodEl.textContent = "✅ Food available";
+        foodEl.className = "info-tag positive";
+      } else if (ev.food === false) {
+        foodEl.textContent = "❌ No food";
+        foodEl.className = "info-tag negative";
+      } else {
+        foodEl.textContent = "Food info unavailable";
+        foodEl.className = "info-tag";
+      }
+
+      const refundEl = $("#infoRefund");
+      if (ev.refund && ev.refund.toLowerCase().includes("refund")) {
+        refundEl.textContent = ev.refund;
+        refundEl.className = "info-tag positive";
+      } else if (ev.refund) {
+        refundEl.textContent = ev.refund;
+        refundEl.className = "info-tag negative";
+      } else {
+        refundEl.textContent = "No refund policy";
+        refundEl.className = "info-tag negative";
+      }
+    }
+    // ==========================================
     renderClassList();
     updatePriceSummary();
 
