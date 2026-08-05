@@ -159,6 +159,8 @@
       date,
       time,
       venue: evt.venue,
+      address: evt.address,
+      description: evt.description || "",
       organizer: "", // no organizer name on Event yet — see note below
       banner: evt.banner_url || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop",
       price: lowestPrice,
@@ -921,8 +923,9 @@
     $("#modalBanner").alt = ev.title;
     $("#modalEventTitle").textContent = ev.title;
     const dateFmt = new Date(ev.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-    $("#modalEventDate").textContent = `${dateFmt} · ${ev.time} · ${ev.venue}`;
-    $("#modalEventDesc").textContent = `Join ${ev.organizer} for ${ev.title} in ${ev.city}. Mix and match ticket classes and quantities into a single order below.`;
+    const locationStr = [ev.venue, ev.address, ev.city, ev.country].filter(Boolean).join(", ");
+    $("#modalEventDate").textContent = `${dateFmt} · ${ev.time} · ${locationStr}`;
+    $("#modalEventDesc").textContent = ev.description || `Join ${ev.organizer} for ${ev.title} in ${ev.city}. Mix and match ticket classes and quantities into a single order below.`;
 
     renderClassList();
     updatePriceSummary();
@@ -1084,7 +1087,8 @@
   function goToPaymentSummary(ev, items, totalStr, orderId) {
     document.querySelector('.nav-link[data-view="payment"]')?.click();
     $("#paySummaryEvent").textContent = ev.title;
-    $("#paySummaryMeta").textContent = `${new Date(ev.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ${ev.venue}, ${ev.city}`;
+    const paySummaryLocation = [ev.venue, ev.address, ev.city, ev.country].filter(Boolean).join(", ");
+    $("#paySummaryMeta").textContent = `${new Date(ev.date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} · ${paySummaryLocation}`;
     const totalQty = items.reduce((s, i) => s + i.qty, 0);
     $("#paySummaryQty").textContent = String(totalQty);
     $("#paySummaryTotal").textContent = totalStr;
@@ -1525,10 +1529,9 @@
     list.innerHTML = state.notifications.map((n) => {
       const [icon, bg, fg] = NOTIF_ICON[n.type] || ["🔔", "#EEF2F7", "#334155"];
       return `
-    <div class="notif-item ${n.unread ? "unread" : ""}" data-id="${n.id}">
+      <div class="notif-item ${n.unread ? "unread" : ""}" data-id="${n.id}">
       <div class="notif-icon" style="background:${bg};color:${fg}">${icon}</div>
       <div class="notif-body"><strong>${escapeHTML(n.title)}</strong><p>${escapeHTML(n.body)}</p></div>
-      <span class="notif-time">${escapeHTML(n.time)}</span>
     </div>`;
     }).join("");
     updateNotifBadge();
