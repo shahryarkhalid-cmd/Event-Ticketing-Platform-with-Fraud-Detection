@@ -1488,7 +1488,7 @@
       <div class="booking-actions">
         <div class="qr-box" title="QR placeholder">▦▦▦</div>
         ${isPendingUpcoming && !isExpired ? `<button class="btn btn-success btn-sm" data-paynow="${b.orderId}" data-booking="${b.id}">Pay Now</button>` : ""}
-        <button class="btn btn-outline btn-sm" data-download="${b.id}">Download ticket</button>
+        ${b.status === "confirmed" ? `<button class="btn btn-outline btn-sm" data-download="${b.id}">Download ticket</button>` : ""}
         ${isPendingUpcoming
         ? `<span class="ticket-expiry-msg${isExpired ? " expired" : ""}" data-booking="${b.id}" data-expires-at="${expiresAt}">
       ${isExpired
