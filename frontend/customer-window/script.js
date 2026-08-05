@@ -1747,7 +1747,7 @@
       return Array.isArray(raw) ? raw.map(mapNotificationFromBackend) : [];
     },
     markNotificationRead: async (id) => {
-      const res = await fetch(`${API_BASE}/notifications/{notification_id}/read`, {
+      const res = await fetch(`${API_BASE}/notifications/${id}/read`, {
         method: "POST",
         headers: authHeaders(),
       });
