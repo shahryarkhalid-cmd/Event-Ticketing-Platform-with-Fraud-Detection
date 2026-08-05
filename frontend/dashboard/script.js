@@ -1225,11 +1225,6 @@
     // mock 7-day revenue trend derived from current total revenue (a quick
     // illustrative glance — the Analytics/Revenue tabs pull the real
     // backend-computed trends instead)
-    const total = computeStats().revenue || 50000;
-    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const weights = [0.08, 0.1, 0.12, 0.14, 0.18, 0.22, 0.16];
-    const values = weights.map(w => Math.round(total * w));
-    renderLineChart($("#revenueChart"), days, values, (v) => currency(v));
     renderDonutChart($("#categoryChart"), categorySalesBreakdown());
   }
 
@@ -1335,12 +1330,16 @@
       <td>${riskBadgeHTML(r.riskScore)}</td>
       <td><span class="fraud-status ${r.status}">${FRAUD_STATUS_LABELS[r.status] || r.status}</span></td>
       <td>
-        <div class="fraud-actions">
-          <button type="button" data-fraud-action="review" ${r.status === "reviewing" ? "disabled" : ""}>Mark Reviewing</button>
-          <button type="button" class="confirm" data-fraud-action="confirm">Confirm Fraud</button>
-          <button type="button" data-fraud-action="dismiss">Dismiss</button>
-        </div>
-      </td>
+  ${r.status === "confirmed" || r.status === "dismissed" ? `
+  <div class="fraud-actions">
+    <span class="text-muted" style="font-size:12px;">Action taken</span>
+  </div>` : `
+  <div class="fraud-actions">
+    <button type="button" data-fraud-action="review" ${r.status === "reviewing" ? "disabled" : ""}>Mark Reviewing</button>
+    <button type="button" class="confirm" data-fraud-action="confirm">Confirm Fraud</button>
+    <button type="button" data-fraud-action="dismiss">Dismiss</button>
+  </div>`}
+</td>
     </tr>`;
   }
 
@@ -1371,38 +1370,38 @@
   }
 
   function bindFraudTableActions() {
-  $("#fraudTable tbody").addEventListener("click", async (e) => {
-    const btn = e.target.closest("button[data-fraud-action]");
-    if (!btn) return;
-    const row = e.target.closest("tr[data-id]");
-    const record = fraudRecords.find(r => r.id == row.dataset.id);
-    if (!record) return;
-    const action = btn.dataset.fraudAction;
+    $("#fraudTable tbody").addEventListener("click", async (e) => {
+      const btn = e.target.closest("button[data-fraud-action]");
+      if (!btn) return;
+      const row = e.target.closest("tr[data-id]");
+      const record = fraudRecords.find(r => r.id == row.dataset.id);
+      if (!record) return;
+      const action = btn.dataset.fraudAction;
 
-    const endpointByAction = {
-      review: "review",
-      confirm: "confirm",
-      dismiss: "dismiss"
-    };
+      const endpointByAction = {
+        review: "review",
+        confirm: "confirm",
+        dismiss: "dismiss"
+      };
 
-    try {
-      await fetchJSON(`${API_BASE}/organizer/fraud-orders/${record.id}/${endpointByAction[action]}`, {
-        method: "POST",
-        headers: authHeaders()
-      });
+      try {
+        await fetchJSON(`${API_BASE}/organizer/fraud-orders/${record.id}/${endpointByAction[action]}`, {
+          method: "POST",
+          headers: authHeaders()
+        });
 
-      if (action === "review") record.status = "reviewing";
-      if (action === "confirm") record.status = "confirmed";
-      if (action === "dismiss") record.status = "dismissed";
+        if (action === "review") record.status = "reviewing";
+        if (action === "confirm") record.status = "confirmed";
+        if (action === "dismiss") record.status = "dismissed";
 
-      applyFraudFilters();
-      toast(`Marked as ${FRAUD_STATUS_LABELS[record.status]}`, action === "confirm" ? "danger" : "success");
-    } catch (err) {
-      console.error(err);
-      toast("Couldn't update this record — please try again.", "danger");
-    }
-  });
-}
+        applyFraudFilters();
+        toast(`Marked as ${FRAUD_STATUS_LABELS[record.status]}`, action === "confirm" ? "danger" : "success");
+      } catch (err) {
+        console.error(err);
+        toast("Couldn't update this record — please try again.", "danger");
+      }
+    });
+  }
 
   /* ------------------------------------------------------------------ */
   /* Ticket management view (per-event picker)                            */
