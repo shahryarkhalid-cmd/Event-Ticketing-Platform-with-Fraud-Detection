@@ -192,28 +192,30 @@
   }
 
   codeForm.addEventListener('submit', function (e) {
-    e.preventDefault();
-    var code = getCode();
-    if (code.length !== 6) {
-      codeError.textContent = 'Please enter all 6 digits.';
-      return;
-    }
-    codeError.textContent = '';
-    setLoading(verifyBtn, true);
-    showStatus('Verifying code…', false);
+  e.preventDefault();
+  var code = getCode();
+  if (code.length !== 6) {
+    codeError.textContent = 'Please enter all 6 digits.';
+    return;
+  }
+  codeError.textContent = '';
+  showStatus('', false);
+  setLoading(verifyBtn, true);
+  showStatus('Verifying code…', false);
 
-    verifyResetCode(state.email, code).then(function (result) {
-      setLoading(verifyBtn, false);
-      if (result.ok) {
-        state.resetToken = result.resetToken || '';
-        clearInterval(cooldownTimer);
-        goToStep(2);
-      } else {
-        otpInputs.forEach(function (i) { i.classList.add('is-invalid'); });
-        codeError.textContent = result.message || 'That code isn\u2019t right. Please try again.';
-      }
-    });
+  verifyResetCode(state.email, code).then(function (result) {
+    setLoading(verifyBtn, false);
+    if (result.ok) {
+      state.resetToken = result.resetToken || '';
+      clearInterval(cooldownTimer);
+      goToStep(2);
+    } else {
+      showStatus('', false);
+      otpInputs.forEach(function (i) { i.classList.add('is-invalid'); });
+      codeError.textContent = result.message || 'That code isn\u2019t right. Please try again.';
+    }
   });
+});
 
   /* ---------------------------------------------------
      Step 2 — New password
