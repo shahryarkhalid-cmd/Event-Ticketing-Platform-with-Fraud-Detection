@@ -238,7 +238,7 @@
     overlay.innerHTML =
       '<div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:340px;width:90%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,0.3);">' +
         '<p style="margin:0 0 8px;font-weight:600;color:#001F54;font-size:16px;">Check your email</p>' +
-        '<p style="margin:0 0 20px;color:#555;font-size:14px;">We\u2019ve sent a code to <strong>' + pendingEmail + '</strong>. Don\u2019t see it? Check your spam or junk folder.</p>' +
+        '<p style="margin:0 0 20px;color:#555;font-size:14px;">Put any code combination, as SMTP is restricted in production.</p>' +
         '<button id="email-sent-ok" style="width:100%;padding:10px;border-radius:999px;border:none;background:#001F54;color:#fff;cursor:pointer;">Got it</button>' +
       '</div>';
     document.body.appendChild(overlay);
